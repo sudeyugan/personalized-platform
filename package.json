@@ -1,0 +1,28 @@
+{
+  "name": "yiyu",
+  "version": "2.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.20.0",
+  "scripts": {
+    "dev": "pnpm --filter @yiyu/desktop dev",
+    "tauri:dev": "pnpm --filter @yiyu/desktop tauri:dev",
+    "test": "pnpm --filter @yiyu/desktop test",
+    "verify:quick": "node scripts/project-gates.mjs quick",
+    "verify:ui": "node scripts/project-gates.mjs ui",
+    "verify:full": "node scripts/project-gates.mjs full",
+    "typecheck": "pnpm --filter @yiyu/desktop typecheck",
+    "lint": "pnpm --filter @yiyu/desktop lint",
+    "build": "pnpm --filter @yiyu/desktop build",
+    "tauri:build": "pnpm --filter @yiyu/desktop tauri:build",
+    "docs:sync": "node scripts/project-docs.mjs sync",
+    "docs:test": "node --test scripts/project-docs.test.mjs",
+    "docs:check": "node scripts/project-docs.mjs check",
+    "release:check": "node scripts/project-docs.mjs check-release",
+    "release:build": "node scripts/project-gates.mjs package",
+    "release:prepare": "node scripts/project-docs.mjs release",
+    "release:patch": "node scripts/project-docs.mjs patch full",
+    "release:patch:ui": "node scripts/project-docs.mjs patch ui",
+    "release:accept": "node scripts/project-docs.mjs accept",
+    "milestone:start": "node scripts/project-docs.mjs start"
+  }
+}

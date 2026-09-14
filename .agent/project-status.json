@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "appVersion": "2.0.0",
+  "productBaseline": "0.2",
+  "currentMilestone": "M8",
+  "milestoneStatus": "delivered_pending_manual",
+  "nextMilestone": "M8",
+  "updatedAt": "2026-09-13",
+  "automatedChecks": {
+    "status": "passed",
+    "verifiedAt": "2026-08-19"
+  },
+  "manualAcceptance": {
+    "status": "pending",
+    "items": [
+      "安装后自然体验桌面伙伴、记忆治理、形象与成长；发现问题直接反馈，无固定清单或连续天数要求"
+    ]
+  },
+  "installer": {
+    "path": "apps/desktop/src-tauri/target/release/bundle/nsis/一隅_2.0.0_x64-setup.exe",
+    "sha256": "8DFE0EC15E97ADFC021B6BB77CCC140E0B4111BE876FB47A6F64073D639B5696"
+  },
+  "milestones": [
+    {
+      "id": "M0",
+      "name": "技术验证",
+      "status": "delivered_pending_manual",
+      "evidence": "五份 spike 报告与自动验证；真实 IME/第二窗口原型待验收"
+    },
+    {
+      "id": "M1",
+      "name": "应用骨架",
+      "status": "delivered_pending_manual",
+      "evidence": "Shell、设置、CI 与 NSIS；干净 Windows 安装/卸载待验收"
+    },
+    {
+      "id": "M2",
+      "name": "可靠写作核心",
+      "status": "verified",
+      "evidence": "前端/Rust 门禁、失败路径与 0.1.0 NSIS；桌面交互待验收"
+    },
+    {
+      "id": "M3",
+      "name": "资料与时间线",
+      "status": "verified",
+      "evidence": "交付人物、人物关系、地点、事件、自定义字段、模糊时间、章节锚点、双向引用、写作侧栏资料卡、时间线排序与资料回收站"
+    },
+    {
+      "id": "M4–M5",
+      "name": "图片与数据安全闭环",
+      "status": "verified",
+      "evidence": "交付图片素材与正文图片、可替换 AI 印象图、完整备份恢复、开放格式导入导出和作品级加密，并完成视图分包与安全失败路径验证"
+    },
+    {
+      "id": "M6",
+      "name": "首个长期可用版",
+      "status": "verified",
+      "evidence": "完成首次向导、长期使用帮助、脱敏诊断、稳定性性能基线及正文资料标记/AI 脱敏补丁；仅待自然使用反馈"
+    },
+    {
+      "id": "M7",
+      "name": "氛围与陪伴基础",
+      "status": "verified",
+      "evidence": "交付本地音乐、四层播放上下文、写作伙伴侧栏与逐项权限中心，并完成智能创作、写作工具栏、无框全宽编辑区、可关闭音乐提示和帮助层级反馈补丁"
+    },
+    {
+      "id": "M8",
+      "name": "伙伴成长与桌面形态",
+      "status": "delivered_pending_manual",
+      "evidence": "交付隔离桌面伙伴、可治理记忆、形象草稿确认、动作状态与可回退成长"
+    }
+  ]
+}
