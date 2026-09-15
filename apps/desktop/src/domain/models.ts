@@ -224,10 +224,12 @@ export interface TodoItem {
   note: string
   dueDate?: string
   priority: 'low' | 'medium' | 'high'
+  repeat?: 'none' | 'daily' | 'weekdays' | 'weekly'
   completed: boolean
+  completedDates?: string[]
   createdAt: string
 }
-export interface PlannerData { courses: Course[]; diaryEntries: DiaryEntry[]; todos: TodoItem[] }
+export interface PlannerData { courses: Course[]; diaryEntries: DiaryEntry[]; todos: TodoItem[]; courseImportVersion?: number }
 
 export interface PersonRelation { id: string; fromPersonId: string; toPersonId: string; relationType: string; description: string }
 export interface EntityLink { id: string; sourceType: EntityType; sourceId: string; targetType: EntityType; targetId: string; relationType: 'mentions' | 'occurs_at' | 'involves' | 'related'; anchor?: TextAnchor; createdAt: string }

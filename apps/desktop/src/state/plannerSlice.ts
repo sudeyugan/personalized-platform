@@ -6,7 +6,7 @@ type SetStore = (partial: Partial<LibraryStore>) => void
 const makeId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
 const commit = (data: LibraryData, set: SetStore) => { set({ data }); void libraryRepository.save(data) }
 
-type PlannerActions = 'saveDiaryEntry' | 'addCourse' | 'updateCourse' | 'deleteCourse' | 'addTodo' | 'updateTodo' | 'deleteTodo'
+type PlannerActions = 'saveDiaryEntry' | 'addCourse' | 'updateCourse' | 'deleteCourse' | 'addTodo' | 'updateTodo' | 'toggleTodoForDate' | 'deleteTodo'
 
 export function createPlannerSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, PlannerActions> {
   const updatePlanner = (planner: LibraryData['planner']) => commit({ ...get().data, planner }, set)
@@ -28,16 +28,25 @@ export function createPlannerSlice(get: () => LibraryStore, set: SetStore): Pick
       const planner = get().data.planner
       updatePlanner({ ...planner, courses: planner.courses.filter((course) => course.id !== id) })
     },
-    addTodo: (title) => {
+    addTodo: (title, repeat = 'none') => {
       const clean = title.trim()
       if (!clean) return
       const planner = get().data.planner
-      const todo: TodoItem = { id: makeId('todo'), title: clean, note: '', priority: 'medium', completed: false, createdAt: new Date().toISOString() }
+      const todo: TodoItem = { id: makeId('todo'), title: clean, note: '', priority: 'medium', repeat, completed: false, completedDates: [], createdAt: new Date().toISOString() }
       updatePlanner({ ...planner, todos: [todo, ...planner.todos] })
     },
     updateTodo: (id, changes) => {
       const planner = get().data.planner
       updatePlanner({ ...planner, todos: planner.todos.map((todo) => todo.id === id ? { ...todo, ...changes } : todo) })
+    },
+    toggleTodoForDate: (id, date) => {
+      const planner = get().data.planner
+      updatePlanner({ ...planner, todos: planner.todos.map((todo) => {
+        if (todo.id !== id) return todo
+        if (!todo.repeat || todo.repeat === 'none') return { ...todo, completed: !todo.completed }
+        const completedDates = todo.completedDates ?? []
+        return { ...todo, completedDates: completedDates.includes(date) ? completedDates.filter((item) => item !== date) : [...completedDates, date] }
+      }) })
     },
     deleteTodo: (id) => {
       const planner = get().data.planner

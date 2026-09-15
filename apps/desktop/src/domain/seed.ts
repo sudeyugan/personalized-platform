@@ -1,5 +1,5 @@
 import type { JSONContent } from '@tiptap/react'
-import type { LibraryData } from './models'
+import type { Course, LibraryData } from './models'
 import { countChineseWords } from './wordCount'
 
 const introContent: JSONContent = {
@@ -28,6 +28,22 @@ const introContent: JSONContent = {
 }
 
 const introText = '写在开始之前 这里是只属于你的安静一隅。把记忆慢慢写下来，不必急着成为完整的故事。真正重要的故事，值得被温柔地保存。从一个清晰的画面、一句话，或者一个人的名字开始吧。'
+
+export const importedScheduleCourses: Course[] = [
+  { id: 'course-import-mon-1-practice', title: '专业课程实践', day: 1, period: 1, teacher: '王朝坤', location: '', weeks: '全周', note: '必修' },
+  { id: 'course-import-mon-3-film', title: '电影与政治', day: 1, period: 3, teacher: '张开平', location: '三教2101', weeks: '全周', note: '任选' },
+  { id: 'course-import-mon-3-quantum', title: '量子力学（1）', day: 1, period: 3, teacher: '陈新', location: '五教5205', weeks: '全周', note: '必修' },
+  { id: 'course-import-mon-4-film', title: '电影与政治', day: 1, period: 4, teacher: '张开平', location: '三教2101', weeks: '全周', note: '任选' },
+  { id: 'course-import-tue-2-automata', title: '形式语言与自动机', day: 2, period: 2, teacher: '高跃', location: '五教5201', weeks: '全周', note: '任选' },
+  { id: 'course-import-tue-3-data', title: '数据结构', day: 2, period: 3, teacher: '丁贵广', location: '舜德/经管西楼401', weeks: '全周', note: '必修' },
+  { id: 'course-import-tue-4-data', title: '数据结构', day: 2, period: 4, teacher: '丁贵广', location: '舜德/经管西楼401', weeks: '全周', note: '必修' },
+  { id: 'course-import-tue-6-economics', title: '经济学通论', day: 2, period: 6, teacher: '李稻葵', location: '大礼堂', weeks: '全周', note: '任选' },
+  { id: 'course-import-wed-2-network', title: '计算机网络', day: 3, period: 2, teacher: '杨铮', location: '六教6A116', weeks: '全周', note: '必修' },
+  { id: 'course-import-wed-3-quantum', title: '量子力学（1）', day: 3, period: 3, teacher: '陈新', location: '五教5205', weeks: '全周', note: '必修' },
+  { id: 'course-import-wed-6-art', title: '影视艺术概论与作品赏析', day: 3, period: 6, teacher: '覃川', location: '蒙楼（艺教）多功能厅', weeks: '1-11周', note: '任选' },
+  { id: 'course-import-thu-2-software', title: '软件工程', day: 4, period: 2, teacher: '刘璐', location: '二教403', weeks: '全周', note: '必修' },
+  { id: 'course-import-fri-2-compiler', title: '汇编与编译原理', day: 5, period: 2, teacher: '王朝坤', location: '舜德/经管西楼418', weeks: '全周', note: '必修' },
+]
 
 export function createSeedLibrary(): LibraryData {
   const now = new Date().toISOString()
@@ -89,7 +105,7 @@ export function createSeedLibrary(): LibraryData {
     tracks: [],
     musicContexts: { global: [], works: {}, chapters: {}, focus: [] },
     companion: { name: '小隅', expression: 'calm', appearance: { hair: 'ink', outfit: 'linen' }, desktop: { visible: false }, provider: { providerId: 'mock', endpoint: '', model: 'mock-companion-v1' }, permissions: { workIds: [], chapterIds: [], records: false, musicContext: false }, messages: [], memories: [], personality: { warmth: 60, curiosity: 50, initiative: 30 }, growth: { enabled: false, logs: [] } },
-    planner: { courses: [], diaryEntries: [], todos: [] },
+    planner: { courses: importedScheduleCourses.map((course) => ({ ...course })), diaryEntries: [], todos: [], courseImportVersion: 1 },
     settings: {
       theme: 'warm',
       showRightPanel: true,
@@ -133,6 +149,11 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
   if (!navigationOrder.includes('music')) navigationOrder.splice(Math.max(0, navigationOrder.indexOf('help')), 0, 'music')
   if (!navigationOrder.includes('journal')) navigationOrder.splice(Math.max(1, navigationOrder.indexOf('writing')), 0, 'journal')
   if (!navigationOrder.includes('todos')) navigationOrder.splice(Math.max(2, navigationOrder.indexOf('writing')), 0, 'todos')
+  const storedPlanner = data.planner ?? { courses: [], diaryEntries: [], todos: [] }
+  const courses = storedPlanner.courseImportVersion === 1 ? storedPlanner.courses : [
+    ...storedPlanner.courses,
+    ...importedScheduleCourses.filter((candidate) => !storedPlanner.courses.some((course) => course.day === candidate.day && course.period === candidate.period && course.title === candidate.title)),
+  ]
   return {
     ...data,
     volumes: data.volumes ?? [],
@@ -146,7 +167,7 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
     tracks: data.tracks ?? [],
     musicContexts: { ...seed.musicContexts, ...data.musicContexts, works: data.musicContexts?.works ?? {}, chapters: data.musicContexts?.chapters ?? {} },
     companion: { ...seed.companion, ...data.companion, appearance: { ...seed.companion.appearance, ...data.companion?.appearance }, desktop: { ...seed.companion.desktop, ...data.companion?.desktop }, provider: { ...seed.companion.provider, ...data.companion?.provider }, permissions: { ...seed.companion.permissions, ...data.companion?.permissions }, messages: data.companion?.messages ?? [], memories: data.companion?.memories ?? [], personality: { ...seed.companion.personality, ...data.companion?.personality }, growth: { ...seed.companion.growth, ...data.companion?.growth, logs: data.companion?.growth?.logs ?? [] } },
-    planner: { courses: data.planner?.courses ?? [], diaryEntries: data.planner?.diaryEntries ?? [], todos: data.planner?.todos ?? [] },
+    planner: { courses, diaryEntries: storedPlanner.diaryEntries, todos: storedPlanner.todos.map((todo) => ({ ...todo, repeat: todo.repeat ?? 'none', completedDates: todo.completedDates ?? [] })), courseImportVersion: 1 },
     works: data.works.map((work) => ({ ...work, volumeIds: work.volumeIds ?? [] })),
     settings: {
       ...seed.settings,
