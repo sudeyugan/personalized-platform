@@ -89,6 +89,7 @@ export function createSeedLibrary(): LibraryData {
     tracks: [],
     musicContexts: { global: [], works: {}, chapters: {}, focus: [] },
     companion: { name: '小隅', expression: 'calm', appearance: { hair: 'ink', outfit: 'linen' }, desktop: { visible: false }, provider: { providerId: 'mock', endpoint: '', model: 'mock-companion-v1' }, permissions: { workIds: [], chapterIds: [], records: false, musicContext: false }, messages: [], memories: [], personality: { warmth: 60, curiosity: 50, initiative: 30 }, growth: { enabled: false, logs: [] } },
+    planner: { courses: [], diaryEntries: [], todos: [] },
     settings: {
       theme: 'warm',
       showRightPanel: true,
@@ -100,7 +101,7 @@ export function createSeedLibrary(): LibraryData {
         { id: 'companion', enabled: true, available: true },
       ],
       layoutProfile: 'writing',
-      navigationOrder: ['home', 'writing', 'people', 'places', 'timeline', 'assets', 'music', 'help', 'settings'],
+      navigationOrder: ['home', 'journal', 'todos', 'writing', 'people', 'places', 'timeline', 'assets', 'music', 'help', 'settings'],
       ai: { providerId: 'mock', endpoint: '', model: 'mock-illustration-v1', stylePreset: '温暖手绘' },
       backup: { dailyEnabled: true, directory: '', retentionCount: 14 },
       security: { autoLockMinutes: 15 },
@@ -130,6 +131,8 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
   if (!navigationOrder.includes('assets')) navigationOrder.splice(Math.max(0, navigationOrder.indexOf('settings')), 0, 'assets')
   if (!navigationOrder.includes('help')) navigationOrder.splice(Math.max(0, navigationOrder.indexOf('settings')), 0, 'help')
   if (!navigationOrder.includes('music')) navigationOrder.splice(Math.max(0, navigationOrder.indexOf('help')), 0, 'music')
+  if (!navigationOrder.includes('journal')) navigationOrder.splice(Math.max(1, navigationOrder.indexOf('writing')), 0, 'journal')
+  if (!navigationOrder.includes('todos')) navigationOrder.splice(Math.max(2, navigationOrder.indexOf('writing')), 0, 'todos')
   return {
     ...data,
     volumes: data.volumes ?? [],
@@ -143,6 +146,7 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
     tracks: data.tracks ?? [],
     musicContexts: { ...seed.musicContexts, ...data.musicContexts, works: data.musicContexts?.works ?? {}, chapters: data.musicContexts?.chapters ?? {} },
     companion: { ...seed.companion, ...data.companion, appearance: { ...seed.companion.appearance, ...data.companion?.appearance }, desktop: { ...seed.companion.desktop, ...data.companion?.desktop }, provider: { ...seed.companion.provider, ...data.companion?.provider }, permissions: { ...seed.companion.permissions, ...data.companion?.permissions }, messages: data.companion?.messages ?? [], memories: data.companion?.memories ?? [], personality: { ...seed.companion.personality, ...data.companion?.personality }, growth: { ...seed.companion.growth, ...data.companion?.growth, logs: data.companion?.growth?.logs ?? [] } },
+    planner: { courses: data.planner?.courses ?? [], diaryEntries: data.planner?.diaryEntries ?? [], todos: data.planner?.todos ?? [] },
     works: data.works.map((work) => ({ ...work, volumeIds: work.volumeIds ?? [] })),
     settings: {
       ...seed.settings,

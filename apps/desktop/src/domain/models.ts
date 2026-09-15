@@ -1,7 +1,7 @@
 import type { JSONContent } from '@tiptap/react'
 
 export type ThemeId = 'warm' | 'light' | 'dark'
-export type ViewId = 'home' | 'writing' | 'people' | 'places' | 'timeline' | 'assets' | 'music' | 'help' | 'settings'
+export type ViewId = 'home' | 'journal' | 'todos' | 'writing' | 'people' | 'places' | 'timeline' | 'assets' | 'music' | 'help' | 'settings'
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 export type EntityType = 'chapter' | 'person' | 'place' | 'event'
 export type RecordType = Exclude<EntityType, 'chapter'>
@@ -205,6 +205,30 @@ export interface TimelineEvent {
   deletedAt?: string
 }
 
+export type CourseDay = 1 | 2 | 3 | 4 | 5 | 6 | 7
+export type CoursePeriod = 1 | 2 | 3 | 4 | 5 | 6
+export interface Course {
+  id: string
+  title: string
+  day: CourseDay
+  period: CoursePeriod
+  teacher: string
+  location: string
+  weeks: string
+  note: string
+}
+export interface DiaryEntry { date: string; title: string; content: string; updatedAt: string }
+export interface TodoItem {
+  id: string
+  title: string
+  note: string
+  dueDate?: string
+  priority: 'low' | 'medium' | 'high'
+  completed: boolean
+  createdAt: string
+}
+export interface PlannerData { courses: Course[]; diaryEntries: DiaryEntry[]; todos: TodoItem[] }
+
 export interface PersonRelation { id: string; fromPersonId: string; toPersonId: string; relationType: string; description: string }
 export interface EntityLink { id: string; sourceType: EntityType; sourceId: string; targetType: EntityType; targetId: string; relationType: 'mentions' | 'occurs_at' | 'involves' | 'related'; anchor?: TextAnchor; createdAt: string }
 
@@ -229,6 +253,7 @@ export interface LibraryData {
   tracks: Track[]
   musicContexts: MusicContexts
   companion: CompanionData
+  planner: PlannerData
   settings: {
     theme: ThemeId
     showRightPanel: boolean

@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "appVersion": "2.0.0",
   "productBaseline": "0.2",
-  "currentMilestone": "M8",
-  "milestoneStatus": "delivered_pending_manual",
-  "nextMilestone": "M8",
-  "updatedAt": "2026-09-13",
+  "currentMilestone": "M9",
+  "milestoneStatus": "in_progress",
+  "nextMilestone": "M9",
+  "updatedAt": "2026-09-15",
   "automatedChecks": {
-    "status": "passed",
-    "verifiedAt": "2026-08-19"
+    "status": "pending",
+    "verifiedAt": null
   },
   "manualAcceptance": {
     "status": "pending",
     "items": [
-      "安装后自然体验桌面伙伴、记忆治理、形象与成长；发现问题直接反馈，无固定清单或连续天数要求"
+      "自然体验日记课表联动与待办页面；发现问题直接反馈，无固定清单要求"
     ]
   },
   "installer": {
@@ -68,6 +68,12 @@
       "name": "伙伴成长与桌面形态",
       "status": "delivered_pending_manual",
       "evidence": "交付隔离桌面伙伴、可治理记忆、形象草稿确认、动作状态与可回退成长"
+    },
+    {
+      "id": "M9",
+      "name": "日常记录与规划",
+      "status": "in_progress",
+      "evidence": "正在实现日记与周课表联动、独立待办清单；虚拟形象素材路线暂时搁置"
     }
   ]
 }

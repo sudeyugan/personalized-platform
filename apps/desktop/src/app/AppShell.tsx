@@ -6,6 +6,8 @@ import { libraryRepository, type SearchHit } from '../infrastructure/libraryRepo
 import { PlaybackDock } from '../modules/music/PlaybackDock'
 
 const HomeView = lazy(() => import('../modules/home/HomeView').then((module) => ({ default: module.HomeView })))
+const JournalScheduleView = lazy(() => import('../modules/planner/JournalScheduleView').then((module) => ({ default: module.JournalScheduleView })))
+const TodoView = lazy(() => import('../modules/planner/TodoView').then((module) => ({ default: module.TodoView })))
 const WritingView = lazy(() => import('../modules/writing/WritingView').then((module) => ({ default: module.WritingView })))
 const RecordsView = lazy(() => import('../modules/records/RecordsView').then((module) => ({ default: module.RecordsView })))
 const TimelineView = lazy(() => import('../modules/records/TimelineView').then((module) => ({ default: module.TimelineView })))
@@ -35,6 +37,8 @@ export function AppShell() {
 
   const view = (() => {
     if (activeView === 'home') return <HomeView />
+    if (activeView === 'journal') return <JournalScheduleView />
+    if (activeView === 'todos') return <TodoView />
     if (activeView === 'writing') return <WritingView key={activeChapterId || 'empty'} />
     if (activeView === 'people') return <RecordsView type="people" />
     if (activeView === 'places') return <RecordsView type="places" />

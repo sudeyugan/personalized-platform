@@ -11,6 +11,7 @@ import { backupRepository } from '../infrastructure/backupRepository'
 import { createSecuritySlice } from './securitySlice'
 import { createMusicSlice, resolvePlaybackContext } from './musicSlice'
 import { createCompanionSlice } from './companionSlice'
+import { createPlannerSlice } from './plannerSlice'
 import { formatLocalDate } from '../domain/localDate'
 
 const initialData = createSeedLibrary()
@@ -314,6 +315,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   ...createSecuritySlice(get, set),
   ...createMusicSlice(get, set),
   ...createCompanionSlice(get, set),
+  ...createPlannerSlice(get, set),
 
   setTheme: (theme) => {
     const data = { ...get().data, settings: { ...get().data.settings, theme } }
