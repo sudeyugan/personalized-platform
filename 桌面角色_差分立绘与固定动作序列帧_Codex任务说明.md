@@ -2,6 +2,8 @@
 
 目标：在现有桌面角色项目中实现一套“差分立绘 + 固定动作序列帧”的基础动画系统。当前阶段不接入自动生图、LLM、复杂 Live2D Rig，只完成一个结构清晰、后续可扩展的角色 Runtime。
 
+> 2026-09-15 演进说明：本文前二十四节记录第一版全画布差分设计并继续作为 legacy 格式支持。当前推荐的新角色包改用“局部透明 PNG + Slot 元数据”，详见第二十五节；控制器、状态机和完整动作序列帧规则保持不变。
+
 ## 一、总体目标
 
 角色由两种动画方式组合：
@@ -802,9 +804,9 @@ overlay: blush
 
 ---
 
-## 十八、资源尺寸和坐标必须统一
+## 十八、旧版资源尺寸和坐标必须统一（兼容保留）
 
-这是整个方案非常重要的约束。
+这是第一版 full-canvas 角色包的约束。旧角色仍按本节规则显示；新角色的局部差分应采用第二十五节的 Slot 格式。
 
 所有差分图：
 
@@ -1187,3 +1189,39 @@ Blink    Talk      Emotion
 ```
 
 完成后先使用临时测试素材验证整个 Runtime。
+
+---
+
+## 二十五、局部 Sprite + Slot 元数据
+
+新角色包可以在 character.json 顶层声明 renderer.type: sprite 和通用 slots。眼睛、眉毛、嘴巴、覆盖层等差分资源使用 src + slot，可选 offset 只修正单个资源。
+
+示例：
+
+    {
+      "renderer": { "type": "sprite" },
+      "slots": {
+        "eyes": { "x": 365, "y": 300, "width": 300, "height": 130 },
+        "mouth": { "x": 430, "y": 455, "width": 160, "height": 90 }
+      },
+      "eyes": {
+        "neutral": {
+          "open": { "src": "eyes/open.png", "slot": "eyes" },
+          "half": { "src": "eyes/half.png", "slot": "eyes" },
+          "closed": { "src": "eyes/closed.png", "slot": "eyes" }
+        },
+        "happy": {
+          "open": { "src": "eyes/happy.png", "slot": "eyes", "offset": { "y": -2 } }
+        }
+      }
+    }
+
+- 坐标属于角色逻辑画布，不是桌面窗口绝对坐标；角色整体缩放、呼吸和窗口移动会带着所有层一起变化。
+- Slot 的 width/height 是参考尺寸。局部 PNG 尺寸不一致时开发模式报警，但仍按 PNG 原始尺寸显示。
+- 未声明 Slot 的字符串资源继续在 (0,0) 按完整画布显示；旧 character.json 不要求迁移。
+- 找不到被引用的 Slot 时，开发模式输出明确错误，并安全回退到 (0,0)，不让应用崩溃。
+- 主体和固定动作帧继续使用完整画布；Blink、Mouth、Expression 与 Motion 控制器不读取坐标。
+- 开发构建的设置预览可以显示 Slot 矩形和名称，生产构建默认关闭。
+- 完整示例见 [character-slot.example.json](docs/examples/character-slot.example.json)。
+
+当前 React Runtime 通过 Renderer 注册表选择 sprite 实现。未来可增加并注册 Live2DCharacterRenderer，继续消费同一份 CharacterState，无需改写 CharacterController；本阶段不引入 Cubism SDK。

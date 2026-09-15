@@ -1,0 +1,63 @@
+{
+  "id": "character_001",
+  "name": "Example Character",
+  "canvas": {
+    "width": 1024,
+    "height": 1536
+  },
+  "renderer": {
+    "type": "sprite"
+  },
+  "slots": {
+    "eyes": { "x": 365, "y": 300, "width": 300, "height": 130 },
+    "eyebrows": { "x": 360, "y": 260, "width": 310, "height": 80 },
+    "mouth": { "x": 430, "y": 455, "width": 160, "height": 90 },
+    "faceOverlay": { "x": 330, "y": 270, "width": 370, "height": 300 }
+  },
+  "base": {
+    "body": "base/body.png"
+  },
+  "eyes": {
+    "neutral": {
+      "open": { "src": "eyes/open.png", "slot": "eyes" },
+      "half": { "src": "eyes/half.png", "slot": "eyes" },
+      "closed": { "src": "eyes/closed.png", "slot": "eyes" }
+    },
+    "happy": {
+      "open": { "src": "eyes/happy.png", "slot": "eyes", "offset": { "y": -2 } }
+    },
+    "angry": {
+      "open": { "src": "eyes/angry.png", "slot": "eyes" }
+    }
+  },
+  "brows": {
+    "neutral": { "src": "eyebrows/neutral.png", "slot": "eyebrows" },
+    "happy": { "src": "eyebrows/happy.png", "slot": "eyebrows" },
+    "angry": { "src": "eyebrows/angry.png", "slot": "eyebrows" },
+    "sad": { "src": "eyebrows/sad.png", "slot": "eyebrows" }
+  },
+  "mouth": {
+    "closed": { "src": "mouth/closed.png", "slot": "mouth" },
+    "half": { "src": "mouth/half.png", "slot": "mouth" },
+    "open": { "src": "mouth/open.png", "slot": "mouth" },
+    "smile": { "src": "mouth/smile.png", "slot": "mouth" },
+    "sad": { "src": "mouth/sad.png", "slot": "mouth" }
+  },
+  "overlays": {
+    "blush": { "src": "overlays/blush.png", "slot": "faceOverlay" },
+    "sweat": { "src": "overlays/sweat.png", "slot": "faceOverlay" }
+  },
+  "expressions": {
+    "neutral": { "eye": "neutral", "brow": "neutral", "mouth": "closed" },
+    "happy": { "eye": "happy", "brow": "happy", "mouth": "smile" },
+    "angry": { "eye": "angry", "brow": "angry", "mouth": "closed" },
+    "sad": { "eye": "neutral", "brow": "sad", "mouth": "sad" },
+    "shy": { "eye": "neutral", "brow": "neutral", "mouth": "closed", "overlay": "blush" }
+  },
+  "motions": {
+    "wave": { "directory": "motions/wave", "fps": 10, "loop": false },
+    "nod": { "directory": "motions/nod", "fps": 10, "loop": false },
+    "surprise": { "directory": "motions/surprise", "fps": 12, "loop": false },
+    "sleep": { "directory": "motions/sleep", "fps": 6, "loop": true }
+  }
+}

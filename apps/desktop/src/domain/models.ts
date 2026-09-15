@@ -123,16 +123,31 @@ export interface CompanionMessage { id: string; role: 'user' | 'companion'; cont
 export interface CompanionMemory { id: string; content: string; source: 'manual' | 'conversation'; sourceLabel: string; createdAt: string; updatedAt: string; confidence: number; authorized: boolean; sourceWorkId?: string }
 export interface CompanionPersonality { warmth: number; curiosity: number; initiative: number }
 export interface CompanionGrowthLog { id: string; before: CompanionPersonality; after: CompanionPersonality; reason: string; createdAt: string }
+export interface CharacterSlot {
+  x: number
+  y: number
+  width?: number
+  height?: number
+}
+export interface CharacterSpriteAsset {
+  assetId: string
+  slot?: string
+  offset?: { x?: number; y?: number }
+}
+export type CharacterSpriteReference = string | CharacterSpriteAsset
 export interface CompanionCharacterPackage {
-  version: 1
+  version: 1 | 2
   id: string
   name: string
   canvas: { width: number; height: number }
+  renderer?: { type: 'sprite' }
+  slots?: Record<string, CharacterSlot>
   baseAssetId: string
-  eyes: Record<string, Partial<Record<'open' | 'half' | 'closed', string>>>
-  brows: Record<string, string>
-  mouth: Record<string, string>
-  overlays: Record<string, string>
+  baseSprite?: CharacterSpriteAsset
+  eyes: Record<string, Partial<Record<'open' | 'half' | 'closed', CharacterSpriteReference>>>
+  brows: Record<string, CharacterSpriteReference>
+  mouth: Record<string, CharacterSpriteReference>
+  overlays: Record<string, CharacterSpriteReference>
   expressions: Record<string, { eye: string; brow: string; mouth: string; overlay?: string }>
   motions: Record<string, { frameAssetIds: string[]; fps: number; loop: boolean }>
 }

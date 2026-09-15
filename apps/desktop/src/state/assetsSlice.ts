@@ -1,11 +1,12 @@
 import type { JSONContent } from '@tiptap/react'
-import type { AiGeneration, LibraryData } from '../domain/models'
+import type { AiGeneration, CharacterSpriteReference, LibraryData } from '../domain/models'
 import { assetRepository } from '../infrastructure/assetRepository'
 import { libraryRepository } from '../infrastructure/libraryRepository'
 import type { LibraryStore } from './libraryStoreTypes'
 
 type SetStore = (partial: Partial<LibraryStore>) => void
 const commit = (data: LibraryData, set: SetStore) => { set({ data }); void libraryRepository.save(data) }
+const characterSpriteAssetId = (sprite: CharacterSpriteReference) => typeof sprite === 'string' ? sprite : sprite.assetId
 
 export function createAssetsSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, 'importAsset' | 'updateAsset' | 'trashAsset' | 'restoreAsset' | 'permanentlyDeleteAsset' | 'linkAssetToChapter' | 'setChapterImpression' | 'recordAiGeneration'> {
   return {
@@ -43,10 +44,11 @@ export function referencedAssetIds(data: LibraryData) {
   const character = data.companion.desktop.characterPackage
   if (character) {
     ids.add(character.baseAssetId)
-    Object.values(character.eyes).forEach((states) => Object.values(states).forEach((id) => id && ids.add(id)))
-    Object.values(character.brows).forEach((id) => ids.add(id))
-    Object.values(character.mouth).forEach((id) => ids.add(id))
-    Object.values(character.overlays).forEach((id) => ids.add(id))
+    if (character.baseSprite) ids.add(character.baseSprite.assetId)
+    Object.values(character.eyes).forEach((states) => Object.values(states).forEach((sprite) => sprite && ids.add(characterSpriteAssetId(sprite))))
+    Object.values(character.brows).forEach((sprite) => ids.add(characterSpriteAssetId(sprite)))
+    Object.values(character.mouth).forEach((sprite) => ids.add(characterSpriteAssetId(sprite)))
+    Object.values(character.overlays).forEach((sprite) => ids.add(characterSpriteAssetId(sprite)))
     Object.values(character.motions).forEach((motion) => motion.frameAssetIds.forEach((id) => ids.add(id)))
   }
   return ids
