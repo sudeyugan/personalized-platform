@@ -1,7 +1,7 @@
 import type { JSONContent } from '@tiptap/react'
 
 export type ThemeId = 'warm' | 'light' | 'dark'
-export type ViewId = 'home' | 'journal' | 'todos' | 'writing' | 'people' | 'places' | 'timeline' | 'assets' | 'music' | 'help' | 'settings'
+export type ViewId = 'home' | 'calendar' | 'todos' | 'writing' | 'diary' | 'people' | 'places' | 'timeline' | 'assets' | 'music' | 'help' | 'settings'
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 export type EntityType = 'chapter' | 'person' | 'place' | 'event'
 export type RecordType = Exclude<EntityType, 'chapter'>
@@ -281,5 +281,6 @@ export interface LibraryData {
     activeRecord?: EntityRef
     pinnedRecord?: EntityRef
     currentTrackId?: string
+    activeDiaryDate?: string
   }
 }

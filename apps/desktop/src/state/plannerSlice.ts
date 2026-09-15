@@ -6,11 +6,15 @@ type SetStore = (partial: Partial<LibraryStore>) => void
 const makeId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
 const commit = (data: LibraryData, set: SetStore) => { set({ data }); void libraryRepository.save(data) }
 
-type PlannerActions = 'saveDiaryEntry' | 'addCourse' | 'updateCourse' | 'deleteCourse' | 'addTodo' | 'updateTodo' | 'toggleTodoForDate' | 'deleteTodo'
+type PlannerActions = 'saveDiaryEntry' | 'openDiary' | 'addCourse' | 'updateCourse' | 'deleteCourse' | 'addTodo' | 'updateTodo' | 'toggleTodoForDate' | 'deleteTodo'
 
 export function createPlannerSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, PlannerActions> {
   const updatePlanner = (planner: LibraryData['planner']) => commit({ ...get().data, planner }, set)
   return {
+    openDiary: (date) => {
+      const current = get().data
+      commit({ ...current, session: { ...current.session, activeView: 'diary', activeDiaryDate: date } }, set)
+    },
     saveDiaryEntry: (entry: DiaryEntry) => {
       const planner = get().data.planner
       const exists = planner.diaryEntries.some((item) => item.date === entry.date)

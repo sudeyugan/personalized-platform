@@ -11,6 +11,7 @@ import './styles/tokens.css'
 import './styles/layout.css'
 import './styles/components.css'
 import './styles/planner.css'
+import './styles/diary.css'
 
 export default function App() {
   return new URLSearchParams(window.location.search).has('companion') ? <DesktopCompanionWindow /> : <MainApp />

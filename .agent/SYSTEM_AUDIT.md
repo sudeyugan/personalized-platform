@@ -79,3 +79,10 @@
 - 数据兼容：稳定课程 ID 和 courseImportVersion 防止重复迁移；已有手工课程按星期、节次和标题保留并去重。重复待办旧数据补 repeat=none 与空 completedDates。
 - 范围控制：仅增加每天、工作日、每周三种重复方式及今日完成语义，不引入项目、标签、子任务、提醒服务或复杂重复规则。
 - 验证：TypeScript、生产 Web、Rust Release 和 NSIS 本地构建成功；未运行 lint 或测试，继续以自然体验为主要反馈方式。
+
+### 2026-09-15：日历与日记职责拆分审查
+
+- 决定：日历/课表继续属于日常规划，日记独立归入创作空间；两者只通过所选日期和 diaryEntries 关联。
+- 兼容：旧 journal 视图与导航顺序归一化为 calendar，已有日记内容不改写；日记随写作模块显隐。
+- 结构：拆成 CalendarScheduleView、DiaryView 与共享 scheduleConstants，避免时间管理和正文编辑继续堆叠在单组件中。
+- 验证：TypeScript 检查通过；未运行 lint、测试、Rust 或安装包构建。

@@ -117,7 +117,7 @@ export function createSeedLibrary(): LibraryData {
         { id: 'companion', enabled: true, available: true },
       ],
       layoutProfile: 'writing',
-      navigationOrder: ['home', 'journal', 'todos', 'writing', 'people', 'places', 'timeline', 'assets', 'music', 'help', 'settings'],
+      navigationOrder: ['home', 'calendar', 'todos', 'writing', 'diary', 'people', 'places', 'timeline', 'assets', 'music', 'help', 'settings'],
       ai: { providerId: 'mock', endpoint: '', model: 'mock-illustration-v1', stylePreset: '温暖手绘' },
       backup: { dailyEnabled: true, directory: '', retentionCount: 14 },
       security: { autoLockMinutes: 15 },
@@ -143,11 +143,12 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
     const merged = stored ? { ...defaultModule, ...stored } : defaultModule
     return merged.id === 'music' || merged.id === 'companion' ? { ...merged, available: true } : merged
   })
-  const navigationOrder = [...(data.settings.navigationOrder ?? seed.settings.navigationOrder)]
+  const navigationOrder = [...new Set((data.settings.navigationOrder ?? seed.settings.navigationOrder).map((view) => (view as string) === 'journal' ? 'calendar' as const : view))]
   if (!navigationOrder.includes('assets')) navigationOrder.splice(Math.max(0, navigationOrder.indexOf('settings')), 0, 'assets')
   if (!navigationOrder.includes('help')) navigationOrder.splice(Math.max(0, navigationOrder.indexOf('settings')), 0, 'help')
   if (!navigationOrder.includes('music')) navigationOrder.splice(Math.max(0, navigationOrder.indexOf('help')), 0, 'music')
-  if (!navigationOrder.includes('journal')) navigationOrder.splice(Math.max(1, navigationOrder.indexOf('writing')), 0, 'journal')
+  if (!navigationOrder.includes('calendar')) navigationOrder.splice(1, 0, 'calendar')
+  if (!navigationOrder.includes('diary')) navigationOrder.splice(Math.max(0, navigationOrder.indexOf('people')), 0, 'diary')
   if (!navigationOrder.includes('todos')) navigationOrder.splice(Math.max(2, navigationOrder.indexOf('writing')), 0, 'todos')
   const storedPlanner = data.planner ?? { courses: [], diaryEntries: [], todos: [] }
   const courses = storedPlanner.courseImportVersion === 1 ? storedPlanner.courses : [
@@ -183,6 +184,7 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
     session: {
       ...seed.session,
       ...data.session,
+      activeView: (data.session.activeView as string) === 'journal' ? 'calendar' : data.session.activeView,
       focusMode: data.session.focusMode ?? false,
       cursorByChapter: data.session.cursorByChapter ?? {},
       scrollByChapter: data.session.scrollByChapter ?? {},

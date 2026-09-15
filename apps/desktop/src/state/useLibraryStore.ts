@@ -366,7 +366,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     if (!module?.available) return
     const modules = current.settings.modules.map((item) => item.id === moduleId ? { ...item, enabled: !item.enabled } : item)
     const hidesActiveView = module.enabled && (
-      (moduleId === 'writing' && ['writing', 'people', 'places', 'timeline', 'assets'].includes(current.session.activeView))
+      (moduleId === 'writing' && ['writing', 'diary', 'people', 'places', 'timeline', 'assets'].includes(current.session.activeView))
       || (moduleId === 'music' && current.session.activeView === 'music')
     )
     const session = hidesActiveView

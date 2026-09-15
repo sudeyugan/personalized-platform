@@ -7,6 +7,7 @@ describe('library compatibility normalization', () => {
     const legacy = createSeedLibrary()
     const originalText = legacy.chapters['chapter-welcome'].plainText
     legacy.settings.navigationOrder = ['home', 'writing', 'people', 'places', 'timeline', 'settings']
+    ;(legacy.session as unknown as { activeView: string }).activeView = 'journal'
     delete (legacy as Partial<LibraryData>).assets
     delete (legacy as Partial<LibraryData>).aiGenerations
     delete (legacy as Partial<LibraryData>).tracks
@@ -17,7 +18,8 @@ describe('library compatibility normalization', () => {
     const upgraded = normalizeLibrary(legacy)
 
     expect(upgraded.chapters['chapter-welcome'].plainText).toBe(originalText)
-    expect(upgraded.settings.navigationOrder).toEqual(['home', 'writing', 'people', 'places', 'timeline', 'assets', 'music', 'help', 'settings'])
+    expect(upgraded.settings.navigationOrder).toEqual(['home', 'calendar', 'todos', 'writing', 'diary', 'people', 'places', 'timeline', 'assets', 'music', 'help', 'settings'])
+    expect(upgraded.session.activeView).toBe('calendar')
     expect(upgraded.assets).toEqual([])
     expect(upgraded.aiGenerations).toEqual([])
     expect(upgraded.tracks).toEqual([])
