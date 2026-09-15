@@ -1,4 +1,4 @@
-import type { Course, DiaryEntry, LibraryData, TodoItem } from '../domain/models'
+import type { CalendarEvent, Course, DiaryEntry, LibraryData, TodoItem } from '../domain/models'
 import { libraryRepository } from '../infrastructure/libraryRepository'
 import type { LibraryStore } from './libraryStoreTypes'
 
@@ -6,7 +6,7 @@ type SetStore = (partial: Partial<LibraryStore>) => void
 const makeId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
 const commit = (data: LibraryData, set: SetStore) => { set({ data }); void libraryRepository.save(data) }
 
-type PlannerActions = 'saveDiaryEntry' | 'openDiary' | 'addCourse' | 'updateCourse' | 'deleteCourse' | 'addTodo' | 'updateTodo' | 'toggleTodoForDate' | 'deleteTodo'
+type PlannerActions = 'saveDiaryEntry' | 'openDiary' | 'addCourse' | 'updateCourse' | 'deleteCourse' | 'addCalendarEvent' | 'deleteCalendarEvent' | 'addTodo' | 'updateTodo' | 'toggleTodoForDate' | 'deleteTodo'
 
 export function createPlannerSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, PlannerActions> {
   const updatePlanner = (planner: LibraryData['planner']) => commit({ ...get().data, planner }, set)
@@ -32,11 +32,22 @@ export function createPlannerSlice(get: () => LibraryStore, set: SetStore): Pick
       const planner = get().data.planner
       updatePlanner({ ...planner, courses: planner.courses.filter((course) => course.id !== id) })
     },
-    addTodo: (title, repeat = 'none') => {
-      const clean = title.trim()
+    addCalendarEvent: (event: Omit<CalendarEvent, 'id'>) => {
+      const clean = event.title.trim()
       if (!clean) return
       const planner = get().data.planner
-      const todo: TodoItem = { id: makeId('todo'), title: clean, note: '', priority: 'medium', repeat, completed: false, completedDates: [], createdAt: new Date().toISOString() }
+      updatePlanner({ ...planner, calendarEvents: [...planner.calendarEvents, { ...event, title: clean, id: makeId('calendar-event') }] })
+    },
+    deleteCalendarEvent: (id) => {
+      const planner = get().data.planner
+      updatePlanner({ ...planner, calendarEvents: planner.calendarEvents.filter((event) => event.id !== id) })
+    },
+    addTodo: (draft) => {
+      const clean = draft.title.trim()
+      if (!clean) return
+      const planner = get().data.planner
+      const repeat = draft.repeat ?? 'none'
+      const todo: TodoItem = { id: makeId('todo'), title: clean, note: '', priority: 'medium', repeat, dueDate: repeat === 'none' ? draft.dueDate : undefined, repeatDays: repeat === 'weekly' ? draft.repeatDays : undefined, completed: false, completedDates: [], createdAt: new Date().toISOString() }
       updatePlanner({ ...planner, todos: [todo, ...planner.todos] })
     },
     updateTodo: (id, changes) => {

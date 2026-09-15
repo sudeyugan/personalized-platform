@@ -218,18 +218,33 @@ export interface Course {
   note: string
 }
 export interface DiaryEntry { date: string; title: string; content: string; updatedAt: string }
+export interface CalendarEvent {
+  id: string
+  title: string
+  date: string
+  time?: string
+  note?: string
+}
 export interface TodoItem {
   id: string
   title: string
   note: string
   dueDate?: string
   priority: 'low' | 'medium' | 'high'
-  repeat?: 'none' | 'daily' | 'weekdays' | 'weekly'
+  repeat?: 'none' | 'daily' | 'weekly' | 'weekdays'
+  repeatDays?: CourseDay[]
   completed: boolean
   completedDates?: string[]
   createdAt: string
 }
-export interface PlannerData { courses: Course[]; diaryEntries: DiaryEntry[]; todos: TodoItem[]; courseImportVersion?: number }
+export interface PlannerData {
+  courses: Course[]
+  diaryEntries: DiaryEntry[]
+  todos: TodoItem[]
+  calendarEvents: CalendarEvent[]
+  term: { startDate: string; totalWeeks: number }
+  courseImportVersion?: number
+}
 
 export interface PersonRelation { id: string; fromPersonId: string; toPersonId: string; relationType: string; description: string }
 export interface EntityLink { id: string; sourceType: EntityType; sourceId: string; targetType: EntityType; targetId: string; relationType: 'mentions' | 'occurs_at' | 'involves' | 'related'; anchor?: TextAnchor; createdAt: string }

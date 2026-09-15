@@ -1,5 +1,5 @@
 import type { JSONContent } from '@tiptap/react'
-import type { Course, LibraryData } from './models'
+import type { Course, CourseDay, LibraryData, TodoItem } from './models'
 import { countChineseWords } from './wordCount'
 
 const introContent: JSONContent = {
@@ -105,7 +105,7 @@ export function createSeedLibrary(): LibraryData {
     tracks: [],
     musicContexts: { global: [], works: {}, chapters: {}, focus: [] },
     companion: { name: '小隅', expression: 'calm', appearance: { hair: 'ink', outfit: 'linen' }, desktop: { visible: false }, provider: { providerId: 'mock', endpoint: '', model: 'mock-companion-v1' }, permissions: { workIds: [], chapterIds: [], records: false, musicContext: false }, messages: [], memories: [], personality: { warmth: 60, curiosity: 50, initiative: 30 }, growth: { enabled: false, logs: [] } },
-    planner: { courses: importedScheduleCourses.map((course) => ({ ...course })), diaryEntries: [], todos: [], courseImportVersion: 1 },
+    planner: { courses: importedScheduleCourses.map((course) => ({ ...course })), diaryEntries: [], todos: [], calendarEvents: [], term: { startDate: '2026-09-14', totalWeeks: 16 }, courseImportVersion: 1 },
     settings: {
       theme: 'warm',
       showRightPanel: true,
@@ -150,7 +150,7 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
   if (!navigationOrder.includes('calendar')) navigationOrder.splice(1, 0, 'calendar')
   if (!navigationOrder.includes('diary')) navigationOrder.splice(Math.max(0, navigationOrder.indexOf('people')), 0, 'diary')
   if (!navigationOrder.includes('todos')) navigationOrder.splice(Math.max(2, navigationOrder.indexOf('writing')), 0, 'todos')
-  const storedPlanner = data.planner ?? { courses: [], diaryEntries: [], todos: [] }
+  const storedPlanner = data.planner ?? { courses: [], diaryEntries: [], todos: [], calendarEvents: [], term: seed.planner.term }
   const courses = storedPlanner.courseImportVersion === 1 ? storedPlanner.courses : [
     ...storedPlanner.courses,
     ...importedScheduleCourses.filter((candidate) => !storedPlanner.courses.some((course) => course.day === candidate.day && course.period === candidate.period && course.title === candidate.title)),
@@ -168,7 +168,20 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
     tracks: data.tracks ?? [],
     musicContexts: { ...seed.musicContexts, ...data.musicContexts, works: data.musicContexts?.works ?? {}, chapters: data.musicContexts?.chapters ?? {} },
     companion: { ...seed.companion, ...data.companion, appearance: { ...seed.companion.appearance, ...data.companion?.appearance }, desktop: { ...seed.companion.desktop, ...data.companion?.desktop }, provider: { ...seed.companion.provider, ...data.companion?.provider }, permissions: { ...seed.companion.permissions, ...data.companion?.permissions }, messages: data.companion?.messages ?? [], memories: data.companion?.memories ?? [], personality: { ...seed.companion.personality, ...data.companion?.personality }, growth: { ...seed.companion.growth, ...data.companion?.growth, logs: data.companion?.growth?.logs ?? [] } },
-    planner: { courses, diaryEntries: storedPlanner.diaryEntries, todos: storedPlanner.todos.map((todo) => ({ ...todo, repeat: todo.repeat ?? 'none', completedDates: todo.completedDates ?? [] })), courseImportVersion: 1 },
+    planner: {
+      courses,
+      diaryEntries: storedPlanner.diaryEntries,
+      calendarEvents: storedPlanner.calendarEvents ?? [],
+      term: storedPlanner.term ?? seed.planner.term,
+      todos: storedPlanner.todos.map((todo) => {
+        const legacyRepeat = todo.repeat as TodoItem['repeat']
+        const repeat = legacyRepeat === 'weekdays' ? 'weekly' : legacyRepeat ?? 'none'
+        const reference = todo.dueDate ? new Date(`${todo.dueDate}T12:00:00`) : new Date(todo.createdAt)
+        const referenceDay = (reference.getDay() || 7) as CourseDay
+        return { ...todo, repeat, repeatDays: todo.repeatDays ?? (legacyRepeat === 'weekdays' ? [1, 2, 3, 4, 5] : repeat === 'weekly' ? [referenceDay] : undefined), completedDates: todo.completedDates ?? [] }
+      }),
+      courseImportVersion: 1,
+    },
     works: data.works.map((work) => ({ ...work, volumeIds: work.volumeIds ?? [] })),
     settings: {
       ...seed.settings,

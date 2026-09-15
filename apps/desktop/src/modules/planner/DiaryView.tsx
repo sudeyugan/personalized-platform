@@ -2,7 +2,7 @@ import { CalendarDays, Save } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { formatLocalDate } from '../../domain/localDate'
 import { useLibraryStore } from '../../state/useLibraryStore'
-import { dayNumber } from './plannerDates'
+import { courseOccursOn, dayNumber } from './plannerDates'
 import { scheduleDays, schedulePeriods } from './scheduleConstants'
 
 export function DiaryView() {
@@ -13,7 +13,7 @@ export function DiaryView() {
   const [content, setContent] = useState(storedEntry?.content ?? '')
   const [saved, setSaved] = useState(false)
   const weekday = dayNumber(date)
-  const courses = data.planner.courses.filter((course) => course.day === weekday).sort((a, b) => a.period - b.period)
+  const courses = data.planner.courses.filter((course) => courseOccursOn(course, date, data.planner.term)).sort((a, b) => a.period - b.period)
 
   useEffect(() => { setTitle(storedEntry?.title ?? ''); setContent(storedEntry?.content ?? ''); setSaved(false) }, [date, storedEntry?.title, storedEntry?.content])
   useEffect(() => { openDiary(date) }, [date, openDiary])
