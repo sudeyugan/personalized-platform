@@ -5,7 +5,7 @@
   "currentMilestone": "M9",
   "milestoneStatus": "in_progress",
   "nextMilestone": "M9",
-  "updatedAt": "2026-09-15",
+  "updatedAt": "2026-09-16",
   "automatedChecks": {
     "status": "pending",
     "verifiedAt": null
@@ -13,12 +13,12 @@
   "manualAcceptance": {
     "status": "pending",
     "items": [
-      "自然体验日记课表联动与待办页面；发现问题直接反馈，无固定清单要求"
+      "自然体验日历事务、16 周课表、独立日记与重复待办统计；发现问题直接反馈，无固定清单要求"
     ]
   },
   "installer": {
     "path": "apps/desktop/src-tauri/target/release/bundle/nsis/一隅_2.0.0_x64-setup.exe",
-    "sha256": "8DFE0EC15E97ADFC021B6BB77CCC140E0B4111BE876FB47A6F64073D639B5696"
+    "sha256": "14EC6D4B3140F503FD518CC1B34599458C10AFABB78DB3EA09391566DE1ABFD0"
   },
   "milestones": [
     {
@@ -73,7 +73,7 @@
       "id": "M9",
       "name": "日常记录与规划",
       "status": "in_progress",
-      "evidence": "正在实现日记与周课表联动、独立待办清单；虚拟形象素材路线暂时搁置"
+      "evidence": "日历事务、截图课表与 16 周过滤、创作空间日记、每日/每周待办统计已实现；本地 NSIS 候选包已构建，待自然体验，未完成正式门禁"
     }
   ]
 }
