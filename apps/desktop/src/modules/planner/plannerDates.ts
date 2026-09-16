@@ -14,6 +14,22 @@ export function recurringTodoOccursOn(todo: TodoItem, date: string) {
   return (todo.repeatDays ?? [dayNumber(reference)]).includes(day)
 }
 
+export function todoCompletionStats(todo: TodoItem, throughDate = formatLocalDate()) {
+  if (!todo.repeat || todo.repeat === 'none') return undefined
+  const startKey = formatLocalDate(new Date(todo.createdAt))
+  const start = dateFromKey(startKey)
+  const end = dateFromKey(throughDate)
+  if (start > end) return { completed: 0, expected: 0, percentage: 0 }
+  let expected = 0
+  for (const cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+    if (recurringTodoOccursOn(todo, formatLocalDate(cursor))) expected += 1
+  }
+  const completed = new Set(todo.completedDates ?? []).size
+    ? [...new Set(todo.completedDates ?? [])].filter((date) => date >= startKey && date <= throughDate && recurringTodoOccursOn(todo, date)).length
+    : 0
+  return { completed, expected, percentage: expected ? Math.round((completed / expected) * 100) : 0 }
+}
+
 export function termWeek(date: string, term: PlannerData['term']) {
   const days = Math.floor((dateFromKey(date).getTime() - dateFromKey(term.startDate).getTime()) / 86_400_000)
   const week = Math.floor(days / 7) + 1

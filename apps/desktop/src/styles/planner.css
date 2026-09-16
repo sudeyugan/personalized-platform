@@ -11,3 +11,4 @@
 
 @media(max-width:720px){.planner-heading-actions{width:100%;align-items:stretch;flex-direction:column}.todo-compose-main{grid-template-columns:auto minmax(0,1fr)}.todo-compose-main>label,.todo-compose-main>button{grid-column:2}.todo-compose-date,.todo-compose>.weekday-picker{margin-left:28px}.todo-card{grid-template-columns:32px minmax(0,1fr) 30px}.todo-rule,.todo-options{grid-column:2}}
 .todo-compose{grid-template-columns:1fr}
+.todo-stats{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:7px;margin-top:4px;color:var(--ink-faint);font-size:8px}.todo-stats>span:nth-child(2){text-align:right}.todo-stats strong{color:var(--accent-strong);font:600 9px var(--serif)}.todo-stats>i{grid-column:1/-1;height:3px;overflow:hidden;border-radius:3px;background:var(--surface-soft)}.todo-stats>i>b{display:block;height:100%;max-width:100%;border-radius:inherit;background:var(--accent);transition:width .2s ease}

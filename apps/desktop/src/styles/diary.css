@@ -1,2 +1,2 @@
-.diary-view{max-width:1180px;margin:0 auto}
-.today-courses h2{display:flex;align-items:center;gap:7px}
+.diary-view{max-width:980px;margin:0 auto}
+.diary-view .journal-layout{display:block;max-width:900px}
