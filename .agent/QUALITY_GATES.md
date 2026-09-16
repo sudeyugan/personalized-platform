@@ -48,5 +48,5 @@
 
 - 最近迁移验证：前端 69/69、Rust 26/26、TypeScript、oxlint、生产 Web build 与文档一致性通过。
 - M8 `2.0.0` 仍为已交付待自然体验；桌面 E2E 和设备手感继续按真实反馈针对性验证。
-- M9 当前仅有按用户偏好执行的 TypeScript、前端生产构建、Rust Release 与 NSIS 本地候选证据；未运行 lint、前端/Rust 测试或正式发布门禁，状态保持“进行中”。最新仓库内候选包 SHA-256 为 `14EC6D4B3140F503FD518CC1B34599458C10AFABB78DB3EA09391566DE1ABFD0`。
+- M9 当前仅有按用户偏好执行的 TypeScript、前端生产构建、Rust Release 与 NSIS 本地候选证据；未运行 lint、前端/Rust 测试或正式发布门禁，状态保持“进行中”。最新仓库内候选包 SHA-256 为 `86A84D36DB603C25652F30A3E52F0BA715D12FB960B67D8FB4B809723C1B6FF0`。
 - 历史版本的详细测试、安装包和哈希证据见 `docs/*验收与发布说明.md`、CHANGELOG 与归档文件。

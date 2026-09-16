@@ -3,13 +3,11 @@ import { useState, type ChangeEvent } from 'react'
 import { navigationItems } from '../../app/moduleManifest'
 import type { ThemeId } from '../../domain/models'
 import { useLibraryStore } from '../../state/useLibraryStore'
-import { AiSettingsSection } from './AiSettingsSection'
 import { BackupSettingsSection } from './BackupSettingsSection'
 import { TransferSettingsSection } from './TransferSettingsSection'
 import { EncryptionSettingsSection } from './EncryptionSettingsSection'
 import { SettingsCategory } from './SettingsCategory'
-import { CompanionSettingsSection } from './CompanionSettingsSection'
-import { CompanionGrowthSection } from './CompanionGrowthSection'
+import { IntelligenceSettingsHub } from './IntelligenceSettingsHub'
 
 const themes: { id: ThemeId; name: string; description: string }[] = [
   { id: 'warm', name: '安静温暖', description: '米白、茶褐与一点暮色' },
@@ -73,10 +71,8 @@ export function SettingsView() {
 
       <section className="settings-section"><div className="settings-title"><Sparkles /><div><h2>模块</h2><p>停用模块不会删除已有数据，也不会擅自停止或清空内容。</p></div></div><div className="module-list"><div><span className="module-icon writing"><BookGlyph /></span><p><strong>写作</strong><small>作品、资料与时间线</small></p><button className={data.settings.modules.find((item) => item.id === 'writing')?.enabled ? 'switch on' : 'switch'} onClick={() => toggleModule('writing')}><i /></button></div><div><span className="module-icon"><Music2 /></span><p><strong>音乐</strong><small>本地曲库与四层播放上下文</small></p><button className={data.settings.modules.find((item) => item.id === 'music')?.enabled ? 'switch on' : 'switch'} onClick={() => toggleModule('music')}><i /></button></div><div><span className="module-icon"><Sparkles /></span><p><strong>虚拟伙伴</strong><small>编辑器侧栏与逐项权限</small></p><button className={data.settings.modules.find((item) => item.id === 'companion')?.enabled ? 'switch on' : 'switch'} onClick={() => toggleModule('companion')}><i /></button></div></div></section>
       </SettingsCategory>
-      <SettingsCategory id="intelligence" title="智能创作" description="AI 服务、密钥和章节印象图画风" icon={<Sparkles />}>
-      <AiSettingsSection />
-      <CompanionSettingsSection />
-      <CompanionGrowthSection />
+      <SettingsCategory id="intelligence" title="智能创作" description="AI 服务、伙伴权限、形象记忆与成长" icon={<Sparkles />}>
+      <IntelligenceSettingsHub />
       </SettingsCategory>
       <SettingsCategory id="data" title="数据管理" description="完整备份、恢复和开放格式迁移" icon={<Database />}>
       <BackupSettingsSection />
