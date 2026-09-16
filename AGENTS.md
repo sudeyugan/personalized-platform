@@ -104,7 +104,7 @@
 - 新依赖、外部写入、生产部署或高权限操作遵守授权边界。
 - 使用 `.agent/QUALITY_GATES.md` 决定验证强度。
 - 普通开发默认优先 coding，不自动运行测试或完整 verify。UI、文案、布局和体验问题可由用户实际使用发现；只有复杂逻辑、易复发缺陷或用户要求时才运行少量 `verify:quick`。`verify:ui` 只做 typecheck、lint 和 Web build，不跑测试；Rust、Cargo/Tauri、存储、备份、加密、秘密、权限或范围不明时使用 `verify:full`。只有用户明确需要安装包、正式补丁或里程碑发布时才运行 Tauri/NSIS。
-- 当前用户已明确设定持续偏好：每次代码修改完成后自动构建 Windows 安装包并放到桌面，除非用户当次明确说不用；纯文档修改不触发安装包构建。该偏好只增加构建与交付动作，不自动扩大 lint、测试或正式发布门禁。
+- 当前用户已明确设定持续偏好：每次代码修改完成后自动构建 Windows Release；把可直接运行的 `yiyu.exe` 更新为桌面的 `一隅_直接运行.exe`，NSIS 安装包只保留在项目 `target/release/bundle/nsis/`，不再放到桌面，除非用户当次另有要求。纯文档修改不触发构建。该偏好只增加构建与交付动作，不自动扩大 lint、测试或正式发布门禁。
 - 修改文件时按 `.agent/CODE_STRUCTURE.md` 检查长度、职责、复杂度和模块边界。
 - 重大技术或产品决策追加到 `.agent/DECISIONS.md`。
 - 新风险写入 `.agent/RISKS.md`。
