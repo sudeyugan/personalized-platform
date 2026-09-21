@@ -84,6 +84,7 @@ export function CompanionDesktopBridge() {
   const spokenAudio = useRef<HTMLAudioElement | undefined>(undefined)
   const resetStateTimer = useRef<number | undefined>(undefined)
   const chatVisible = useRef(false)
+  const chatTogglePending = useRef(false)
   const permissionRequests = useRef(new Map<string, (allowed: boolean) => void>())
   const speechGeneration = useRef(0)
   const activeTurn = useRef<AbortController | undefined>(undefined)
@@ -110,19 +111,25 @@ export function CompanionDesktopBridge() {
       await positionCompanionChat(pair.portrait, pair.chat)
       if (draft !== undefined) await emitTo('companion-chat', 'companion:open-chat', { draft })
       await pair.chat.show()
-      await pair.chat.setFocus()
       chatVisible.current = true
+      await pair.chat.setFocus().catch(() => undefined)
     }
     void listen('companion:hide-request', () => setCompanionDesktop(false)).then((stop) => { stopHide = stop })
     void listen('companion:open-main', () => { void getCurrentWindow().show(); void getCurrentWindow().setFocus() }).then((stop) => { stopOpen = stop })
     void listen('companion:ready', () => { void publish() }).then((stop) => { stopReady = stop })
     void listen('companion:chat-toggle', () => {
-      if (chatVisible.current) {
-        chatVisible.current = false
-        void windows().then((pair) => pair.chat?.hide())
-      } else {
-        void showChat()
-      }
+      if (chatTogglePending.current) return
+      chatTogglePending.current = true
+      void windows().then(async (pair) => {
+        if (!pair.chat) return
+        const visible = await pair.chat.isVisible().catch(() => chatVisible.current)
+        if (visible) {
+          chatVisible.current = false
+          await pair.chat.hide()
+          return
+        }
+        await showChat()
+      }).finally(() => { chatTogglePending.current = false })
     }).then((stop) => { stopToggleChat = stop })
     void listen<{ draft?: string }>('companion:chat-open-request', (event) => { void showChat(event.payload.draft) }).then((stop) => { stopOpenChat = stop })
     void listen('companion:moved', () => {

@@ -18,7 +18,7 @@
   },
   "installer": {
     "path": "apps/desktop/src-tauri/target/release/bundle/nsis/一隅_2.0.0_x64-setup.exe",
-    "sha256": "CDA5DA45459CE269F35CAA0C85411885953FC8AF12196B3D0A697F64113BF04E"
+    "sha256": "DC6811BC611188B9032DAB49E9673669F5F9868AE609C520A7E82F7FDD26D816"
   },
   "milestones": [
     {
