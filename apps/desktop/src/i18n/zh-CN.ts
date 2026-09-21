@@ -1,5 +1,6 @@
 const messages = {
   'nav.home': '今日一隅', 'nav.home.caption': '回到你的空间',
+  'nav.answerBook': '答案之书', 'nav.answerBook.caption': '把问题交给偶然',
   'nav.calendar': '日历与课表', 'nav.calendar.caption': '安排日期与每周课程',
   'nav.diary': '日记', 'nav.diary.caption': '为每一天留下文字',
   'nav.todos': '待办', 'nav.todos.caption': '整理要完成的事情',

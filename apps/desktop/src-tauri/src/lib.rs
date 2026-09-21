@@ -9,6 +9,7 @@ use tauri::Manager;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(commands::CompanionAssetScope::default())
         .setup(|app| {
             repositories::install_panic_marker(app.handle())?;
@@ -33,6 +34,7 @@ pub fn run() {
             commands::clear_recovery_draft,
             commands::search_library,
             commands::import_image_asset,
+            commands::import_companion_video_asset,
             commands::read_image_asset,
             commands::set_companion_asset_scope,
             commands::read_companion_image_asset,
@@ -43,6 +45,11 @@ pub fn run() {
             commands::store_secret,
             commands::has_secret,
             commands::delete_secret,
+            commands::companion_chat_completion,
+            commands::companion_chat_completion_stream,
+            commands::elevenlabs_text_to_speech,
+            commands::elevenlabs_speech_to_text,
+            commands::elevenlabs_realtime_scribe_token,
             commands::create_backup,
             commands::ensure_daily_backup,
             commands::list_backups,

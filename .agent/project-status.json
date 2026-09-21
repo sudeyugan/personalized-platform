@@ -1,24 +1,24 @@
 {
   "schemaVersion": 1,
   "appVersion": "2.0.0",
-  "productBaseline": "0.2",
-  "currentMilestone": "M9",
+  "productBaseline": "0.5",
+  "currentMilestone": "M10",
   "milestoneStatus": "in_progress",
-  "nextMilestone": "M9",
-  "updatedAt": "2026-09-16",
+  "nextMilestone": "M10",
+  "updatedAt": "2026-09-21",
   "automatedChecks": {
-    "status": "pending",
-    "verifiedAt": null
+    "status": "passed",
+    "verifiedAt": "2026-09-21"
   },
   "manualAcceptance": {
     "status": "pending",
     "items": [
-      "自然体验日历事务、16 周课表、独立日记与重复待办统计；发现问题直接反馈，无固定清单要求"
+      "自然体验透明 WebM、DeepSeek SSE、实时语音、暂停/继续朗读与中止回答，以及待办/日历/日记/章节/记忆写入逐次确认"
     ]
   },
   "installer": {
     "path": "apps/desktop/src-tauri/target/release/bundle/nsis/一隅_2.0.0_x64-setup.exe",
-    "sha256": "86A84D36DB603C25652F30A3E52F0BA715D12FB960B67D8FB4B809723C1B6FF0"
+    "sha256": "CDA5DA45459CE269F35CAA0C85411885953FC8AF12196B3D0A697F64113BF04E"
   },
   "milestones": [
     {
@@ -71,9 +71,15 @@
     },
     {
       "id": "M9",
-      "name": "日常记录与规划",
+      "name": "日常记录、规划与个人仪式",
+      "status": "delivered_pending_manual",
+      "evidence": "日历事务、截图课表与 16 周过滤、创作空间日记、每日心情、周期次数待办及答案之书已实现并进入自然体验"
+    },
+    {
+      "id": "M10",
+      "name": "AI 伙伴 Agent 与立绘基础",
       "status": "in_progress",
-      "evidence": "日历事务、截图课表与 16 周过滤、创作空间日记、每日/每周待办统计已实现；本地 NSIS 候选包已构建，待自然体验，未完成正式门禁"
+      "evidence": "Agent 读写闭环、逐次写入确认、静态/透明 WebM 立绘、DeepSeek SSE、ElevenLabs 实时 STT 与分句 TTS 已实现；删除/系统操作、OpenRouter 生图与 Live2D 待后续"
     }
   ]
 }

@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { BookHeart, BookOpenText, CalendarDays, CheckSquare2, CircleHelp, Headphones, Home, Images, MapPinned, Settings, Sparkles, UsersRound } from 'lucide-react'
+import { BookHeart, BookMarked, BookOpenText, CalendarDays, CheckSquare2, CircleHelp, Headphones, Home, Images, MapPinned, Settings, Sparkles, UsersRound } from 'lucide-react'
 import type { ViewId } from '../domain/models'
 import { t } from '../i18n/zh-CN'
 
@@ -13,6 +13,7 @@ export interface NavigationItem {
 
 export const navigationItems: NavigationItem[] = [
   { id: 'home', label: t('nav.home'), caption: t('nav.home.caption'), icon: Home, group: 'main' },
+  { id: 'answerBook', label: t('nav.answerBook'), caption: t('nav.answerBook.caption'), icon: BookMarked, group: 'main' },
   { id: 'calendar', label: t('nav.calendar'), caption: t('nav.calendar.caption'), icon: CalendarDays, group: 'main' },
   { id: 'todos', label: t('nav.todos'), caption: t('nav.todos.caption'), icon: CheckSquare2, group: 'main' },
   { id: 'writing', label: t('nav.writing'), caption: t('nav.writing.caption'), icon: BookOpenText, group: 'writing' },

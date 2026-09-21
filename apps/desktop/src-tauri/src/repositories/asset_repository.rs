@@ -71,6 +71,31 @@ impl AssetRepository {
         })
     }
 
+    pub fn import_video(
+        &self,
+        file_name: &str,
+        mime_type: &str,
+        bytes: &[u8],
+    ) -> Result<AssetReceipt, String> {
+        if mime_type != "video/webm" {
+            return Err("VIDEO_TYPE_INVALID:动态伙伴仅支持 WebM".into());
+        }
+        if bytes.is_empty() || bytes.len() > 200 * 1024 * 1024 {
+            return Err("VIDEO_SIZE_INVALID:WebM 必须小于 200 MB".into());
+        }
+        let id = new_id();
+        let videos = self.root.join("videos");
+        fs::create_dir_all(&videos).map_err(io_error)?;
+        write_atomic(&videos.join(format!("{id}.webm")), bytes)?;
+        Ok(AssetReceipt {
+            id,
+            file_name: sanitize_name(file_name),
+            mime_type: mime_type.into(),
+            size: bytes.len(),
+            sha256: format!("{:X}", Sha256::digest(bytes)),
+        })
+    }
+
     pub fn read(&self, id: &str, mime_type: &str, thumbnail: bool) -> Result<Vec<u8>, String> {
         validate_id(id)?;
         let extension = if thumbnail {
@@ -80,10 +105,11 @@ impl AssetRepository {
                 "image/jpeg" => "jpg",
                 "image/png" => "png",
                 "image/webp" => "webp",
+                "video/webm" => "webm",
                 _ => return Err("IMAGE_TYPE_INVALID:未知图片类型".into()),
             }
         };
-        let directory = if thumbnail { "thumbnails" } else { "images" };
+        let directory = if thumbnail { "thumbnails" } else if mime_type == "video/webm" { "videos" } else { "images" };
         fs::read(self.root.join(directory).join(format!("{id}.{extension}"))).map_err(io_error)
     }
 
@@ -93,10 +119,12 @@ impl AssetRepository {
             "image/jpeg" => "jpg",
             "image/png" => "png",
             "image/webp" => "webp",
+            "video/webm" => "webm",
             _ => return Err("IMAGE_TYPE_INVALID:未知图片类型".into()),
         };
+        let directory = if mime_type == "video/webm" { "videos" } else { "images" };
         for path in [
-            self.root.join("images").join(format!("{id}.{extension}")),
+            self.root.join(directory).join(format!("{id}.{extension}")),
             self.root.join("thumbnails").join(format!("{id}.webp")),
         ] {
             if path.exists() {

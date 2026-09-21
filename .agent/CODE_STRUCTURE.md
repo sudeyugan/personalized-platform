@@ -282,3 +282,16 @@ Agent 在以下时机检查文件结构：
 - 外部配置、导入计划、统一状态、控制器、React Runtime 与纯渲染器分别进入 `modules/companion/character|animation|rendering`；设置页只编排文件选择、导入和测试按钮，没有把动画定时器堆入 `CompanionGrowthSection`。
 - 新增文件均低于 100 行且职责可单句描述；没有新增依赖或通用 `utils`。`CompanionGrowthSection` 通过独立 `CompanionCharacterPackageSection` 保持原记忆/成长职责边界。
 - Rust 素材白名单集中在 command 边界，原 `AssetRepository` 路径校验和读取实现保持不变；主窗口关闭策略集中在 Tauri builder 的窗口生命周期回调。
+
+### 2026-09-18 伙伴 Agent 与单张立绘结构审查
+
+- Agent 新增代码集中在 `modules/companion/agent/`，按 types、context、application service、registry、permission、runtime 和 tools 拆分；UI 只负责组装依赖与展示状态，Provider 只翻译模型输入输出。
+- Tool handler 只能拿到受限的 `AgentApplicationServices`，不能获取 Zustand store、Repository、SQLite、文件系统或任意 Tauri command；权限校验位于 Runtime 与 Registry 之间，没有散落到各 Tool 内。
+- 桌面伙伴仍复用快照、桥接与独立窗口三层结构；活动视觉由 `DesktopCompanionWindow` 单独渲染，轻量聊天拆到 `DesktopCompanionChatWindow`，定位、显隐和 Agent 转发仍集中在 `CompanionDesktopBridge`，没有让任一子窗口直接持有 Store、Repository 或 Provider。
+- 旧 character/animation/rendering 模块暂留兼容且不在活动渲染链路；未来确认不再回退后应以独立迁移清理，不能和 Live2D 接入混在同一改动中。
+
+### 2026-09-18 M10 设置与全局快捷键结构审查
+
+- 全局快捷键生命周期集中在既有 `CompanionDesktopBridge`，注册回调只调用 store 的显隐动作；Rust 仅安装官方插件，未新增自定义 command 或扩大伙伴窗口 capability。
+- `CompanionSettingsSection` 以 profile/permissions 两种呈现模式复用同一权限与 Provider 数据，`IntelligenceSettingsHub` 只负责编排三个顶层分区；图像密钥继续由独立 `AiSettingsSection` 管理，避免对话和生图 Key 混用。
+- Provider 新枚举只增加预设与安全检查，不把 HTTP 请求、协议解析或 Tool 转换塞进设置组件。未来接入真实协议时应新增 adapter，而不是扩写 UI。

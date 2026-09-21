@@ -1,7 +1,7 @@
 import type { JSONContent } from '@tiptap/react'
 
 export type ThemeId = 'warm' | 'light' | 'dark'
-export type ViewId = 'home' | 'calendar' | 'todos' | 'writing' | 'diary' | 'people' | 'places' | 'timeline' | 'assets' | 'music' | 'help' | 'settings'
+export type ViewId = 'home' | 'answerBook' | 'calendar' | 'todos' | 'writing' | 'diary' | 'people' | 'places' | 'timeline' | 'assets' | 'music' | 'help' | 'settings'
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 export type EntityType = 'chapter' | 'person' | 'place' | 'event'
 export type RecordType = Exclude<EntityType, 'chapter'>
@@ -118,11 +118,28 @@ export interface CompanionPermission {
   chapterIds: string[]
   records: boolean
   musicContext: boolean
+  writeActions: boolean
 }
 export interface CompanionMessage { id: string; role: 'user' | 'companion'; content: string; createdAt: string; contextSummary?: string }
 export interface CompanionMemory { id: string; content: string; source: 'manual' | 'conversation'; sourceLabel: string; createdAt: string; updatedAt: string; confidence: number; authorized: boolean; sourceWorkId?: string }
 export interface CompanionPersonality { warmth: number; curiosity: number; initiative: number }
 export interface CompanionGrowthLog { id: string; before: CompanionPersonality; after: CompanionPersonality; reason: string; createdAt: string }
+export type CompanionVideoState = 'idle' | 'listening' | 'thinking' | 'speaking' | 'happy' | 'concerned' | 'surprised'
+export type CompanionVisual =
+  | { type: 'portrait'; assetId?: string }
+  | { type: 'video'; videos: Partial<Record<CompanionVideoState, string>> }
+  | { type: 'live2d'; modelAssetId?: string }
+export interface CompanionAgentAuditEntry {
+  id: string
+  timestamp: string
+  sessionId: string
+  toolName: string
+  arguments: Record<string, unknown>
+  permissionDecision: 'allowed' | 'denied'
+  resultStatus: 'success' | 'error'
+  durationMs: number
+  errorCode?: 'ToolNotFound' | 'InvalidArguments' | 'PermissionDenied' | 'ExecutionFailed' | 'Timeout' | 'AgentStepLimit' | 'AgentCancelled' | 'ModelError'
+}
 export interface CharacterSlot {
   x: number
   y: number
@@ -155,11 +172,19 @@ export interface CompanionData {
   name: string
   expression: 'calm' | 'warm' | 'thinking'
   appearance: { hair: 'ink' | 'short' | 'long'; outfit: 'linen' | 'night' | 'sage'; portraitAssetId?: string }
-  desktop: { visible: boolean; characterPackage?: CompanionCharacterPackage }
-  provider: { providerId: 'mock' | 'custom'; endpoint: string; model: string }
+  desktop: { visible: boolean; visual: CompanionVisual; videoAssets?: Partial<Record<CompanionVideoState, string>>; toggleShortcut: string; characterPackage?: CompanionCharacterPackage }
+  provider: { providerId: 'mock' | 'deepseek' | 'custom'; endpoint: string; model: string }
+  voice: {
+    stt: { providerId: 'none' | 'elevenlabs' | 'custom'; endpoint: string; model: string }
+    tts: { providerId: 'none' | 'elevenlabs' | 'custom'; endpoint: string; model: string; voice: string }
+    autoSpeak: boolean
+    replyLength: 'short' | 'standard'
+    longReplySpeech: 'summary' | 'full'
+  }
   permissions: CompanionPermission
   messages: CompanionMessage[]
   memories: CompanionMemory[]
+  agentAudit: CompanionAgentAuditEntry[]
   personality: CompanionPersonality
   growth: { enabled: boolean; logs: CompanionGrowthLog[] }
 }
@@ -218,6 +243,18 @@ export interface Course {
   note: string
 }
 export interface DiaryEntry { date: string; title: string; content: string; updatedAt: string }
+export type MoodKind = 'happy' | 'excited' | 'satisfied' | 'hopeful' | 'calm' | 'relaxed' | 'anxious' | 'irritated' | 'angry' | 'sad' | 'lonely' | 'tired'
+export type MoodPeriod = 'morning' | 'afternoon' | 'evening'
+export type MoodPoints = Partial<Record<MoodKind, number>>
+export interface MoodEntry {
+  id: string
+  date: string
+  period: MoodPeriod
+  points: MoodPoints
+  note?: string
+  createdAt: string
+  updatedAt: string
+}
 export interface CalendarEvent {
   id: string
   title: string
@@ -225,14 +262,28 @@ export interface CalendarEvent {
   time?: string
   note?: string
 }
+export interface DailyQuestion {
+  id: string
+  date: string
+  question: string
+  background: string
+  followUp: string
+  topic: string
+  tone: 'balanced' | 'sharp'
+  createdAt: string
+}
+export type TodoQuotaPeriod = 'day' | 'week' | 'month'
 export interface TodoItem {
   id: string
   title: string
   note: string
   dueDate?: string
   priority: 'low' | 'medium' | 'high'
-  repeat?: 'none' | 'daily' | 'weekly' | 'weekdays'
+  repeat?: 'none' | 'daily' | 'weekly' | 'weekdays' | 'quota'
   repeatDays?: CourseDay[]
+  quotaPeriod?: TodoQuotaPeriod
+  quotaTarget?: number
+  quotaCompletions?: { id: string; completedAt: string }[]
   completed: boolean
   completedDates?: string[]
   createdAt: string
@@ -240,17 +291,31 @@ export interface TodoItem {
 export interface PlannerData {
   courses: Course[]
   diaryEntries: DiaryEntry[]
+  moodEntries: MoodEntry[]
   todos: TodoItem[]
+  holidayDates: string[]
+  dailyQuestions: DailyQuestion[]
   calendarEvents: CalendarEvent[]
   term: { startDate: string; totalWeeks: number }
   courseImportVersion?: number
+}
+
+export interface AnswerBookFavorite {
+  id: string
+  question: string
+  answer: string
+  createdAt: string
+}
+
+export interface AnswerBookData {
+  favorites: AnswerBookFavorite[]
 }
 
 export interface PersonRelation { id: string; fromPersonId: string; toPersonId: string; relationType: string; description: string }
 export interface EntityLink { id: string; sourceType: EntityType; sourceId: string; targetType: EntityType; targetId: string; relationType: 'mentions' | 'occurs_at' | 'involves' | 'related'; anchor?: TextAnchor; createdAt: string }
 
 export interface ModuleSetting {
-  id: 'writing' | 'music' | 'companion'
+  id: 'writing' | 'music' | 'companion' | 'answerBook'
   enabled: boolean
   available: boolean
 }
@@ -271,6 +336,7 @@ export interface LibraryData {
   musicContexts: MusicContexts
   companion: CompanionData
   planner: PlannerData
+  answerBook: AnswerBookData
   settings: {
     theme: ThemeId
     showRightPanel: boolean
@@ -280,7 +346,7 @@ export interface LibraryData {
     layoutProfile: 'writing' | 'minimal' | 'custom'
     navigationOrder: ViewId[]
     backgroundImage?: string
-    ai: { providerId: 'mock' | 'custom'; endpoint: string; model: string; stylePreset: string }
+    ai: { providerId: 'mock' | 'openrouter' | 'custom'; endpoint: string; model: string; stylePreset: string }
     backup: { dailyEnabled: boolean; directory: string; retentionCount: number; lastAutomaticDate?: string; lastAutomaticError?: string }
     security: { autoLockMinutes: number }
     music: { volume: number; loop: 'off' | 'all' | 'one'; autoSwitch: boolean; playerVisible: boolean }

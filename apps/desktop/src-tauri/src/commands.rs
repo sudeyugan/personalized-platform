@@ -1,7 +1,9 @@
 use std::{collections::HashSet, sync::Mutex};
 
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde::Serialize;
 use serde_json::Value;
+use tauri::ipc::{Channel, InvokeBody, Response};
 use tauri::{AppHandle, State, WebviewWindow};
 
 use crate::{
@@ -62,7 +64,7 @@ pub fn read_companion_image_asset(
     scope: State<'_, CompanionAssetScope>,
     id: String,
     mime_type: String,
-) -> Result<Vec<u8>, String> {
+) -> Result<Response, String> {
     if window.label() != "companion" {
         return Err("WINDOW_CAPABILITY_DENIED:该命令仅供桌面伙伴读取已授权显示素材".into());
     }
@@ -74,7 +76,9 @@ pub fn read_companion_image_asset(
     {
         return Err("COMPANION_ASSET_DENIED:素材不在当前伙伴角色包中".into());
     }
-    AssetRepository::from_app(&app)?.read(&id, &mime_type, false)
+    AssetRepository::from_app(&app)?
+        .read(&id, &mime_type, false)
+        .map(Response::new)
 }
 
 #[tauri::command]
@@ -184,6 +188,32 @@ pub fn import_image_asset(
 }
 
 #[tauri::command]
+pub fn import_companion_video_asset(
+    window: WebviewWindow,
+    app: AppHandle,
+    request: tauri::ipc::Request<'_>,
+) -> Result<AssetReceipt, String> {
+    require_main(&window)?;
+    let encoded_name = request
+        .headers()
+        .get("x-yiyu-file-name")
+        .ok_or_else(|| "VIDEO_NAME_INVALID:缺少视频文件名".to_string())?
+        .to_str()
+        .map_err(|_| "VIDEO_NAME_INVALID:视频文件名无效")?;
+    let file_name = String::from_utf8(
+        STANDARD
+            .decode(encoded_name)
+            .map_err(|_| "VIDEO_NAME_INVALID:视频文件名无法解码")?,
+    )
+    .map_err(|_| "VIDEO_NAME_INVALID:视频文件名不是 UTF-8")?;
+    let bytes = match request.body() {
+        InvokeBody::Raw(bytes) => bytes.as_slice(),
+        InvokeBody::Json(_) => return Err("VIDEO_BODY_INVALID:视频必须使用二进制方式上传".into()),
+    };
+    AssetRepository::from_app(&app)?.import_video(&file_name, "video/webm", bytes)
+}
+
+#[tauri::command]
 pub fn read_image_asset(
     window: WebviewWindow,
     app: AppHandle,
@@ -257,6 +287,394 @@ pub fn has_secret(window: WebviewWindow, app: AppHandle, id: String) -> Result<b
 pub fn delete_secret(window: WebviewWindow, app: AppHandle, id: String) -> Result<(), String> {
     require_main(&window)?;
     SecretRepository::from_app(&app)?.delete(&id)
+}
+
+#[tauri::command]
+pub async fn companion_chat_completion(
+    window: WebviewWindow,
+    app: AppHandle,
+    endpoint: String,
+    model: String,
+    messages: Value,
+    tools: Value,
+) -> Result<Value, String> {
+    require_main(&window)?;
+    let base = reqwest::Url::parse(&endpoint)
+        .map_err(|_| "MODEL_ENDPOINT_INVALID:DeepSeek 服务地址无效")?;
+    if base.scheme() != "https" || base.host_str() != Some("api.deepseek.com") {
+        return Err("MODEL_ENDPOINT_DENIED:当前联网对话仅允许 api.deepseek.com".into());
+    }
+    if !matches!(
+        base.path(),
+        "" | "/" | "/v1" | "/chat/completions" | "/v1/chat/completions"
+    ) || base.query().is_some()
+        || base.fragment().is_some()
+    {
+        return Err("MODEL_ENDPOINT_INVALID:DeepSeek 服务路径无效".into());
+    }
+    if model.trim().is_empty() {
+        return Err("MODEL_INVALID:模型 ID 不能为空".into());
+    }
+    let message_count = messages.as_array().map_or(0, Vec::len);
+    if message_count == 0 || message_count > 80 {
+        return Err("MODEL_MESSAGES_INVALID:消息数量无效".into());
+    }
+    if messages.to_string().len() > 256_000 || tools.to_string().len() > 64_000 {
+        return Err("MODEL_PAYLOAD_TOO_LARGE:模型请求内容过大".into());
+    }
+    let api_key = SecretRepository::from_app(&app)?
+        .load("companion-provider")?
+        .ok_or_else(|| "MODEL_KEY_MISSING:请先在 AI 伙伴设置中保存 DeepSeek API Key".to_string())?;
+    let url = if endpoint.trim_end_matches('/').ends_with("/chat/completions") {
+        endpoint.trim_end_matches('/').to_string()
+    } else {
+        format!("{}/chat/completions", endpoint.trim_end_matches('/'))
+    };
+    let mut body = serde_json::json!({
+        "model": model,
+        "messages": messages,
+        "thinking": { "type": "disabled" }
+    });
+    if tools.as_array().is_some_and(|items| !items.is_empty()) {
+        body["tools"] = tools;
+    }
+    let response = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|error| format!("MODEL_CLIENT_ERROR:{error}"))?
+        .post(url)
+        .bearer_auth(api_key)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|error| format!("MODEL_NETWORK_ERROR:{error}"))?;
+    let status = response.status();
+    let value = response
+        .json::<Value>()
+        .await
+        .map_err(|error| format!("MODEL_RESPONSE_INVALID:{error}"))?;
+    if !status.is_success() {
+        let message = value
+            .pointer("/error/message")
+            .and_then(Value::as_str)
+            .unwrap_or("模型服务返回错误");
+        return Err(format!(
+            "MODEL_HTTP_ERROR:{}:{}",
+            status.as_u16(),
+            message.chars().take(240).collect::<String>()
+        ));
+    }
+    Ok(value)
+}
+
+fn send_model_stream_line(line: &[u8], on_event: &Channel<Value>) -> Result<bool, String> {
+    let line = line.strip_suffix(b"\r").unwrap_or(line);
+    let Some(data) = line.strip_prefix(b"data:") else {
+        return Ok(false);
+    };
+    let data = data.strip_prefix(b" ").unwrap_or(data);
+    if data == b"[DONE]" {
+        on_event
+            .send(serde_json::json!({ "done": true }))
+            .map_err(|error| format!("MODEL_STREAM_CHANNEL_ERROR:{error}"))?;
+        return Ok(true);
+    }
+    if data.is_empty() {
+        return Ok(false);
+    }
+    let value = serde_json::from_slice::<Value>(data)
+        .map_err(|error| format!("MODEL_STREAM_INVALID:{error}"))?;
+    on_event
+        .send(value)
+        .map_err(|error| format!("MODEL_STREAM_CHANNEL_ERROR:{error}"))?;
+    Ok(false)
+}
+
+#[tauri::command]
+pub async fn companion_chat_completion_stream(
+    window: WebviewWindow,
+    app: AppHandle,
+    endpoint: String,
+    model: String,
+    messages: Value,
+    tools: Value,
+    on_event: Channel<Value>,
+) -> Result<(), String> {
+    require_main(&window)?;
+    let base = reqwest::Url::parse(&endpoint)
+        .map_err(|_| "MODEL_ENDPOINT_INVALID:DeepSeek 服务地址无效")?;
+    if base.scheme() != "https" || base.host_str() != Some("api.deepseek.com") {
+        return Err("MODEL_ENDPOINT_DENIED:当前联网对话仅允许 api.deepseek.com".into());
+    }
+    if !matches!(
+        base.path(),
+        "" | "/" | "/v1" | "/chat/completions" | "/v1/chat/completions"
+    ) || base.query().is_some()
+        || base.fragment().is_some()
+    {
+        return Err("MODEL_ENDPOINT_INVALID:DeepSeek 服务路径无效".into());
+    }
+    if model.trim().is_empty() {
+        return Err("MODEL_INVALID:模型 ID 不能为空".into());
+    }
+    let message_count = messages.as_array().map_or(0, Vec::len);
+    if message_count == 0 || message_count > 80 {
+        return Err("MODEL_MESSAGES_INVALID:消息数量无效".into());
+    }
+    if messages.to_string().len() > 256_000 || tools.to_string().len() > 64_000 {
+        return Err("MODEL_PAYLOAD_TOO_LARGE:模型请求内容过大".into());
+    }
+    let api_key = SecretRepository::from_app(&app)?
+        .load("companion-provider")?
+        .ok_or_else(|| "MODEL_KEY_MISSING:请先在 AI 伙伴设置中保存 DeepSeek API Key".to_string())?;
+    let url = if endpoint.trim_end_matches('/').ends_with("/chat/completions") {
+        endpoint.trim_end_matches('/').to_string()
+    } else {
+        format!("{}/chat/completions", endpoint.trim_end_matches('/'))
+    };
+    // The desktop companion prioritizes low-latency streaming. Explicitly disable
+    // DeepSeek thinking mode so tool continuations do not require storing and
+    // replaying private reasoning_content across conversation turns.
+    let mut body = serde_json::json!({
+        "model": model,
+        "messages": messages,
+        "stream": true,
+        "thinking": { "type": "disabled" }
+    });
+    if tools.as_array().is_some_and(|items| !items.is_empty()) {
+        body["tools"] = tools;
+    }
+    let mut response = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(90))
+        .build()
+        .map_err(|error| format!("MODEL_CLIENT_ERROR:{error}"))?
+        .post(url)
+        .bearer_auth(api_key)
+        .header(reqwest::header::ACCEPT, "text/event-stream")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|error| format!("MODEL_NETWORK_ERROR:{error}"))?;
+    let status = response.status();
+    if !status.is_success() {
+        let value = response
+            .json::<Value>()
+            .await
+            .map_err(|error| format!("MODEL_RESPONSE_INVALID:{error}"))?;
+        let message = value
+            .pointer("/error/message")
+            .and_then(Value::as_str)
+            .unwrap_or("模型服务返回错误");
+        return Err(format!(
+            "MODEL_HTTP_ERROR:{}:{}",
+            status.as_u16(),
+            message.chars().take(240).collect::<String>()
+        ));
+    }
+    let mut buffer = Vec::<u8>::new();
+    let mut done = false;
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|error| format!("MODEL_STREAM_ERROR:{error}"))?
+    {
+        buffer.extend_from_slice(&chunk);
+        while let Some(position) = buffer.iter().position(|byte| *byte == b'\n') {
+            let mut line = buffer.drain(..=position).collect::<Vec<_>>();
+            line.pop();
+            if send_model_stream_line(&line, &on_event)? {
+                done = true;
+                break;
+            }
+        }
+        if done {
+            break;
+        }
+    }
+    if !done && !buffer.is_empty() {
+        done = send_model_stream_line(&buffer, &on_event)?;
+    }
+    if !done {
+        on_event
+            .send(serde_json::json!({ "done": true }))
+            .map_err(|error| format!("MODEL_STREAM_CHANNEL_ERROR:{error}"))?;
+    }
+    Ok(())
+}
+
+fn validate_voice_identifier(value: &str, label: &str) -> Result<(), String> {
+    if value.is_empty()
+        || value.len() > 100
+        || !value
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '_' | '-'))
+    {
+        return Err(format!("VOICE_CONFIG_INVALID:{label} 格式无效"));
+    }
+    Ok(())
+}
+
+fn voice_error(status: reqwest::StatusCode, bytes: &[u8]) -> String {
+    let detail = serde_json::from_slice::<Value>(bytes)
+        .ok()
+        .and_then(|value| {
+            value
+                .pointer("/detail/message")
+                .or_else(|| value.pointer("/detail"))
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+        })
+        .or_else(|| {
+            let text = String::from_utf8_lossy(bytes);
+            let text = text.trim();
+            (!text.is_empty() && !text.starts_with('<')).then(|| text.to_string())
+        })
+        .unwrap_or_else(|| status.canonical_reason().unwrap_or("语音服务返回错误").to_string());
+    format!(
+        "VOICE_HTTP_ERROR:{}:{}",
+        status.as_u16(),
+        detail.chars().take(240).collect::<String>()
+    )
+}
+
+#[tauri::command]
+pub async fn elevenlabs_realtime_scribe_token(
+    window: WebviewWindow,
+    app: AppHandle,
+) -> Result<String, String> {
+    require_main(&window)?;
+    let api_key = SecretRepository::from_app(&app)?
+        .load("companion-voice-elevenlabs")?
+        .ok_or_else(|| "VOICE_KEY_MISSING:请先保存 ElevenLabs API Key".to_string())?;
+    let response = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|error| format!("VOICE_CLIENT_ERROR:{error}"))?
+        .post("https://api.elevenlabs.io/v1/single-use-token/realtime_scribe")
+        .header("xi-api-key", api_key)
+        .header(reqwest::header::CONTENT_LENGTH, 0)
+        .body(Vec::new())
+        .send()
+        .await
+        .map_err(|error| format!("VOICE_NETWORK_ERROR:{error}"))?;
+    let status = response.status();
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|error| format!("VOICE_RESPONSE_INVALID:{error}"))?;
+    if !status.is_success() {
+        return Err(voice_error(status, &bytes));
+    }
+    serde_json::from_slice::<Value>(&bytes)
+        .ok()
+        .and_then(|value| value.get("token").and_then(Value::as_str).map(str::to_owned))
+        .filter(|token| !token.is_empty())
+        .ok_or_else(|| "VOICE_RESPONSE_INVALID:ElevenLabs 未返回实时转写凭证".to_string())
+}
+
+#[tauri::command]
+pub async fn elevenlabs_text_to_speech(
+    window: WebviewWindow,
+    app: AppHandle,
+    text: String,
+    model: String,
+    voice: String,
+) -> Result<Vec<u8>, String> {
+    require_main(&window)?;
+    let text = text.trim();
+    if text.is_empty() || text.chars().count() > 5_000 {
+        return Err("VOICE_TEXT_INVALID:朗读文本不能为空且最多 5000 字".into());
+    }
+    validate_voice_identifier(model.trim(), "模型 ID")?;
+    validate_voice_identifier(voice.trim(), "Voice ID")?;
+    let api_key = SecretRepository::from_app(&app)?
+        .load("companion-voice-elevenlabs")?
+        .ok_or_else(|| "VOICE_KEY_MISSING:请先在 AI 伙伴设置中保存 ElevenLabs API Key".to_string())?;
+    let url = format!(
+        "https://api.elevenlabs.io/v1/text-to-speech/{}?output_format=mp3_44100_128",
+        voice.trim()
+    );
+    let response = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|error| format!("VOICE_CLIENT_ERROR:{error}"))?
+        .post(url)
+        .header("xi-api-key", api_key)
+        .json(&serde_json::json!({ "text": text, "model_id": model.trim() }))
+        .send()
+        .await
+        .map_err(|error| format!("VOICE_NETWORK_ERROR:{error}"))?;
+    let status = response.status();
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|error| format!("VOICE_RESPONSE_INVALID:{error}"))?;
+    if !status.is_success() {
+        return Err(voice_error(status, &bytes));
+    }
+    Ok(bytes.to_vec())
+}
+
+#[tauri::command]
+pub async fn elevenlabs_speech_to_text(
+    window: WebviewWindow,
+    app: AppHandle,
+    audio: Vec<u8>,
+    mime_type: String,
+    model: String,
+) -> Result<String, String> {
+    require_main(&window)?;
+    if audio.len() < 128 || audio.len() > 25 * 1024 * 1024 {
+        return Err("VOICE_AUDIO_INVALID:录音为空或超过 25 MB".into());
+    }
+    validate_voice_identifier(model.trim(), "模型 ID")?;
+    let mime = mime_type.split(';').next().unwrap_or("audio/webm");
+    if !matches!(mime, "audio/webm" | "audio/mp4" | "audio/mpeg" | "audio/wav" | "audio/ogg") {
+        return Err("VOICE_AUDIO_INVALID:不支持当前录音格式".into());
+    }
+    let extension = match mime {
+        "audio/mp4" => "m4a",
+        "audio/mpeg" => "mp3",
+        "audio/wav" => "wav",
+        "audio/ogg" => "ogg",
+        _ => "webm",
+    };
+    let api_key = SecretRepository::from_app(&app)?
+        .load("companion-voice-elevenlabs")?
+        .ok_or_else(|| "VOICE_KEY_MISSING:请先在 AI 伙伴设置中保存 ElevenLabs API Key".to_string())?;
+    let part = reqwest::multipart::Part::bytes(audio)
+        .file_name(format!("companion-recording.{extension}"))
+        .mime_str(mime)
+        .map_err(|error| format!("VOICE_AUDIO_INVALID:{error}"))?;
+    let form = reqwest::multipart::Form::new()
+        .part("file", part)
+        .text("model_id", model.trim().to_string())
+        .text("language_code", "zh");
+    let response = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(90))
+        .build()
+        .map_err(|error| format!("VOICE_CLIENT_ERROR:{error}"))?
+        .post("https://api.elevenlabs.io/v1/speech-to-text")
+        .header("xi-api-key", api_key)
+        .multipart(form)
+        .send()
+        .await
+        .map_err(|error| format!("VOICE_NETWORK_ERROR:{error}"))?;
+    let status = response.status();
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|error| format!("VOICE_RESPONSE_INVALID:{error}"))?;
+    if !status.is_success() {
+        return Err(voice_error(status, &bytes));
+    }
+    let value = serde_json::from_slice::<Value>(&bytes)
+        .map_err(|error| format!("VOICE_RESPONSE_INVALID:{error}"))?;
+    value
+        .get("text")
+        .and_then(Value::as_str)
+        .map(str::to_owned)
+        .ok_or_else(|| "VOICE_RESPONSE_INVALID:语音服务未返回转写文本".into())
 }
 
 #[tauri::command]
@@ -384,12 +802,21 @@ pub fn lock_all_vaults(window: WebviewWindow, app: AppHandle) -> Result<(), Stri
 
 #[cfg(test)]
 mod companion_scope_tests {
-    use super::valid_asset_id;
+    use super::{valid_asset_id, voice_error};
 
     #[test]
     fn accepts_only_repository_asset_identifiers() {
         assert!(valid_asset_id("asset-1a-2"));
         assert!(!valid_asset_id("../asset-1"));
         assert!(!valid_asset_id("track-1"));
+    }
+
+    #[test]
+    fn voice_errors_do_not_expose_html_gateway_pages() {
+        let error = voice_error(
+            reqwest::StatusCode::LENGTH_REQUIRED,
+            b"<html><body><h1>Length Required</h1></body></html>",
+        );
+        assert_eq!(error, "VOICE_HTTP_ERROR:411:Length Required");
     }
 }

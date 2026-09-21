@@ -16,6 +16,40 @@ async function dimensions(file: Blob) {
   } finally { URL.revokeObjectURL(url) }
 }
 
+async function videoDimensions(file: Blob) {
+  const url = URL.createObjectURL(file)
+  try {
+    const video = document.createElement('video')
+    video.preload = 'metadata'
+    video.muted = true
+    video.src = url
+    await new Promise<void>((resolve, reject) => {
+      let settled = false
+      const finish = (error?: Error) => {
+        if (settled) return
+        settled = true
+        window.clearTimeout(timeout)
+        video.onloadedmetadata = null
+        video.onerror = null
+        error ? reject(error) : resolve()
+      }
+      const timeout = window.setTimeout(() => finish(new Error('读取 WebM 信息超时，请确认视频使用 WebView2 支持的 VP8/VP9 编码')), 12_000)
+      video.onloadedmetadata = () => finish()
+      video.onerror = () => finish(new Error('无法读取 WebM，请确认视频编码可由 WebView2 播放'))
+      video.load()
+    })
+    if (!video.videoWidth || !video.videoHeight) throw new Error('WebM 没有有效画面尺寸')
+    return { width: video.videoWidth, height: video.videoHeight }
+  } finally { URL.revokeObjectURL(url) }
+}
+
+function encodeHeaderText(value: string) {
+  const bytes = new TextEncoder().encode(value)
+  let binary = ''
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte) })
+  return btoa(binary)
+}
+
 async function thumbnailBytes(file: Blob) {
   const source = await createImageBitmap(file)
   const scale = Math.min(1, 512 / Math.max(source.width, source.height))
@@ -42,6 +76,33 @@ export const assetRepository = {
       receipt = { id, fileName: file.name, mimeType: file.type, size: file.size, sha256: `preview-${id}` }
     }
     return { ...receipt, width, height, workId: context.workId, chapterIds: context.chapterId ? [context.chapterId] : [], createdAt: new Date().toISOString() }
+  },
+
+  async importCompanionVideo(file: File, onProgress?: (message: string) => void): Promise<Asset> {
+    if (file.type !== 'video/webm' && !file.name.toLocaleLowerCase().endsWith('.webm')) throw new Error('动态伙伴仅支持 WebM')
+    if (file.size > 200 * 1024 * 1024) throw new Error('WebM 必须小于 200 MB')
+    onProgress?.('正在读取视频信息…')
+    let width = 0
+    let height = 0
+    try {
+      const dimensions = await videoDimensions(file)
+      width = dimensions.width
+      height = dimensions.height
+    } catch {
+      onProgress?.('无法预读画面尺寸，正在继续保存 WebM…')
+    }
+    onProgress?.('正在读取视频文件…')
+    const bytes = new Uint8Array(await file.arrayBuffer())
+    let receipt: AssetReceipt
+    if (isTauriRuntime()) {
+      onProgress?.('正在保存到本地素材库…')
+      receipt = await invoke<AssetReceipt>('import_companion_video_asset', bytes, { headers: { 'x-yiyu-file-name': encodeHeaderText(file.name) } })
+    } else {
+      const id = `asset-${crypto.randomUUID()}`
+      browserAssets.set(id, file)
+      receipt = { id, fileName: file.name, mimeType: 'video/webm', size: file.size, sha256: `preview-${id}` }
+    }
+    return { ...receipt, mimeType: 'video/webm', width, height, chapterIds: [], createdAt: new Date().toISOString() }
   },
 
   async readUrl(asset: Pick<Asset, 'id' | 'mimeType'>, thumbnail = false) {

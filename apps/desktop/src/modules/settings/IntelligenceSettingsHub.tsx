@@ -1,59 +1,32 @@
-import { ImagePlus, ShieldCheck, Sparkles } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { Sparkles } from 'lucide-react'
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { AiSettingsSection } from './AiSettingsSection'
 import { CompanionGrowthSection } from './CompanionGrowthSection'
 import { CompanionSettingsSection } from './CompanionSettingsSection'
 
-type IntelligencePanel = 'creation' | 'companion' | 'growth'
-
-const storageKey = 'yiyu.settings.intelligence.panel'
-
-interface PanelInfo {
-  id: IntelligencePanel
-  title: string
-  description: string
-  icon: ReactNode
-}
-
-const panels: PanelInfo[] = [
-  { id: 'creation', title: 'AI 创作服务', description: '印象图、Provider 与密钥', icon: <Sparkles /> },
-  { id: 'companion', title: '伙伴与权限', description: '称呼、对话与读取范围', icon: <ShieldCheck /> },
-  { id: 'growth', title: '形象、记忆与成长', description: '桌面形象、长期记忆和性格', icon: <ImagePlus /> },
-]
-
-function initialPanel(): IntelligencePanel {
-  const stored = localStorage.getItem(storageKey)
-  return panels.some((panel) => panel.id === stored) ? stored as IntelligencePanel : 'creation'
-}
-
 export function IntelligenceSettingsHub() {
   const { data } = useLibraryStore()
-  const [active, setActive] = useState<IntelligencePanel>(initialPanel)
   const permissions = data.companion.permissions
   const permissionCount = permissions.workIds.length + permissions.chapterIds.length + Number(permissions.records) + Number(permissions.musicContext)
-  const status: Record<IntelligencePanel, string> = {
-    creation: data.settings.ai.providerId === 'mock' ? '离线 Mock' : '自定义服务',
-    companion: permissionCount ? `已授权 ${permissionCount} 项` : '默认无权限',
-    growth: `${data.companion.memories.length} 条记忆 · ${data.companion.growth.enabled ? '成长已开启' : '成长已关闭'}`,
-  }
-  const choose = (panel: IntelligencePanel) => { setActive(panel); localStorage.setItem(storageKey, panel) }
+  const chatProvider = data.companion.provider.providerId === 'deepseek' ? 'DeepSeek' : data.companion.provider.providerId === 'mock' ? '本地 Mock' : '自定义'
+  const imageProvider = data.settings.ai.providerId === 'openrouter' ? 'OpenRouter' : data.settings.ai.providerId === 'mock' ? '本地 Mock' : '自定义'
 
-  return <div className="intelligence-hub">
-    <div className="intelligence-principles">
-      <span><ShieldCheck size={14} /><strong>本地优先</strong><small>默认不联网</small></span>
-      <span><Sparkles size={14} /><strong>主动触发</strong><small>不会后台生成</small></span>
-      <span><ShieldCheck size={14} /><strong>权限可撤销</strong><small>伙伴默认不可读取资料</small></span>
-    </div>
-    <nav className="intelligence-nav" aria-label="智能创作设置分区">
-      {panels.map((panel) => <button type="button" key={panel.id} className={active === panel.id ? 'active' : ''} aria-pressed={active === panel.id} onClick={() => choose(panel.id)}>
-        <i>{panel.icon}</i><span><strong>{panel.title}</strong><small>{panel.description}</small></span><b>{status[panel.id]}</b>
-      </button>)}
-    </nav>
-    <div className="intelligence-panel" id={`intelligence-panel-${active}`}>
-      {active === 'creation' && <AiSettingsSection />}
-      {active === 'companion' && <CompanionSettingsSection />}
-      {active === 'growth' && <CompanionGrowthSection />}
-    </div>
-  </div>
+  return <section className="settings-section ai-companion-single">
+    <div className="settings-title"><Sparkles /><div><h2>AI 伙伴</h2><p>常用显示设置直接调整，模型、权限与记忆按需展开。</p></div></div>
+
+    <details className="ai-settings-fold" name="ai-companion-settings" open>
+      <summary><span><strong>形象与显示</strong><small>立绘、桌面开关与快捷键</small></span><b>{data.companion.desktop.visible ? '显示中' : '已隐藏'}</b></summary>
+      <div className="ai-settings-fold-body"><CompanionGrowthSection /></div>
+    </details>
+
+    <details className="ai-settings-fold" name="ai-companion-settings">
+      <summary><span><strong>模型服务</strong><small>对话与图像生成分开配置</small></span><b>{chatProvider} · {imageProvider}</b></summary>
+      <div className="ai-settings-fold-body ai-model-stack"><CompanionSettingsSection mode="profile" /><AiSettingsSection /></div>
+    </details>
+
+    <details className="ai-settings-fold" name="ai-companion-settings">
+      <summary><span><strong>权限与记录</strong><small>默认不读取资料，授权可随时撤销</small></span><b>{permissionCount ? `已授权 ${permissionCount} 项` : '无授权'}</b></summary>
+      <div className="ai-settings-fold-body"><CompanionSettingsSection mode="permissions" /></div>
+    </details>
+  </section>
 }

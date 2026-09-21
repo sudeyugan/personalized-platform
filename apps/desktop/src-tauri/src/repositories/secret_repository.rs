@@ -28,7 +28,6 @@ impl SecretRepository {
         fs::write(&partial, protected).map_err(io_error)?;
         fs::rename(partial, path).map_err(io_error)
     }
-    #[cfg(test)]
     pub fn load(&self, id: &str) -> Result<Option<String>, String> {
         validate_id(id)?;
         let path = self.root.join(format!("{id}.bin"));
@@ -108,7 +107,6 @@ fn protect(input: &[u8]) -> Result<Vec<u8>, String> {
     crypt(input, true)
 }
 #[cfg(windows)]
-#[cfg(test)]
 fn unprotect(input: &[u8]) -> Result<Vec<u8>, String> {
     crypt(input, false)
 }

@@ -27,20 +27,35 @@
         "label": "companion",
         "title": "一隅伙伴",
         "url": "index.html?companion=1",
-        "width": 260,
-        "height": 360,
+        "width": 270,
+        "height": 480,
         "minWidth": 220,
-        "minHeight": 300,
+        "minHeight": 420,
         "resizable": true,
         "decorations": false,
         "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false
+      },
+      {
+        "label": "companion-chat",
+        "title": "一隅伙伴对话",
+        "url": "index.html?companion-chat=1",
+        "width": 350,
+        "height": 480,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
         "alwaysOnTop": true,
         "skipTaskbar": true,
         "visible": false
       }
     ],
     "security": {
-      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost data: blob:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost"
+      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost data: blob:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost wss://api.elevenlabs.io"
     }
   },
   "bundle": {

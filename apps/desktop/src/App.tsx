@@ -7,14 +7,21 @@ import { startupRepository, type StorageStatus } from './infrastructure/startupR
 import { OnboardingWizard, type OnboardingResult } from './modules/onboarding/OnboardingWizard'
 import { CompanionDesktopBridge } from './modules/companion/CompanionDesktopBridge'
 import { DesktopCompanionWindow } from './modules/companion/DesktopCompanionWindow'
+import { DesktopCompanionChatWindow } from './modules/companion/DesktopCompanionChatWindow'
 import './styles/tokens.css'
 import './styles/layout.css'
 import './styles/components.css'
 import './styles/planner.css'
+import './styles/mood.css'
 import './styles/diary.css'
+import './styles/answerBook.css'
+import './styles/companion.css'
+import './styles/morningQuestion.css'
 
 export default function App() {
-  return new URLSearchParams(window.location.search).has('companion') ? <DesktopCompanionWindow /> : <MainApp />
+  const params = new URLSearchParams(window.location.search)
+  if (params.has('companion-chat')) return <DesktopCompanionChatWindow />
+  return params.has('companion') ? <DesktopCompanionWindow /> : <MainApp />
 }
 
 function MainApp() {

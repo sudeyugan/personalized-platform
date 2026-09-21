@@ -8,10 +8,16 @@ type SetStore = (partial: Partial<LibraryStore>) => void
 const commit = (data: LibraryData, set: SetStore) => { set({ data }); void libraryRepository.save(data) }
 const characterSpriteAssetId = (sprite: CharacterSpriteReference) => typeof sprite === 'string' ? sprite : sprite.assetId
 
-export function createAssetsSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, 'importAsset' | 'updateAsset' | 'trashAsset' | 'restoreAsset' | 'permanentlyDeleteAsset' | 'linkAssetToChapter' | 'setChapterImpression' | 'recordAiGeneration'> {
+export function createAssetsSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, 'importAsset' | 'importCompanionVideo' | 'updateAsset' | 'trashAsset' | 'restoreAsset' | 'permanentlyDeleteAsset' | 'linkAssetToChapter' | 'setChapterImpression' | 'recordAiGeneration'> {
   return {
     importAsset: async (file, context) => {
       const asset = await assetRepository.importImage(file, context)
+      const current = get().data
+      commit({ ...current, assets: [...current.assets, asset] }, set)
+      return asset
+    },
+    importCompanionVideo: async (file, onProgress) => {
+      const asset = await assetRepository.importCompanionVideo(file, onProgress)
       const current = get().data
       commit({ ...current, assets: [...current.assets, asset] }, set)
       return asset
@@ -22,7 +28,13 @@ export function createAssetsSlice(get: () => LibraryStore, set: SetStore): Pick<
     permanentlyDeleteAsset: async (id) => {
       const current = get().data; const asset = current.assets.find((item) => item.id === id); if (!asset) return
       await assetRepository.delete(asset)
-      commit({ ...current, assets: current.assets.filter((item) => item.id !== id), chapters: Object.fromEntries(Object.entries(current.chapters).map(([chapterId, chapter]) => [chapterId, chapter.impressionAssetId === id ? { ...chapter, impressionAssetId: undefined } : chapter])) }, set)
+      const visual = current.companion.desktop.visual
+      const clearsPortrait = visual.type === 'portrait' && visual.assetId === id
+      const videos = Object.fromEntries(Object.entries(current.companion.desktop.videoAssets ?? (visual.type === 'video' ? visual.videos : {})).filter(([, assetId]) => assetId !== id))
+      const companion = clearsPortrait
+        ? { ...current.companion, appearance: { ...current.companion.appearance, portraitAssetId: undefined }, desktop: { ...current.companion.desktop, visual: { type: 'portrait' as const } } }
+        : { ...current.companion, desktop: { ...current.companion.desktop, videoAssets: videos, visual: visual.type === 'video' ? { type: 'video' as const, videos } : visual } }
+      commit({ ...current, assets: current.assets.filter((item) => item.id !== id), chapters: Object.fromEntries(Object.entries(current.chapters).map(([chapterId, chapter]) => [chapterId, chapter.impressionAssetId === id ? { ...chapter, impressionAssetId: undefined } : chapter])), companion }, set)
     },
     linkAssetToChapter: (assetId, chapterId) => { const current = get().data; commit({ ...current, assets: current.assets.map((asset) => asset.id === assetId ? { ...asset, chapterIds: [...new Set([...asset.chapterIds, chapterId])] } : asset) }, set) },
     setChapterImpression: (chapterId, assetId) => { const current = get().data; commit({ ...current, chapters: { ...current.chapters, [chapterId]: { ...current.chapters[chapterId], impressionAssetId: assetId } }, assets: current.assets.map((asset) => asset.id === assetId ? { ...asset, chapterIds: [...new Set([...asset.chapterIds, chapterId])] } : asset) }, set) },
@@ -41,6 +53,11 @@ export function referencedAssetIds(data: LibraryData) {
   const ids = new Set<string>()
   Object.values(data.chapters).forEach((chapter) => { assetIdsInContent(chapter.content).forEach((id) => ids.add(id)); if (chapter.impressionAssetId) ids.add(chapter.impressionAssetId) })
   if (data.settings.backgroundImage?.startsWith('asset:')) ids.add(data.settings.backgroundImage.slice(6))
+  const visual = data.companion.desktop.visual
+  if (visual.type === 'portrait' && visual.assetId) ids.add(visual.assetId)
+  if (visual.type === 'video') Object.values(visual.videos).forEach((id) => id && ids.add(id))
+  Object.values(data.companion.desktop.videoAssets ?? {}).forEach((id) => id && ids.add(id))
+  if (data.companion.appearance.portraitAssetId) ids.add(data.companion.appearance.portraitAssetId)
   const character = data.companion.desktop.characterPackage
   if (character) {
     ids.add(character.baseAssetId)

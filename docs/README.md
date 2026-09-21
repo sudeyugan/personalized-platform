@@ -12,8 +12,8 @@
 
 <!-- generated:project-status:start -->
 - 当前应用版本：`2.0.0`。
-- 当前阶段：M9 日常记录与规划，状态为“进行中”。
-- 自动门禁：未通过；人工验收：待验收。
+- 当前阶段：M10 AI 伙伴 Agent 与立绘基础，状态为“进行中”。
+- 自动门禁：已通过；人工验收：待验收。
 - 下一里程碑：后续方向待用户确认。
 - 当前事实以 `.agent/project-status.json` 为机器源，以 `.agent/PROJECT_STATE.md` 保存解释和偏差。
 <!-- generated:project-status:end -->

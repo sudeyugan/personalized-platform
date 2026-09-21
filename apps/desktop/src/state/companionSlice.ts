@@ -28,7 +28,7 @@ export function buildCompanionContext(data: LibraryData, temporaryWorkIds: strin
   return { text: parts.join('\n'), summary: parts.length ? parts.map((part) => part.split('：')[0]).join('、') : '未授权任何上下文' }
 }
 
-export function createCompanionSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, 'setCompanionProfile' | 'setCompanionAppearance' | 'setCompanionDesktop' | 'setCompanionCharacterPackage' | 'setCompanionProvider' | 'setCompanionPermissions' | 'grantTemporaryCompanionWork' | 'addCompanionMessage' | 'clearCompanionMessages' | 'addCompanionMemory' | 'updateCompanionMemory' | 'deleteCompanionMemory' | 'setCompanionGrowthEnabled' | 'setCompanionPersonality' | 'rollbackCompanionGrowth' | 'resetCompanionPersonality'> {
+export function createCompanionSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, 'setCompanionProfile' | 'setCompanionAppearance' | 'setCompanionDesktop' | 'setCompanionShortcut' | 'setCompanionPortrait' | 'setCompanionVideo' | 'setCompanionProvider' | 'setCompanionVoice' | 'setCompanionPermissions' | 'grantTemporaryCompanionWork' | 'addCompanionMessage' | 'addCompanionAudit' | 'clearCompanionMessages' | 'addCompanionMemory' | 'updateCompanionMemory' | 'deleteCompanionMemory' | 'setCompanionGrowthEnabled' | 'setCompanionPersonality' | 'rollbackCompanionGrowth' | 'resetCompanionPersonality'> {
   const updatePersonality = (changes: Partial<CompanionPersonality>, reason: string) => {
     const current = get().data
     const before = current.companion.personality
@@ -41,11 +41,30 @@ export function createCompanionSlice(get: () => LibraryStore, set: SetStore): Pi
     setCompanionProfile: (changes) => { const current = get().data; commit({ ...current, companion: { ...current.companion, ...changes } }, set) },
     setCompanionAppearance: (changes) => { const current = get().data; commit({ ...current, companion: { ...current.companion, appearance: { ...current.companion.appearance, ...changes } } }, set) },
     setCompanionDesktop: (visible) => { const current = get().data; commit({ ...current, companion: { ...current.companion, desktop: { ...current.companion.desktop, visible } } }, set) },
-    setCompanionCharacterPackage: (characterPackage) => { const current = get().data; commit({ ...current, companion: { ...current.companion, desktop: { ...current.companion.desktop, characterPackage } } }, set) },
+    setCompanionShortcut: (toggleShortcut) => { const current = get().data; commit({ ...current, companion: { ...current.companion, desktop: { ...current.companion.desktop, toggleShortcut } } }, set) },
+    setCompanionPortrait: (assetId) => { const current = get().data; commit({ ...current, companion: { ...current.companion, appearance: { ...current.companion.appearance, portraitAssetId: assetId }, desktop: { ...current.companion.desktop, visual: { type: 'portrait', assetId } } } }, set) },
+    setCompanionVideo: (state, assetId) => {
+      const current = get().data
+      const videos = { ...(current.companion.desktop.videoAssets ?? (current.companion.desktop.visual.type === 'video' ? current.companion.desktop.visual.videos : {})) }
+      if (assetId) videos[state] = assetId
+      else delete videos[state]
+      const visual = videos.idle
+        ? { type: 'video' as const, videos }
+        : current.companion.desktop.visual.type === 'video'
+          ? { type: 'portrait' as const, assetId: current.companion.appearance.portraitAssetId }
+          : current.companion.desktop.visual
+      commit({ ...current, companion: { ...current.companion, desktop: { ...current.companion.desktop, videoAssets: videos, visual } } }, set)
+    },
     setCompanionProvider: (changes) => { const current = get().data; commit({ ...current, companion: { ...current.companion, provider: { ...current.companion.provider, ...changes } } }, set) },
+    setCompanionVoice: (changes) => {
+      const current = get().data
+      const voice = current.companion.voice
+      commit({ ...current, companion: { ...current.companion, voice: { ...voice, ...changes, stt: { ...voice.stt, ...changes.stt }, tts: { ...voice.tts, ...changes.tts } } } }, set)
+    },
     setCompanionPermissions: (changes) => { const current = get().data; commit({ ...current, companion: { ...current.companion, permissions: { ...current.companion.permissions, ...changes } } }, set) },
     grantTemporaryCompanionWork: (id, allowed) => set({ temporaryCompanionWorkIds: allowed ? [...new Set([...get().temporaryCompanionWorkIds, id])] : get().temporaryCompanionWorkIds.filter((item) => item !== id) }),
     addCompanionMessage: (message) => { const current = get().data; commit({ ...current, companion: { ...current.companion, messages: [...current.companion.messages, message].slice(-100) } }, set); if (message.role === 'companion' && current.companion.growth.enabled) updatePersonality({ warmth: current.companion.personality.warmth + 1, curiosity: current.companion.personality.curiosity + 1 }, '已授权的对话互动') },
+    addCompanionAudit: (entries) => { if (!entries.length) return; const current = get().data; commit({ ...current, companion: { ...current.companion, agentAudit: [...current.companion.agentAudit, ...entries].slice(-300) } }, set) },
     clearCompanionMessages: () => { const current = get().data; commit({ ...current, companion: { ...current.companion, messages: [] } }, set) },
     addCompanionMemory: (content, source, sourceLabel, sourceWorkId) => { const current = get().data; if (!content.trim() || (sourceWorkId && current.works.find((item) => item.id === sourceWorkId)?.encrypted)) return false; const now = new Date().toISOString(); const memory = { id: `memory-${crypto.randomUUID()}`, content: content.trim(), source, sourceLabel, sourceWorkId, createdAt: now, updatedAt: now, confidence: source === 'manual' ? 100 : 70, authorized: true }; commit({ ...current, companion: { ...current.companion, memories: [...current.companion.memories, memory] } }, set); return true },
     updateCompanionMemory: (id, changes) => { const current = get().data; commit({ ...current, companion: { ...current.companion, memories: current.companion.memories.map((memory) => memory.id === id ? { ...memory, ...changes, confidence: changes.confidence === undefined ? memory.confidence : clamp(changes.confidence), updatedAt: new Date().toISOString() } : memory) } }, set) },

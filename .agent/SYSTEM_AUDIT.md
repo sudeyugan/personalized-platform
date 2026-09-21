@@ -2,7 +2,7 @@
 
 > 本文件只保存当前审查规则和近期重要记录。旧记录见 [`docs/archive/SYSTEM_AUDIT_HISTORY.md`](../docs/archive/SYSTEM_AUDIT_HISTORY.md)。
 
-最后审查：2026-09-14（质量门禁与文档流程精简）  
+最后审查：2026-09-21（伙伴文字与语音流式架构）  
 审查结果：合规  
 下一次触发：里程碑/正式发布、重大流程或架构变化、状态失真、连续失败或上下文无法恢复
 
@@ -26,6 +26,25 @@
 - 正式发布确认验证、安装包、哈希、文档与人工状态相互一致。
 
 ## 审查记录
+
+### 2026-09-21：伙伴文字与语音流式架构审查
+
+- 触发原因：模型请求由整段响应改为 SSE，语音输入新增浏览器到 ElevenLabs 的实时 WebSocket，属于网络与密钥边界变化。
+- 审查结果：合规。DeepSeek 仍只由主窗口 Rust 访问官方域名；模型仍只能经 Tool Registry、Permission Engine 和 Application Service 读取授权数据。新增地点与时间线工具继续复用 `records` 权限，没有 SQL、Repository、文件或 Shell 入口。
+- 密钥与网络：ElevenLabs 长期 Key 仍由 Rust/DPAPI 保管；聊天窗口只获取 15 分钟失效且单次使用的 `realtime_scribe` token。CSP 仅新增官方 `wss://api.elevenlabs.io`，音频 worklet 同源托管。长期记忆未开放为 Tool，避免在缺少单独外发授权时发送给 DeepSeek。
+- 状态与兼容：流式临时文本不写资料库，完成后仍只保存一条完整消息；非 ElevenLabs STT 保留原批量 Provider 回退。TTS 按句顺序生成和播放，保持现有 Voice ID/Provider 设置。
+- 验证：TypeScript、Rust check、前端生产构建、伙伴定向测试 10/10、Windows Release 与 NSIS 通过；意外全量前端测试 78/85 通过，7 项中 6 项为既有旧 UI 断言，新增工具数量断言已同步并通过。真实 DeepSeek/ElevenLabs 账号、麦克风设备和首包延迟待本机自然体验。
+- 偏差：没有扩大到写入 Tool、长期记忆外发、Computer Use、MCP 或 Live2D；TTS 当前为分句流式，不宣称单句内部音频帧流。
+
+### 2026-09-20：桌面聊天独立窗口架构审查
+
+- 触发原因：用户连续确认同一 companion WebView 向左扩展仍在 Windows/WebView2 实机闪烁，原窗口编排方案无法满足“立绘位置不变且无闪帧”的验收。
+- 审查结果：合规。立绘与聊天拆为两个透明置顶子窗口，主窗口只负责定位、显隐、裁剪快照和 Agent/语音事件转发；没有改变模型、Tool、权限或资料访问路径。
+- 安全边界：`companion` 与 `companion-chat` 共用仅含必要窗口/定向事件的 capability；Rust 自定义资料、密钥、备份和网络命令仍强制 `main` 标签。聊天窗口不读取素材，立绘素材继续受内存白名单守卫。
+- 结构与兼容：`DesktopCompanionWindow` 只渲染和拖动立绘，`DesktopCompanionChatWindow` 只承载消息/输入/语音控件，`CompanionDesktopBridge` 统一协调；现有消息、长期记忆、Agent 会话输入和新对话语义不迁移数据。
+- 验证：TypeScript、Rust check、生产前端、Rust Release 与三窗口 NSIS 构建成功；未运行 lint 或测试。左右贴边、多显示器/DPI 与真实透明 WebM 继续列为人工体验项。
+- 偏差：属于针对实机缺陷的最小架构修正，不改变 M10 目标范围；旧同窗扩展命令和专用 Windows API 依赖已移除，避免保留双路径技术债。
+- 同日 WebM 导入与显示补丁：视频字节上传和伙伴窗口读取均改为 Tauri 原始二进制 IPC，避免大文件 JSON 序列化停顿；上传命令仍只允许 `main` 调用，读取命令仍只允许 `companion` 且必须命中主窗口维护的当前素材白名单。Rust 继续执行 200 MB 上限并固定按 `video/webm` 保存；Unicode 文件名只经 Base64 请求头传递并经过现有文件名清理，不新增任意路径读取或文件系统权限。设置 UI 拆为静态/动态两个编辑页并显示分阶段导入和实际播放结果；元数据预读失败仅取消尺寸提示，不绕过文件大小、类型和权限校验，也不阻断素材保存。实机确认文件与入库副本无损且 Edge 可解码后，将 CSP 从只允许图片 Blob 修正为额外允许 `media-src 'self' blob:`；仍未允许任何远程媒体来源。
 
 ### 2026-09-14：质量门禁与文档流程精简结束审查
 
@@ -93,3 +112,21 @@
 - 数据与兼容：calendarEvents、term、repeatDays 随 PlannerData 保存；旧工作日和每周任务在 normalizeLibrary 中转换，统计不新增持久化字段。课程按 2026-09-14 起共 16 周及各课程周次过滤。
 - 验证事实：M9 相关 TypeScript 检查、前端生产构建、Rust Release 和 NSIS 本地候选构建成功；智能创作 UI 候选包哈希更新为 `86A84D36DB603C25652F30A3E52F0BA715D12FB960B67D8FB4B809723C1B6FF0`。未运行 lint 或测试，不升级为正式交付状态。
 - 流程：用户要求后续每次代码修改后自动编译并把安装包放到桌面；纯文档任务除外，该偏好不等价于运行完整发布门禁。
+
+### 2026-09-18：伙伴 Agent 与立绘架构审查
+
+- 触发原因：伙伴从一次性聊天演进为可调用内部查询能力的 Agent，同时活动角色渲染从差分角色包改为单张立绘，属于架构和安全边界变化。
+- 审查结果：合规。数据流为 `UI → Runtime → ModelProvider → Tool Registry → Permission Engine → Application Service`；首批四个 Tool 只读，schema、capability/risk、资料 scope、加密临时许可与最多 4 步限制均在模型无法绕过的应用层执行。
+- 安全边界：模型不能直接访问 Store、Repository、SQLite、文件、Shell 或任意 Rust command；审计只保存参数形状和字符串长度并过滤敏感键。桌面窗口只读取主窗口注册的单张立绘白名单，未扩大 capability。
+- 兼容与范围：旧角色包数据不删除但退出活动入口；`live2d` 仅预留类型。真实在线 Provider、写入 Tool/确认 UI、MCP、Computer Use 和 Live2D SDK 均未伪装为已完成。
+- 验证：Agent/Provider/伙伴定向测试 16/16、Rust 26/26、TypeScript、lint、生产 Web、Rust Release 和 NSIS 成功。lint 剩余 4 条是旧角色 Renderer 与待办页既有警告；一次误触发的前端全量测试 78/83 不作为本轮通过证据，失败集中于既有 App/资料导航 UI 查询。
+- 状态：当前仍是 M9 进行中和本地候选构建，不升级为正式发布或新里程碑；最新桌面 EXE 与项目内安装包哈希已记入 `PROJECT_STATE.md`。
+
+### 2026-09-18：M10 全局快捷键与 AI 伙伴设置审查
+
+- 触发原因：用户明确授权调整里程碑，并要求无边框桌面立绘、可配置系统级开关、设置合并及 DeepSeek/OpenRouter 服务分工。
+- 审查结果：M9 转为已交付待自然体验，M10 正式进行中。设置改名与分区不改变 Agent 权限语义；DeepSeek/OpenRouter 仍为安全失败配置入口，不宣称真实联网可用。
+- 权限：只给 main capability 增加官方 global-shortcut 的 register/unregister；companion capability 不变。快捷键处理只切换 `desktop.visible`，不能访问资料、密钥、文件或系统命令。
+- 数据与秘密：旧库补默认快捷键；两类 Provider endpoint/model 进入资料库，Key 分别保存在两个 DPAPI secret id，不进入资料库、日志和备份。
+- 验证：前端定向 19/19、Rust 26/26、TypeScript、lint、生产 Web、Rust Release、NSIS 与文档一致性通过；剩余 4 条 lint 警告均为既有旧角色 Renderer/待办 Hook。真实全局热键冲突与透明窗口观感交由用户本机自然验证。
+- 后续体验收敛：三个分区入口已合并为单页折叠结构；桌面窗口移除所有控制/说明 UI 并关闭系统 shadow。原桌面 EXE 曾短暂被文件锁占用，未强制结束未知进程；重试后已更新固定文件名并删除临时副本。

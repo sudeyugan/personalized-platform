@@ -18,7 +18,7 @@ describe('library compatibility normalization', () => {
     const upgraded = normalizeLibrary(legacy)
 
     expect(upgraded.chapters['chapter-welcome'].plainText).toBe(originalText)
-    expect(upgraded.settings.navigationOrder).toEqual(['home', 'calendar', 'todos', 'writing', 'diary', 'people', 'places', 'timeline', 'assets', 'music', 'help', 'settings'])
+    expect(upgraded.settings.navigationOrder).toEqual(['home', 'answerBook', 'calendar', 'todos', 'writing', 'diary', 'people', 'places', 'timeline', 'assets', 'music', 'help', 'settings'])
     expect(upgraded.session.activeView).toBe('calendar')
     expect(upgraded.assets).toEqual([])
     expect(upgraded.aiGenerations).toEqual([])
@@ -26,6 +26,7 @@ describe('library compatibility normalization', () => {
     expect(upgraded.companion.permissions).toEqual({ workIds: [], chapterIds: [], records: false, musicContext: false })
     expect(upgraded.companion.memories).toEqual([])
     expect(upgraded.companion.desktop.visible).toBe(false)
+    expect(upgraded.companion.desktop.toggleShortcut).toBe('CommandOrControl+Alt+Y')
     expect(upgraded.companion.personality).toEqual({ warmth: 60, curiosity: 50, initiative: 30 })
     expect(upgraded.settings.music.autoSwitch).toBe(false)
     expect(upgraded.settings.modules.find((module) => module.id === 'music')?.available).toBe(true)

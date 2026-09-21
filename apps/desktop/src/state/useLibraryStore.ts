@@ -12,6 +12,7 @@ import { createSecuritySlice } from './securitySlice'
 import { createMusicSlice, resolvePlaybackContext } from './musicSlice'
 import { createCompanionSlice } from './companionSlice'
 import { createPlannerSlice } from './plannerSlice'
+import { createAnswerBookSlice } from './answerBookSlice'
 import { formatLocalDate } from '../domain/localDate'
 
 const initialData = createSeedLibrary()
@@ -316,6 +317,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   ...createMusicSlice(get, set),
   ...createCompanionSlice(get, set),
   ...createPlannerSlice(get, set),
+  ...createAnswerBookSlice(get, set),
 
   setTheme: (theme) => {
     const data = { ...get().data, settings: { ...get().data.settings, theme } }
@@ -368,6 +370,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     const hidesActiveView = module.enabled && (
       (moduleId === 'writing' && ['writing', 'diary', 'people', 'places', 'timeline', 'assets'].includes(current.session.activeView))
       || (moduleId === 'music' && current.session.activeView === 'music')
+      || (moduleId === 'answerBook' && current.session.activeView === 'answerBook')
     )
     const session = hidesActiveView
       ? { ...current.session, activeView: 'home' as const }

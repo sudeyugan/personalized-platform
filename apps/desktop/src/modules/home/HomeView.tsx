@@ -1,15 +1,47 @@
-import { ArrowRight, BookOpenText, CalendarDays, Feather, MapPin, Plus, Quote, UsersRound } from 'lucide-react'
+import { emitTo } from '@tauri-apps/api/event'
+import { ArrowRight, BookOpenText, Feather, MessageCircle, PenLine, Plus, Quote, RefreshCw } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { formatLocalDate } from '../../domain/localDate'
+import { beijingDate, generateDailyQuestion, isBeijingMorningReady } from '../../infrastructure/dailyQuestionProvider'
 import { useLibraryStore } from '../../state/useLibraryStore'
+import { HomeMoodCard } from '../mood/HomeMoodCard'
 import { useLiveDate } from './homeDate'
 
 export function HomeView() {
-  const { data, navigate, selectChapter, createWork } = useLibraryStore()
+  const { data, navigate, selectChapter, createWork, saveMoodEntry, deleteMoodEntry, saveDailyQuestion, startDailyQuestionDiary, setCompanionDesktop } = useLibraryStore()
   const activeWork = data.works.find((work) => work.id === data.session.activeWorkId) ?? data.works[0]
-  const recentChapters = Object.values(data.chapters).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 3)
+  const latestChapter = Object.values(data.chapters).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
   const totalWords = Object.values(data.chapters).reduce((sum, chapter) => sum + chapter.wordCount, 0)
   const progress = activeWork ? Math.min(100, Math.round((totalWords / activeWork.targetWords) * 100)) : 0
   const writingEnabled = data.settings.modules.find((module) => module.id === 'writing')?.enabled ?? true
   const today = useLiveDate()
+  const [questionError, setQuestionError] = useState('')
+  const [questionBusy, setQuestionBusy] = useState(false)
+  const [retry, setRetry] = useState(0)
+  const generating = useRef(false)
+  const questionDate = beijingDate()
+  const dailyQuestion = data.planner.dailyQuestions.find((item) => item.date === questionDate)
+
+  useEffect(() => {
+    const ensureQuestion = async () => {
+      if (!isBeijingMorningReady() || dailyQuestion || generating.current) return
+      generating.current = true
+      setQuestionBusy(true)
+      setQuestionError('')
+      try { saveDailyQuestion(await generateDailyQuestion(data.companion, data.planner.dailyQuestions, questionDate)) }
+      catch (error) { setQuestionError(error instanceof Error ? error.message : '今天的问题暂时没有抵达') }
+      finally { generating.current = false; setQuestionBusy(false) }
+    }
+    void ensureQuestion()
+    const timer = window.setInterval(() => void ensureQuestion(), 60_000)
+    return () => window.clearInterval(timer)
+  }, [dailyQuestion, data.companion, data.planner.dailyQuestions, questionDate, retry, saveDailyQuestion])
+
+  const talkAboutQuestion = async () => {
+    if (!dailyQuestion) return
+    setCompanionDesktop(true)
+    if ('__TAURI_INTERNALS__' in window) await emitTo('main', 'companion:chat-open-request', { draft: `我想聊聊今天的朝问：${dailyQuestion.question}` })
+  }
 
   return (
     <main className="home-view scroll-view">
@@ -22,6 +54,8 @@ export function HomeView() {
         <div className="date-orb"><span>{today.month}</span><strong>{today.day}</strong><small>{today.year}</small></div>
       </section>
 
+      <HomeMoodCard date={formatLocalDate()} entries={data.planner.moodEntries} onSave={saveMoodEntry} onDelete={deleteMoodEntry} />
+
       {writingEnabled ? <><section className="continue-card">
         <div className="continue-visual"><Quote size={30} /><span>那些以为早已忘记的，<br />会在笔尖重新发亮。</span></div>
         <div className="continue-content">
@@ -30,27 +64,16 @@ export function HomeView() {
           <p>{activeWork?.description}</p>
           <div className="progress-row"><div className="progress-track"><span style={{ width: `${progress}%` }} /></div><span>{totalWords.toLocaleString()} 字 · {progress}%</span></div>
           <div className="card-actions">
-            <button className="primary-button" onClick={() => recentChapters[0] && selectChapter(recentChapters[0].id)}><BookOpenText size={16} />继续写作<ArrowRight size={15} /></button>
+            <button className="primary-button" onClick={() => latestChapter && selectChapter(latestChapter.id)}><BookOpenText size={16} />继续写作<ArrowRight size={15} /></button>
             <button className="ghost-button" onClick={createWork}><Plus size={16} />新建作品</button>
           </div>
         </div>
       </section>
 
-      <div className="section-heading"><div><p className="eyebrow">最近落笔</p><h2>你的篇章</h2></div><button onClick={() => navigate('writing')}>查看全部 <ArrowRight size={15} /></button></div>
-      <section className="recent-grid">
-        {recentChapters.map((chapter, index) => (
-          <button className="recent-card" key={chapter.id} onClick={() => selectChapter(chapter.id)}>
-            <span className={`chapter-index tint-${index + 1}`}>{String(index + 1).padStart(2, '0')}</span>
-            <div><h3>{chapter.title}</h3><p>{chapter.plainText.slice(0, 54) || '这一页还很安静，等待你的第一句话。'}</p></div>
-            <footer><span>{chapter.wordCount} 字</span><span>{new Date(chapter.updatedAt).toLocaleDateString('zh-CN')}</span></footer>
-          </button>
-        ))}
-      </section>
-
-      <section className="glance-row">
-        <button onClick={() => navigate('people')}><UsersRound /><span><strong>{data.people.length}</strong> 个人物</span></button>
-        <button onClick={() => navigate('places')}><MapPin /><span><strong>{data.places.length}</strong> 个地点</span></button>
-        <button onClick={() => navigate('timeline')}><CalendarDays /><span><strong>{data.events.length}</strong> 段往事</span></button>
+      <section className={`morning-question-card ${dailyQuestion?.tone === 'sharp' ? 'sharp' : ''}`}>
+        <header><div className="morning-question-title"><span className="morning-question-mark"><Quote size={17} /></span><div><p className="eyebrow">朝问</p><h2>留一个问题，与今天同行</h2></div></div><time>{questionDate.slice(5).replace('-', ' / ')} · 08:00</time></header>
+        {dailyQuestion ? <div className="morning-question-content"><div className="morning-question-copy"><h3>{dailyQuestion.question}</h3><p>{dailyQuestion.background}</p></div><aside><span>再往深处想一步</span><blockquote>{dailyQuestion.followUp}</blockquote></aside><div className="morning-question-actions"><button className="primary-button" onClick={() => startDailyQuestionDiary(dailyQuestion)}><PenLine size={15} />写下想法</button><button className="ghost-button" onClick={() => void talkAboutQuestion()}><MessageCircle size={15} />和伙伴谈谈</button></div></div>
+          : <div className="morning-question-pending"><p>{questionBusy ? '正在为今天留下一个值得慢慢想的问题…' : isBeijingMorningReady() ? questionError || '今天的问题暂时没有抵达。' : '清晨八点，新的问题会来到这里。'}</p>{questionError && <button className="ghost-button" onClick={() => setRetry((value) => value + 1)}><RefreshCw size={14} />再试一次</button>}</div>}
       </section>
       </> : <section className="empty-state"><BookOpenText size={38} /><h2>写作模块已停用</h2><p>已有作品仍安全保留，可在设置中随时重新启用。</p><button className="primary-button" onClick={() => navigate('settings')}>前往设置</button></section>}
     </main>

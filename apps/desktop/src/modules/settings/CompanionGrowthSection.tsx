@@ -1,45 +1,27 @@
-import { Check, Download, History, ImagePlus, RotateCcw, Sparkles, Trash2 } from 'lucide-react'
-import { useState } from 'react'
-import { createAiProvider, type ImpressionCandidate } from '../../infrastructure/aiProvider'
+import { Download, History, RotateCcw, Sparkles, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useLibraryStore } from '../../state/useLibraryStore'
-import { AssetImage } from '../assets/AssetImage'
-import { CompanionCharacterPackageSection } from './CompanionCharacterPackageSection'
-
-async function candidateFile(candidate: ImpressionCandidate) {
-  const image = new Image(); image.src = candidate.previewUrl; await image.decode()
-  const canvas = document.createElement('canvas'); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight
-  canvas.getContext('2d')!.drawImage(image, 0, 0)
-  const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error('候选图转换失败')), 'image/png'))
-  return new File([blob], '伙伴立绘.png', { type: 'image/png' })
-}
+import { CompanionPortraitSection } from './CompanionPortraitSection'
 
 export function CompanionGrowthSection() {
-  const { data, importAsset, recordAiGeneration, setCompanionAppearance, setCompanionDesktop, addCompanionMemory, updateCompanionMemory, deleteCompanionMemory, setCompanionGrowthEnabled, setCompanionPersonality, rollbackCompanionGrowth, resetCompanionPersonality } = useLibraryStore()
+  const { data, setCompanionDesktop, setCompanionShortcut, addCompanionMemory, updateCompanionMemory, deleteCompanionMemory, setCompanionGrowthEnabled, setCompanionPersonality, rollbackCompanionGrowth, resetCompanionPersonality } = useLibraryStore()
   const companion = data.companion
-  const portrait = data.assets.find((asset) => asset.id === companion.appearance.portraitAssetId && !asset.deletedAt)
   const [memoryDraft, setMemoryDraft] = useState('')
-  const [prompt, setPrompt] = useState('温暖、克制的东方编辑插画角色立绘，透明感背景，不出现文字。')
-  const [candidates, setCandidates] = useState<ImpressionCandidate[]>([])
-  const [status, setStatus] = useState('候选确认前不会进入正式素材库。')
+  const [shortcutStatus, setShortcutStatus] = useState(() => window.localStorage.getItem('yiyu:companion-shortcut-status') ?? '快捷键在一隅运行期间全局生效。')
+  useEffect(() => {
+    const update = (event: Event) => setShortcutStatus((event as CustomEvent<string>).detail)
+    window.addEventListener('yiyu:companion-shortcut-status', update)
+    return () => window.removeEventListener('yiyu:companion-shortcut-status', update)
+  }, [])
 
-  const generate = async () => {
-    try { setCandidates(await createAiProvider(data.settings.ai).generate({ chapterId: 'companion', sourceRevision: 0, sourcePreview: '', prompt, stylePreset: data.settings.ai.stylePreset })); setStatus('草稿已生成；请选择一张确认。') }
-    catch (error) { setStatus(error instanceof Error ? error.message : '生成失败') }
-  }
-  const confirm = async (candidate: ImpressionCandidate) => {
-    try { const asset = await importAsset(await candidateFile(candidate)); setCompanionAppearance({ portraitAssetId: asset.id }); recordAiGeneration({ id: `generation-${crypto.randomUUID()}`, kind: 'companion_portrait', providerId: data.settings.ai.providerId, sourceId: 'companion', sourceRevision: 0, stylePreset: data.settings.ai.stylePreset, status: 'confirmed', resultAssetIds: [asset.id], createdAt: new Date().toISOString() }); setCandidates([]); setStatus('已确认并作为正式伙伴素材。') }
-    catch (error) { setStatus(error instanceof Error ? error.message : '导入失败') }
-  }
   const exportMemories = () => { const blob = new Blob([JSON.stringify(companion.memories, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = '一隅-伙伴记忆.json'; link.click(); URL.revokeObjectURL(url) }
 
   return <section className="settings-section companion-growth-section">
     <div className="settings-title"><Sparkles /><div><h2>伙伴形象与成长</h2><p>桌面形态、长期记忆和性格变化都可以关闭、查看或撤销。</p></div></div>
-    <div className="settings-subsection"><div className="settings-subsection-heading"><strong>形象组合与桌面显示</strong><small>桌面窗口只接收外观和动作快照，不读取资料库</small></div>
-      <label className="setting-row"><div><strong>发型</strong><span>侧栏与桌面窗口保持一致</span></div><select value={companion.appearance.hair} onChange={(event) => setCompanionAppearance({ hair: event.target.value as typeof companion.appearance.hair })}><option value="ink">墨色自然</option><option value="short">轻盈短发</option><option value="long">柔和长发</option></select></label>
-      <label className="setting-row"><div><strong>服装</strong><span>使用独立图层组合，不改变权限</span></div><select value={companion.appearance.outfit} onChange={(event) => setCompanionAppearance({ outfit: event.target.value as typeof companion.appearance.outfit })}><option value="linen">亚麻暖白</option><option value="sage">鼠尾草绿</option><option value="night">深夜蓝</option></select></label>
+    <div className="settings-subsection"><div className="settings-subsection-heading"><strong>伙伴立绘与桌面显示</strong><small>第一阶段使用单张透明立绘，未来可替换为 Live2D Renderer</small></div>
       <div className="setting-row"><div><strong>桌面伙伴</strong><span>透明置顶窗口，可拖动和单独隐藏</span></div><button aria-pressed={companion.desktop.visible} className={companion.desktop.visible ? 'switch on' : 'switch'} onClick={() => setCompanionDesktop(!companion.desktop.visible)}><i /></button></div>
-      <CompanionCharacterPackageSection />
-      <div className="portrait-workflow">{portrait && <div className="portrait-current"><AssetImage asset={portrait} /><span><Check size={13} />正式形象</span></div>}<textarea aria-label="伙伴形象提示词" rows={2} value={prompt} onChange={(event) => setPrompt(event.target.value)} /><button className="ghost-button" onClick={() => void generate()}><ImagePlus size={14} />生成形象草稿</button><small>{status}</small>{candidates.length > 0 && <div className="portrait-candidates">{candidates.map((candidate) => <button key={candidate.id} onClick={() => void confirm(candidate)}><img src={candidate.previewUrl} alt="伙伴形象候选" /><span>确认采用</span></button>)}</div>}</div>
+      <div className="setting-row companion-shortcut-row"><div><strong>显示 / 隐藏快捷键</strong><span>{shortcutStatus}</span></div><label className="shortcut-picker"><span>按键组合</span><select aria-label="显示或隐藏伙伴的快捷键" value={companion.desktop.toggleShortcut} onChange={(event) => setCompanionShortcut(event.target.value)}><option value="">关闭快捷键</option><option value="CommandOrControl+Alt+Y">Ctrl + Alt + Y</option><option value="CommandOrControl+Alt+J">Ctrl + Alt + J</option><option value="CommandOrControl+Alt+B">Ctrl + Alt + B</option><option value="CommandOrControl+Shift+Y">Ctrl + Shift + Y</option></select></label></div>
+      <CompanionPortraitSection />
     </div>
     <div className="settings-subsection"><div className="settings-subsection-heading"><strong>可治理记忆</strong><small>只有启用的记忆才会注入对话；删除立即生效</small></div>
       <div className="memory-compose"><input aria-label="新增伙伴记忆" value={memoryDraft} onChange={(event) => setMemoryDraft(event.target.value)} placeholder="例如：我更喜欢安静的提醒" /><button className="ghost-button" onClick={() => { if (addCompanionMemory(memoryDraft, 'manual', '用户手动添加')) setMemoryDraft('') }}>添加</button><button className="ghost-button" disabled={!companion.memories.length} onClick={exportMemories}><Download size={13} />导出</button></div>

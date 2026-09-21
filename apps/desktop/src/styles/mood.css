@@ -1,0 +1,85 @@
+.home-mood-card{position:relative;margin:0 0 22px;padding:20px;border:1px solid color-mix(in srgb,var(--accent) 14%,var(--line));border-radius:18px;background:color-mix(in srgb,var(--surface) 92%,var(--accent-soft));box-shadow:0 12px 32px rgba(60,48,36,.055)}
+.home-mood-card>header{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:15px}
+.home-mood-card>header h2{margin:3px 0 0;font:500 17px var(--serif)}
+.mood-day-switch{display:flex;align-items:center;padding:2px;border:1px solid var(--line);border-radius:9px;background:color-mix(in srgb,var(--surface) 84%,transparent)}
+.mood-day-switch button{padding:5px 9px;border-radius:7px;color:var(--ink-faint);font-size:8px}
+.mood-day-switch button.active{color:var(--accent-strong);background:var(--accent-soft)}
+.mood-aura{width:74px;height:38px;flex:0 0 auto;border-radius:50%;filter:blur(9px);opacity:.58;transform:rotate(-5deg)}
+.home-mood-periods{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.home-mood-periods article{position:relative;display:grid;grid-template-columns:minmax(82px,1fr) minmax(70px,1.3fr) auto;align-items:center;gap:10px;padding:11px;border:1px solid var(--line);border-radius:11px;background:var(--surface)}
+.home-mood-periods article.suggested{border-color:color-mix(in srgb,var(--accent) 34%,var(--line))}
+.home-mood-periods article.suggested::before{content:'此刻';position:absolute;top:-7px;left:10px;padding:1px 5px;border-radius:5px;color:var(--accent-strong);background:var(--accent-soft);font-size:7px}
+.home-mood-periods strong,.home-mood-periods small{display:block}
+.home-mood-periods strong{font:500 11px var(--serif)}
+.home-mood-periods small{margin-top:3px;overflow:hidden;color:var(--ink-faint);font-size:7px;text-overflow:ellipsis;white-space:nowrap}
+.home-mood-periods article>button{display:inline-flex;align-items:center;gap:4px;padding:6px 7px;border-radius:7px;color:var(--accent-strong);background:var(--accent-soft);font-size:8px}
+.mood-blend-bar,.mood-empty-bar{height:14px;display:block;border-radius:99px}
+.mood-blend-bar{box-shadow:inset 0 0 0 1px rgba(255,255,255,.34);transition:filter .18s ease}
+.mood-blend-bar:hover{filter:saturate(1.08)}
+.mood-blend-bar.compact{height:7px;min-width:54px}
+.mood-empty-bar{border:1px dashed var(--line);background:var(--surface-soft)}
+
+.mood-editor{display:grid;gap:13px;margin-top:12px;padding:15px;border:1px solid var(--line);border-radius:13px;background:var(--surface)}
+.mood-editor>header{display:flex;align-items:center;justify-content:space-between}
+.mood-editor>header>div{display:flex;align-items:center;gap:9px}
+.mood-editor>header span{font:500 12px var(--serif)}
+.mood-editor>header strong{color:var(--accent-strong);font-size:8px}
+.mood-editor>header>button{width:28px;height:28px;display:grid;place-items:center;border-radius:7px;color:var(--ink-faint);background:transparent}
+.mood-point-slots{display:flex;justify-content:center;gap:9px;padding:5px 0}
+.mood-point-slots button{width:39px;height:39px;display:grid;place-items:center;border:1px dashed var(--line);border-radius:50%;color:var(--ink-faint);background:var(--surface-soft);font:9px var(--serif)}
+.mood-point-slots button.filled{color:var(--mood-ink,#fff);border-style:solid;border-color:color-mix(in srgb,var(--mood-color) 75%,white);background:var(--mood-color);box-shadow:0 5px 15px color-mix(in srgb,var(--mood-color) 24%,transparent)}
+.mood-choice-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:5px}
+.mood-choice-grid button{min-width:0;display:grid;grid-template-columns:9px minmax(0,1fr) 12px;align-items:center;gap:5px;padding:7px;border:1px solid var(--line);border-radius:8px;color:var(--ink-soft);background:var(--surface-soft);font-size:8px}
+.mood-choice-grid button i{width:8px;height:8px;border-radius:50%;background:var(--mood-color)}
+.mood-choice-grid button b{color:var(--accent-strong);font-size:8px}
+.mood-choice-grid button:disabled{opacity:.4}
+.mood-editor>input{min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:8px;color:var(--ink);background:var(--surface-soft);font:9px var(--serif)}
+.mood-editor>footer{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.mood-editor>footer>div{display:flex;gap:6px}
+.mood-editor>footer>div button{display:inline-flex;align-items:center;gap:4px;padding:7px;border-radius:7px;color:var(--ink-faint);background:transparent;font-size:8px}
+.mood-editor>footer>div .mood-clear{color:#a9534d}
+.mood-editor>footer>.primary-button:disabled{opacity:.4;transform:none}
+
+.mood-stats{margin-top:12px;border-top:1px solid var(--line)}
+.mood-stats>summary{display:flex;align-items:center;justify-content:space-between;padding:11px 2px 0;cursor:pointer;color:var(--ink-soft);font-size:9px;list-style:none}
+.mood-stats>summary::-webkit-details-marker{display:none}
+.mood-stats>summary strong{color:var(--ink-faint);font-size:8px}
+.mood-stats>p{margin:10px 0 0;color:var(--ink-faint);font-size:8px}
+.mood-stats-body{display:grid;gap:10px;padding-top:11px}
+.mood-top-list{display:flex;flex-wrap:wrap;gap:6px}
+.mood-top-list span{display:flex;align-items:center;gap:5px;padding:5px 7px;border-radius:7px;color:var(--ink-soft);background:var(--surface);font-size:8px}
+.mood-top-list i{width:7px;height:7px;border-radius:50%}
+.mood-top-list b{color:var(--accent-strong);font-size:8px}
+.mood-week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.mood-week-grid>div{display:grid;gap:3px}
+.mood-week-grid>div>span{text-align:center;color:var(--ink-faint);font-size:7px}
+.mood-week-grid .mood-blend-bar,.mood-week-grid>div>i{height:5px;min-width:0;border-radius:4px}
+.mood-week-grid>div>i{display:block;background:var(--surface-soft)}
+.mood-period-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mood-period-stats>div{display:grid;gap:4px}
+.mood-period-stats span{color:var(--ink-faint);font-size:7px}
+
+.month-grid>button{position:relative}
+.month-grid>button>.calendar-mood-bands{position:absolute;top:8px;right:7px;width:32px;height:auto;display:grid;place-items:initial;gap:2px;border-radius:0;background:transparent}
+.calendar-mood-bands .mood-blend-bar{width:32px;height:3px;min-width:0;box-shadow:none}
+.mood-day-summary{display:grid;gap:5px;margin-top:13px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--surface-soft)}
+.calendar-agenda .mood-day-summary h3{margin:0 0 3px}
+.mood-day-summary>div{display:grid;grid-template-columns:30px minmax(45px,1fr);align-items:center;gap:5px}
+.mood-day-summary>div>span{color:var(--ink-soft);font-size:8px}
+.mood-day-summary>div>small{grid-column:2;overflow:hidden;color:var(--ink-faint);font-size:7px;text-overflow:ellipsis;white-space:nowrap}
+.mood-day-summary>div>p{grid-column:2;margin:0;color:var(--ink-soft);font:8px/1.45 var(--serif)}
+.mood-readonly-hint{margin-top:3px;color:var(--ink-faint);font-size:7px}
+.calendar-agenda>.mood-stats{margin-top:8px;padding:0 2px 10px}
+
+@media(max-width:900px){
+  .home-mood-periods{grid-template-columns:1fr}
+  .mood-choice-grid{grid-template-columns:repeat(4,1fr)}
+}
+@media(max-width:560px){
+  .home-mood-card{padding:15px}
+  .mood-choice-grid{grid-template-columns:repeat(3,1fr)}
+  .mood-point-slots{gap:5px}
+  .mood-point-slots button{width:34px;height:34px}
+  .mood-editor>footer{align-items:stretch;flex-direction:column}
+  .mood-editor>footer>.primary-button{justify-content:center}
+}

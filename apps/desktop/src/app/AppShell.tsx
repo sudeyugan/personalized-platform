@@ -1,4 +1,4 @@
-import { BookHeart, ChevronLeft, ChevronRight, CloudOff, FileText, PanelRight, Search, X } from 'lucide-react'
+import { BookHeart, BookOpenText, ChevronDown, ChevronLeft, ChevronRight, CloudOff, FileText, PanelRight, Search, X } from 'lucide-react'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { navigationItems } from './moduleManifest'
 import { useLibraryStore } from '../state/useLibraryStore'
@@ -6,6 +6,7 @@ import { libraryRepository, type SearchHit } from '../infrastructure/libraryRepo
 import { PlaybackDock } from '../modules/music/PlaybackDock'
 
 const HomeView = lazy(() => import('../modules/home/HomeView').then((module) => ({ default: module.HomeView })))
+const AnswerBookView = lazy(() => import('../modules/answer-book/AnswerBookView').then((module) => ({ default: module.AnswerBookView })))
 const CalendarScheduleView = lazy(() => import('../modules/planner/CalendarScheduleView').then((module) => ({ default: module.CalendarScheduleView })))
 const DiaryView = lazy(() => import('../modules/planner/DiaryView').then((module) => ({ default: module.DiaryView })))
 const TodoView = lazy(() => import('../modules/planner/TodoView').then((module) => ({ default: module.TodoView })))
@@ -23,6 +24,7 @@ export function AppShell() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchHit[]>([])
+  const [writingNavigationOpen, setWritingNavigationOpen] = useState(() => window.localStorage.getItem('yiyu:writing-navigation-open') === 'true')
   useEffect(() => {
     const timer = setTimeout(() => { void libraryRepository.search(query).then(setSearchResults).catch(() => setSearchResults([])) }, 120)
     return () => clearTimeout(timer)
@@ -34,10 +36,20 @@ export function AppShell() {
   }, [])
   const writingEnabled = data.settings.modules.find((module) => module.id === 'writing')?.enabled ?? true
   const musicEnabled = data.settings.modules.find((module) => module.id === 'music')?.enabled ?? false
-  const orderedNavigation = data.settings.navigationOrder.map((id) => navigationItems.find((item) => item.id === id)).filter((item) => item && (item.group !== 'writing' || writingEnabled) && (item.id !== 'music' || musicEnabled))
+  const answerBookEnabled = data.settings.modules.find((module) => module.id === 'answerBook')?.enabled ?? true
+  const orderedNavigation = data.settings.navigationOrder.map((id) => navigationItems.find((item) => item.id === id)).filter((item) => item && (item.group !== 'writing' || writingEnabled) && (item.id !== 'music' || musicEnabled) && (item.id !== 'answerBook' || answerBookEnabled))
+  const writingViewActive = navigationItems.some((item) => item.group === 'writing' && item.id === activeView)
+
+  const toggleWritingNavigation = () => {
+    setWritingNavigationOpen((current) => {
+      window.localStorage.setItem('yiyu:writing-navigation-open', String(!current))
+      return !current
+    })
+  }
 
   const view = (() => {
     if (activeView === 'home') return <HomeView />
+    if (activeView === 'answerBook') return <AnswerBookView />
     if (activeView === 'calendar') return <CalendarScheduleView />
     if (activeView === 'diary') return <DiaryView />
     if (activeView === 'todos') return <TodoView />
@@ -63,9 +75,15 @@ export function AppShell() {
 
         <nav className="main-navigation" aria-label="主导航">
           {(['main', 'writing', 'system'] as const).map((group) => (
-            <div className="nav-group" key={group}>
-              {group === 'writing' && <p className="nav-label">创作空间</p>}
-              {orderedNavigation.filter((item) => item?.group === group).map((item) => {
+            <div className={group === 'writing' ? 'nav-group writing-nav-group' : 'nav-group'} key={group}>
+              {group === 'writing' && (
+                <button className={writingViewActive ? 'nav-item nav-section-toggle has-active-view' : 'nav-item nav-section-toggle'} aria-expanded={writingNavigationOpen} onClick={toggleWritingNavigation} type="button">
+                  <BookOpenText size={18} strokeWidth={1.7} />
+                  <span>创作空间</span>
+                  {writingNavigationOpen ? <ChevronDown className="nav-section-chevron" size={14} /> : <ChevronRight className="nav-section-chevron" size={14} />}
+                </button>
+              )}
+              {(group !== 'writing' || writingNavigationOpen) && orderedNavigation.filter((item) => item?.group === group).map((item) => {
                 if (!item) return null
                 const Icon = item.icon
                 return (
