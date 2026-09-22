@@ -138,7 +138,7 @@ export function createSeedLibrary(): LibraryData {
     aiGenerations: [],
     tracks: [],
     musicContexts: { global: [], works: {}, chapters: {}, focus: [] },
-    companion: { name: '小隅', expression: 'calm', appearance: { hair: 'ink', outfit: 'linen' }, desktop: { visible: false, visual: { type: 'portrait' }, videoAssets: {}, toggleShortcut: 'CommandOrControl+Alt+Y' }, provider: { providerId: 'mock', endpoint: '', model: 'mock-companion-v1' }, voice: { stt: { providerId: 'none', endpoint: '', model: 'scribe_v2' }, tts: { providerId: 'none', endpoint: '', model: 'eleven_flash_v2_5', voice: '' }, autoSpeak: false, replyLength: 'short', longReplySpeech: 'summary' }, permissions: { workIds: [], chapterIds: [], records: false, musicContext: false, writeActions: false }, messages: [], memories: [], agentAudit: [], personality: { warmth: 60, curiosity: 50, initiative: 30 }, growth: { enabled: false, logs: [] } },
+    companion: { name: '小隅', expression: 'calm', appearance: { hair: 'ink', outfit: 'linen' }, desktop: { visible: false, visual: { type: 'portrait' }, videoAssets: {}, videoClips: {}, toggleShortcut: 'CommandOrControl+Alt+Y' }, provider: { providerId: 'mock', endpoint: '', model: 'mock-companion-v1' }, voice: { stt: { providerId: 'none', endpoint: '', model: 'scribe_v2' }, tts: { providerId: 'none', endpoint: '', model: 'eleven_flash_v2_5', voice: '' }, autoSpeak: false, wakeEnabled: false, replyLength: 'short', longReplySpeech: 'summary' }, permissions: { workIds: [], chapterIds: [], records: false, musicContext: false, writeActions: false }, messages: [], memories: [], agentAudit: [], personality: { warmth: 60, curiosity: 50, initiative: 30 }, growth: { enabled: false, logs: [] } },
     planner: { courses: importedScheduleCourses.map((course) => ({ ...course })), diaryEntries: [], moodEntries: [], todos: [], holidayDates: [], dailyQuestions: [], calendarEvents: [], term: { startDate: '2026-09-14', totalWeeks: 16 }, courseImportVersion: 1 },
     answerBook: { favorites: [] },
     settings: {
@@ -157,6 +157,7 @@ export function createSeedLibrary(): LibraryData {
       ai: { providerId: 'mock', endpoint: '', model: 'mock-illustration-v1', stylePreset: '温暖手绘' },
       backup: { dailyEnabled: true, directory: '', retentionCount: 14 },
       security: { autoLockMinutes: 15 },
+      trust: { externalAiProcessing: false, shareAuthorizedContext: true, shareRecentConversation: true, retainConversationHistory: true, outboundProtection: true, outboundReviewMode: 'balanced', privateDictionary: [] },
       music: { volume: 0.65, loop: 'all', autoSwitch: false, playerVisible: true },
     },
     session: {
@@ -192,6 +193,16 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
     ...storedPlanner.courses,
     ...importedScheduleCourses.filter((candidate) => !storedPlanner.courses.some((course) => course.day === candidate.day && course.period === candidate.period && course.title === candidate.title)),
   ]
+  const storedVideoAssets = data.companion?.desktop?.videoAssets ?? (data.companion?.desktop?.visual?.type === 'video' ? data.companion.desktop.visual.videos : {})
+  const storedVideoClips = data.companion?.desktop?.videoClips ?? (data.companion?.desktop?.visual?.type === 'video' ? data.companion.desktop.visual.clips : undefined)
+  const videoClips = Object.fromEntries([...new Set([...Object.keys(storedVideoAssets), ...Object.keys(storedVideoClips ?? {})])].map((state) => {
+    const clips = storedVideoClips?.[state as keyof typeof storedVideoClips]?.filter(Boolean) ?? []
+    const legacy = storedVideoAssets[state as keyof typeof storedVideoAssets]
+    return [state, [...new Set(legacy && !clips.includes(legacy) ? [legacy, ...clips] : clips)]]
+  }).filter(([, clips]) => (clips as string[]).length))
+  const primaryVideos = Object.fromEntries(Object.entries(videoClips).map(([state, clips]) => [state, (clips as string[])[0]]))
+  const storedVisual = data.companion?.desktop?.visual ?? { type: 'portrait' as const, assetId: data.companion?.appearance?.portraitAssetId }
+  const normalizedVisual = storedVisual.type === 'video' ? { type: 'video' as const, videos: primaryVideos, clips: videoClips } : storedVisual
   return {
     ...data,
     volumes: data.volumes ?? [],
@@ -204,7 +215,7 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
     aiGenerations: data.aiGenerations ?? [],
     tracks: data.tracks ?? [],
     musicContexts: { ...seed.musicContexts, ...data.musicContexts, works: data.musicContexts?.works ?? {}, chapters: data.musicContexts?.chapters ?? {} },
-    companion: { ...seed.companion, ...data.companion, appearance: { ...seed.companion.appearance, ...data.companion?.appearance }, desktop: { ...seed.companion.desktop, ...data.companion?.desktop, visual: data.companion?.desktop?.visual ?? { type: 'portrait', assetId: data.companion?.appearance?.portraitAssetId }, videoAssets: data.companion?.desktop?.videoAssets ?? (data.companion?.desktop?.visual?.type === 'video' ? data.companion.desktop.visual.videos : {}) }, provider: { ...seed.companion.provider, ...data.companion?.provider }, voice: { ...seed.companion.voice, ...data.companion?.voice, stt: { ...seed.companion.voice.stt, ...data.companion?.voice?.stt }, tts: { ...seed.companion.voice.tts, ...data.companion?.voice?.tts } }, permissions: { ...seed.companion.permissions, ...data.companion?.permissions }, messages: data.companion?.messages ?? [], memories: data.companion?.memories ?? [], agentAudit: data.companion?.agentAudit ?? [], personality: { ...seed.companion.personality, ...data.companion?.personality }, growth: { ...seed.companion.growth, ...data.companion?.growth, logs: data.companion?.growth?.logs ?? [] } },
+    companion: { ...seed.companion, ...data.companion, appearance: { ...seed.companion.appearance, ...data.companion?.appearance }, desktop: { ...seed.companion.desktop, ...data.companion?.desktop, visual: normalizedVisual, videoAssets: primaryVideos, videoClips }, provider: { ...seed.companion.provider, ...data.companion?.provider }, voice: { ...seed.companion.voice, ...data.companion?.voice, stt: { ...seed.companion.voice.stt, ...data.companion?.voice?.stt }, tts: { ...seed.companion.voice.tts, ...data.companion?.voice?.tts } }, permissions: { ...seed.companion.permissions, ...data.companion?.permissions }, messages: data.companion?.messages ?? [], memories: data.companion?.memories ?? [], agentAudit: data.companion?.agentAudit ?? [], personality: { ...seed.companion.personality, ...data.companion?.personality }, growth: { ...seed.companion.growth, ...data.companion?.growth, logs: data.companion?.growth?.logs ?? [] } },
     answerBook: { favorites: data.answerBook?.favorites ?? [] },
     planner: {
       courses,
@@ -233,6 +244,9 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
       ai: { ...seed.settings.ai, ...data.settings.ai },
       backup: { ...seed.settings.backup, ...data.settings.backup },
       security: { ...seed.settings.security, ...data.settings.security },
+      trust: data.settings.trust
+        ? { ...seed.settings.trust, ...data.settings.trust }
+        : { ...seed.settings.trust, externalAiProcessing: data.companion?.provider?.providerId === 'deepseek' },
       music: { ...seed.settings.music, ...data.settings.music },
     },
     session: {

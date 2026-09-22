@@ -23,13 +23,31 @@ describe('library compatibility normalization', () => {
     expect(upgraded.assets).toEqual([])
     expect(upgraded.aiGenerations).toEqual([])
     expect(upgraded.tracks).toEqual([])
-    expect(upgraded.companion.permissions).toEqual({ workIds: [], chapterIds: [], records: false, musicContext: false })
+    expect(upgraded.companion.permissions).toEqual({ workIds: [], chapterIds: [], records: false, musicContext: false, writeActions: false })
     expect(upgraded.companion.memories).toEqual([])
     expect(upgraded.companion.desktop.visible).toBe(false)
     expect(upgraded.companion.desktop.toggleShortcut).toBe('CommandOrControl+Alt+Y')
     expect(upgraded.companion.personality).toEqual({ warmth: 60, curiosity: 50, initiative: 30 })
     expect(upgraded.settings.music.autoSwitch).toBe(false)
     expect(upgraded.settings.modules.find((module) => module.id === 'music')?.available).toBe(true)
+  })
+
+  it('upgrades single WebM states into clip libraries and preserves existing DeepSeek access', () => {
+    const legacy = createSeedLibrary()
+    legacy.companion.provider.providerId = 'deepseek'
+    legacy.companion.desktop.visual = { type: 'video', videos: { idle: 'idle-1', happy: 'happy-1' } }
+    legacy.companion.desktop.videoAssets = { idle: 'idle-1', happy: 'happy-1' }
+    delete legacy.companion.desktop.videoClips
+    delete (legacy.settings as Partial<LibraryData['settings']>).trust
+
+    const upgraded = normalizeLibrary(legacy)
+
+    expect(upgraded.companion.desktop.videoClips).toEqual({ idle: ['idle-1'], happy: ['happy-1'] })
+    expect(upgraded.companion.desktop.visual).toMatchObject({ type: 'video', videos: { idle: 'idle-1', happy: 'happy-1' }, clips: { idle: ['idle-1'], happy: ['happy-1'] } })
+    expect(upgraded.settings.trust.externalAiProcessing).toBe(true)
+    expect(upgraded.settings.trust.outboundProtection).toBe(true)
+    expect(upgraded.settings.trust.outboundReviewMode).toBe('balanced')
+    expect(upgraded.settings.trust.privateDictionary).toEqual([])
   })
 
   it('normalizes a large library within the one-second data preparation budget', () => {

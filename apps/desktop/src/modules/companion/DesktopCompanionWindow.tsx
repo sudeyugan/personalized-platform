@@ -3,9 +3,26 @@ import { PhysicalPosition } from '@tauri-apps/api/dpi'
 import { emitTo, listen } from '@tauri-apps/api/event'
 import { availableMonitors, getCurrentWindow, type Monitor } from '@tauri-apps/api/window'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { CompanionVideoState } from '../../domain/models'
 import { companionVisualAssetIds, emptyCompanionDesktopSnapshot, type CompanionDesktopSnapshot } from './companionDesktop'
 
 type ReadyVisual = { id: string; kind: 'image' | 'video'; url: string }
+
+function clipsForState(snapshot: CompanionDesktopSnapshot, state: CompanionVideoState) {
+  if (snapshot.visual.type !== 'video') return []
+  const clips = snapshot.visual.clips?.[state]?.filter(Boolean) ?? []
+  if (clips.length) return clips
+  const legacy = snapshot.visual.videos[state]
+  if (legacy) return [legacy]
+  if (state === 'idle') return []
+  return clipsForState(snapshot, 'idle')
+}
+
+function chooseDifferentClip(clips: string[], previous?: string) {
+  if (clips.length < 2) return clips[0]
+  const candidates = clips.filter((id) => id !== previous)
+  return candidates[Math.floor(Math.random() * candidates.length)]
+}
 
 function nearestMonitor(monitors: Monitor[], x: number, y: number) {
   return monitors.reduce<Monitor | undefined>((nearest, monitor) => {
@@ -69,6 +86,7 @@ export function DesktopCompanionWindow() {
   const [snapshot, setSnapshot] = useState(emptyCompanionDesktopSnapshot)
   const [receivedSnapshot, setReceivedSnapshot] = useState(false)
   const [readyVisual, setReadyVisual] = useState<ReadyVisual>()
+  const [selectedVideoId, setSelectedVideoId] = useState<string>()
   const pointerStart = useRef<{ x: number; y: number } | undefined>(undefined)
   const pointerId = useRef<number | undefined>(undefined)
   const dragged = useRef(false)
@@ -93,7 +111,12 @@ export function DesktopCompanionWindow() {
     return () => { stopMoved?.(); globalThis.clearTimeout(correctionTimer) }
   }, [])
   const portraitUrl = snapshot.visual.type === 'portrait' && snapshot.visual.assetId ? urls[snapshot.visual.assetId] : undefined
-  const videoId = snapshot.visual.type === 'video' ? snapshot.visual.videos[snapshot.action] ?? snapshot.visual.videos.idle : undefined
+  const videoCandidates = useMemo(() => clipsForState(snapshot, snapshot.action), [snapshot])
+  useEffect(() => {
+    if (snapshot.visual.type !== 'video') { setSelectedVideoId(undefined); return }
+    setSelectedVideoId((current) => videoCandidates.includes(current ?? '') ? current : chooseDifferentClip(videoCandidates, current))
+  }, [snapshot.action, snapshot.visual, videoCandidates])
+  const videoId = snapshot.visual.type === 'video' ? selectedVideoId : undefined
   const videoUrl = videoId ? urls[videoId] : undefined
   const desiredVisual: ReadyVisual | undefined = videoId && videoUrl
     ? { id: videoId, kind: 'video', url: videoUrl }
@@ -102,7 +125,7 @@ export function DesktopCompanionWindow() {
       : undefined
   const isChangingVisual = Boolean(desiredVisual && desiredVisual.id !== readyVisual?.id)
   const hasConfiguredVisual = snapshot.visual.type === 'video'
-    ? Boolean(videoId)
+    ? clipsForState(snapshot, 'idle').length > 0
     : snapshot.visual.type === 'portrait'
       ? Boolean(snapshot.visual.assetId)
       : true
@@ -116,12 +139,17 @@ export function DesktopCompanionWindow() {
   const reportLoadError = (assetId: string) => {
     void emitTo('main', 'companion:visual-error', { assetId })
   }
+  const advanceIdle = () => {
+    if (snapshot.action !== 'idle' || videoCandidates.length < 2) return
+    setSelectedVideoId((current) => chooseDifferentClip(videoCandidates, current))
+  }
+  const loopVideo = snapshot.action !== 'idle' || videoCandidates.length < 2
   const visual = <>
     {readyVisual && (readyVisual.kind === 'video'
-      ? <video className="desktop-media ready" key={readyVisual.id} src={readyVisual.url} autoPlay loop muted playsInline draggable={false} />
+      ? <video className="desktop-media ready" key={readyVisual.id} src={readyVisual.url} autoPlay loop={loopVideo} muted playsInline draggable={false} onEnded={advanceIdle} />
       : <img className="desktop-media ready" key={readyVisual.id} src={readyVisual.url} alt="" draggable={false} />)}
     {isChangingVisual && desiredVisual && (desiredVisual.kind === 'video'
-      ? <video className="desktop-media pending" key={desiredVisual.id} src={desiredVisual.url} autoPlay loop muted playsInline preload="auto" draggable={false} onCanPlay={() => markReady(desiredVisual)} onError={() => reportLoadError(desiredVisual.id)} />
+      ? <video className="desktop-media pending" key={desiredVisual.id} src={desiredVisual.url} autoPlay loop={loopVideo} muted playsInline preload="auto" draggable={false} onCanPlay={() => markReady(desiredVisual)} onError={() => reportLoadError(desiredVisual.id)} />
       : <img className="desktop-media pending" key={desiredVisual.id} src={desiredVisual.url} alt="" draggable={false} onLoad={() => markReady(desiredVisual)} onError={() => reportLoadError(desiredVisual.id)} />)}
     {!readyVisual && receivedSnapshot && !hasConfiguredVisual && <div className={`desktop-character hair-${snapshot.appearance.hair} outfit-${snapshot.appearance.outfit} expression-${snapshot.expression}`}><span className="character-hair" /><span className="character-face">隅</span><span className="character-outfit" /></div>}
   </>

@@ -1,4 +1,6 @@
-import type { CompanionData, DailyQuestion } from '../domain/models'
+import type { CompanionData, DailyQuestion, LibraryData } from '../domain/models'
+import { assertExternalAiAllowed } from '../modules/trust/trustPolicy'
+import { createPrivacyProtectedProvider } from '../modules/privacy'
 import { createCompanionProvider } from './companionProvider'
 
 const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' })
@@ -21,14 +23,16 @@ function parseJson(text: string) {
   return JSON.parse(fenced ?? text) as Record<string, unknown>
 }
 
-export async function generateDailyQuestion(companion: CompanionData, history: DailyQuestion[], date = beijingDate()): Promise<DailyQuestion> {
+export async function generateDailyQuestion(companion: CompanionData, history: DailyQuestion[], trust: LibraryData['settings']['trust'], date = beijingDate()): Promise<DailyQuestion> {
   const tone = toneForDate(date)
   if (companion.provider.providerId === 'mock') {
     throw new Error('请先在 AI 伙伴设置中选择并配置 DeepSeek，朝问不会使用内置问题库')
   }
+  assertExternalAiAllowed(companion.provider.providerId, trust, 'daily_question')
   const recentTopics = history.slice(-90).map((item) => item.topic)
-  const response = await createCompanionProvider(companion.provider).generate({
-    context: { page: 'home', companion: { name: companion.name } },
+  const provider = createPrivacyProtectedProvider(createCompanionProvider(companion.provider), { trust, destination: companion.provider.providerId, purpose: '朝问生成' })
+  const response = await provider.generate({
+    context: { page: 'home', companion: { name: companion.name }, localTime: { timeZone: 'Asia/Shanghai', date, time: '08:00:00', weekday: '', period: '上午' } },
     tools: [],
     messages: [
       { role: 'system', content: '你为个人数字空间“一隅”生成每日思考问题。只输出 JSON，不要 Markdown，不给答案，不说教。字段必须是 question、background、followUp、topic。问题不依赖搜索或专业知识，只讨论一个核心矛盾；background 1至2句；topic 是不超过12字的核心命题。' },

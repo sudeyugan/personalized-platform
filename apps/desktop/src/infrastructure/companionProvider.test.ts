@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createCompanionProvider, deleteCompanionKey, storeCompanionKey } from './companionProvider'
 
 const invokeMock = vi.hoisted(() => vi.fn())
+const localTime = { timeZone: 'Asia/Shanghai' as const, date: '2026-09-22', time: '12:00:00', weekday: '星期二', period: '中午' }
 vi.mock('@tauri-apps/api/core', () => ({
   invoke: invokeMock,
   Channel: class<T> {
@@ -21,14 +22,14 @@ describe('companion provider boundary', () => {
 
   it('keeps the local mock behind the model-provider abstraction', async () => {
     const provider = createCompanionProvider({ providerId: 'mock', endpoint: '', model: 'mock' })
-    const response = await provider.generate({ messages: [{ role: 'user', content: '陪我聊聊' }], context: { page: 'home', companion: { name: '小隅' } }, tools: [] })
+    const response = await provider.generate({ messages: [{ role: 'user', content: '陪我聊聊' }], context: { page: 'home', companion: { name: '小隅' }, localTime }, tools: [] })
     expect(response.type).toBe('text')
   })
 
   it('keeps arbitrary custom providers offline', async () => {
     const provider = createCompanionProvider({ providerId: 'custom', endpoint: 'https://example.invalid', model: 'future-model' })
     await expect(provider.testConnection()).rejects.toThrow('尚未授权联网')
-    await expect(provider.generate({ messages: [{ role: 'user', content: '私密内容' }], context: { page: 'home', companion: { name: '小隅' } }, tools: [] })).rejects.toThrow('PROVIDER_PROTOCOL_UNCONFIGURED')
+    await expect(provider.generate({ messages: [{ role: 'user', content: '私密内容' }], context: { page: 'home', companion: { name: '小隅' }, localTime }, tools: [] })).rejects.toThrow('PROVIDER_PROTOCOL_UNCONFIGURED')
   })
 
   it('maps DeepSeek text and namespaced tool calls through the Tauri command', async () => {
@@ -43,7 +44,7 @@ describe('companion provider boundary', () => {
     ))
     const response = await provider.generate({
       messages: [{ role: 'user', content: '查找林夏' }],
-      context: { page: 'writing', companion: { name: '小隅' }, activeWork: { id: 'work-1', title: '星河' } },
+      context: { page: 'writing', companion: { name: '小隅' }, localTime, activeWork: { id: 'work-1', title: '星河' } },
       tools: [{ name: 'character.search', description: '搜索人物', inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] }, capability: 'read', risk: 'read_only', scope: 'records' }],
     })
     expect(response).toMatchObject({ type: 'tool_call', call: { name: 'character.search', arguments: { query: '林夏' } } })

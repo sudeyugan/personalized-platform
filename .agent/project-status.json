@@ -5,10 +5,10 @@
   "currentMilestone": "M10",
   "milestoneStatus": "in_progress",
   "nextMilestone": "M10",
-  "updatedAt": "2026-09-21",
+  "updatedAt": "2026-09-22",
   "automatedChecks": {
-    "status": "passed",
-    "verifiedAt": "2026-09-21"
+    "status": "pending",
+    "verifiedAt": null
   },
   "manualAcceptance": {
     "status": "pending",
@@ -18,7 +18,7 @@
   },
   "installer": {
     "path": "apps/desktop/src-tauri/target/release/bundle/nsis/一隅_2.0.0_x64-setup.exe",
-    "sha256": "DC6811BC611188B9032DAB49E9673669F5F9868AE609C520A7E82F7FDD26D816"
+    "sha256": "BE1C43D7E1EAC0E22E706F87B52A0EDF4F5D7F7BFBDD7AE4F856B98FAE57EB86"
   },
   "milestones": [
     {

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createCompanionProvider, deleteCompanionKey, hasCompanionKey, storeCompanionKey } from '../../infrastructure/companionProvider'
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { CompanionVoiceSettings } from './CompanionVoiceSettings'
+import { assertExternalAiAllowed } from '../trust/trustPolicy'
 
 interface CompanionSettingsSectionProps {
   mode?: 'profile' | 'permissions'
@@ -32,7 +33,10 @@ export function CompanionSettingsSection({ mode = 'profile' }: CompanionSettings
     }
   }
   const checkProvider = async () => {
-    try { setMessage(await createCompanionProvider(data.companion.provider).testConnection()) }
+    try {
+      assertExternalAiAllowed(data.companion.provider.providerId, data.settings.trust, 'companion')
+      setMessage(await createCompanionProvider(data.companion.provider).testConnection())
+    }
     catch (error) { setMessage(error instanceof Error ? error.message : '配置检查失败') }
   }
 

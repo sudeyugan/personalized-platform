@@ -1,0 +1,274 @@
+/* Settings page workspace and shared form rhythm. */
+.settings-view {
+  max-width: 1180px;
+}
+
+.settings-page-header {
+  max-width: 1080px;
+  margin-bottom: 22px;
+}
+
+.settings-workspace {
+  width: min(1080px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.settings-side-nav {
+  position: sticky;
+  top: 16px;
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface) 88%, var(--bg));
+  box-shadow: 0 10px 30px rgba(55, 43, 34, .04);
+}
+
+.settings-side-intro {
+  padding: 9px 10px 12px;
+}
+
+.settings-side-intro strong,
+.settings-side-intro small,
+.settings-side-nav > button strong,
+.settings-side-nav > button small {
+  display: block;
+}
+
+.settings-side-intro strong {
+  font: 500 12px var(--serif);
+}
+
+.settings-side-intro small {
+  margin-top: 4px;
+  color: var(--ink-faint);
+  font-size: 8px;
+}
+
+.settings-side-nav > button {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  padding: 9px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  color: var(--ink-soft);
+  background: transparent;
+  text-align: left;
+}
+
+.settings-side-nav > button:hover {
+  background: var(--surface-soft);
+}
+
+.settings-side-nav > button.active {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+  background: var(--surface);
+  box-shadow: 0 5px 16px rgba(55, 43, 34, .07);
+}
+
+.settings-side-nav > button i {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--ink-faint);
+  background: color-mix(in srgb, var(--surface-soft) 80%, transparent);
+}
+
+.settings-side-nav > button i svg {
+  width: 16px;
+  height: 16px;
+}
+
+.settings-side-nav > button.active i {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+
+.settings-side-nav > button strong,
+.settings-side-nav > button small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-side-nav > button strong {
+  font: 500 10px var(--serif);
+}
+
+.settings-side-nav > button small {
+  margin-top: 3px;
+  color: var(--ink-faint);
+  font-size: 7px;
+}
+
+.settings-side-nav > p {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 7px 8px 4px;
+  padding-top: 10px;
+  color: var(--ink-faint);
+  border-top: 1px solid var(--line);
+  font-size: 7px;
+  line-height: 1.5;
+}
+
+.settings-pane {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface) 92%, var(--bg));
+  box-shadow: 0 12px 34px rgba(55, 43, 34, .045);
+}
+
+.settings-pane-header {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 17px 22px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-soft) 38%, transparent);
+}
+
+.settings-pane-header > span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+
+.settings-pane-header > span svg {
+  width: 18px;
+  height: 18px;
+}
+
+.settings-pane-header h2 {
+  margin: 0;
+  font: 500 14px var(--serif);
+}
+
+.settings-pane-header p {
+  margin: 4px 0 0;
+  color: var(--ink-faint);
+  font-size: 8px;
+}
+
+.settings-pane-content > .settings-section,
+.settings-pane-content > .intelligence-hub > .settings-section {
+  max-width: none;
+  margin: 0;
+  padding: 21px 22px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.settings-pane-content > .settings-section + .settings-section {
+  border-top: 1px solid var(--line);
+}
+
+.settings-pane-content > .intelligence-hub {
+  padding: 0;
+}
+
+.settings-pane-content > .intelligence-hub > .settings-section {
+  border: 0;
+}
+
+.settings-pane-content > .settings-section .settings-title {
+  margin-bottom: 17px;
+}
+
+.settings-view select {
+  min-height: 32px;
+  padding: 7px 28px 7px 9px;
+  font: 400 9px/1.25 var(--sans);
+}
+
+.settings-view select option {
+  font: 400 9px var(--sans);
+}
+
+.settings-view input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+.settings-view textarea {
+  font-size: 9px;
+}
+
+.settings-view .setting-row > div > strong {
+  font-size: 10px;
+}
+
+.settings-view .setting-row > div > span,
+.settings-view .settings-title p {
+  font-size: 8px;
+}
+
+.settings-view .settings-title h2 {
+  font-size: 14px;
+}
+
+@media (max-width: 880px) {
+  .settings-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-side-nav {
+    position: static;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .settings-side-intro,
+  .settings-side-nav > p {
+    grid-column: 1 / -1;
+  }
+
+  .settings-side-nav > button {
+    grid-template-columns: 30px minmax(0, 1fr);
+    padding: 8px;
+  }
+
+  .settings-side-nav > button i {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+@media (max-width: 620px) {
+  .settings-side-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-pane-header {
+    padding: 14px 16px;
+  }
+
+  .settings-pane-content > .settings-section,
+  .settings-pane-content > .intelligence-hub > .settings-section {
+    padding: 18px 15px;
+  }
+
+  .theme-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-side-nav > button small {
+    display: none;
+  }
+}

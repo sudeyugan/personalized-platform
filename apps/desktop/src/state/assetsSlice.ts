@@ -30,10 +30,14 @@ export function createAssetsSlice(get: () => LibraryStore, set: SetStore): Pick<
       await assetRepository.delete(asset)
       const visual = current.companion.desktop.visual
       const clearsPortrait = visual.type === 'portrait' && visual.assetId === id
-      const videos = Object.fromEntries(Object.entries(current.companion.desktop.videoAssets ?? (visual.type === 'video' ? visual.videos : {})).filter(([, assetId]) => assetId !== id))
+      const clips = Object.fromEntries(Object.entries(current.companion.desktop.videoClips ?? (visual.type === 'video' ? visual.clips : {}) ?? {}).flatMap(([state, assetIds]) => {
+        const remaining = assetIds.filter((assetId) => assetId !== id)
+        return remaining.length ? [[state, remaining]] : []
+      }))
+      const videos = Object.fromEntries(Object.entries(clips).flatMap(([state, assetIds]) => assetIds[0] ? [[state, assetIds[0]]] : []))
       const companion = clearsPortrait
         ? { ...current.companion, appearance: { ...current.companion.appearance, portraitAssetId: undefined }, desktop: { ...current.companion.desktop, visual: { type: 'portrait' as const } } }
-        : { ...current.companion, desktop: { ...current.companion.desktop, videoAssets: videos, visual: visual.type === 'video' ? { type: 'video' as const, videos } : visual } }
+        : { ...current.companion, desktop: { ...current.companion.desktop, videoAssets: videos, videoClips: clips, visual: visual.type === 'video' ? clips.idle?.length ? { type: 'video' as const, videos, clips } : { type: 'portrait' as const, assetId: current.companion.appearance.portraitAssetId } : visual } }
       commit({ ...current, assets: current.assets.filter((item) => item.id !== id), chapters: Object.fromEntries(Object.entries(current.chapters).map(([chapterId, chapter]) => [chapterId, chapter.impressionAssetId === id ? { ...chapter, impressionAssetId: undefined } : chapter])), companion }, set)
     },
     linkAssetToChapter: (assetId, chapterId) => { const current = get().data; commit({ ...current, assets: current.assets.map((asset) => asset.id === assetId ? { ...asset, chapterIds: [...new Set([...asset.chapterIds, chapterId])] } : asset) }, set) },
@@ -55,8 +59,12 @@ export function referencedAssetIds(data: LibraryData) {
   if (data.settings.backgroundImage?.startsWith('asset:')) ids.add(data.settings.backgroundImage.slice(6))
   const visual = data.companion.desktop.visual
   if (visual.type === 'portrait' && visual.assetId) ids.add(visual.assetId)
-  if (visual.type === 'video') Object.values(visual.videos).forEach((id) => id && ids.add(id))
+  if (visual.type === 'video') {
+    Object.values(visual.videos).forEach((id) => id && ids.add(id))
+    Object.values(visual.clips ?? {}).forEach((clips) => clips.forEach((id) => ids.add(id)))
+  }
   Object.values(data.companion.desktop.videoAssets ?? {}).forEach((id) => id && ids.add(id))
+  Object.values(data.companion.desktop.videoClips ?? {}).forEach((clips) => clips.forEach((id) => ids.add(id)))
   if (data.companion.appearance.portraitAssetId) ids.add(data.companion.appearance.portraitAssetId)
   const character = data.companion.desktop.characterPackage
   if (character) {

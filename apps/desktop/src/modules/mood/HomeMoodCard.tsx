@@ -74,7 +74,7 @@ export function HomeMoodCard({ date, entries, onSave, onDelete }: {
           <button type="button" className="primary-button" disabled={allocation.length !== 5} onClick={save}><Check size={14} />保存五点心情</button>
         </footer>
       </div>}
-      <MoodStats entries={entries} referenceDate={date} range="week" />
+      <MoodStats entries={entries} referenceDate={date} />
     </section>
   )
 }

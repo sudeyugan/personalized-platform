@@ -14,15 +14,27 @@ export interface AgentApplicationServices {
   searchPlaces(query: string): unknown[]
   searchTimeline(query: string): unknown[]
   createTodo?(title: string, dueDate?: string): unknown
+  updateTodo?(input: { id: string; title?: string; note?: string; dueDate?: string; priority?: string }): unknown
+  setTodoCompleted?(id: string, date: string, completed: boolean): unknown
   createCalendarEvent?(title: string, date: string, time?: string): unknown
+  updateCalendarEvent?(input: { id: string; title?: string; date?: string; time?: string; note?: string }): unknown
   appendDiary?(date: string, title: string | undefined, content: string): unknown
+  writeDiary?(date: string, title: string, content: string): unknown
+  createWork?(title: string): unknown
+  renameCurrentWork?(title: string): unknown
   createChapter?(title: string): unknown
+  renameChapter?(id: string, title: string): unknown
+  appendChapter?(id: string, content: string): unknown
+  createRecord?(input: { type: string; name: string; description?: string; time?: string }): unknown
+  updateRecord?(input: { type: string; id: string; name?: string; description?: string; time?: string }): unknown
+  createCourse?(input: { title: string; day: number; period: number; teacher?: string; location?: string; weeks?: string; note?: string }): unknown
+  updateCourse?(input: { id: string; title?: string; day?: number; period?: number; teacher?: string; location?: string; weeks?: string; note?: string }): unknown
   saveMemory?(content: string): unknown
   navigate?(view: string): unknown
   controlMusic?(action: string): unknown
 }
 
-export type AgentWriteServices = Pick<AgentApplicationServices, 'createTodo' | 'createCalendarEvent' | 'appendDiary' | 'createChapter' | 'saveMemory' | 'navigate' | 'controlMusic'>
+export type AgentWriteServices = Pick<AgentApplicationServices, 'createTodo' | 'updateTodo' | 'setTodoCompleted' | 'createCalendarEvent' | 'updateCalendarEvent' | 'appendDiary' | 'writeDiary' | 'createWork' | 'renameCurrentWork' | 'createChapter' | 'renameChapter' | 'appendChapter' | 'createRecord' | 'updateRecord' | 'createCourse' | 'updateCourse' | 'saveMemory' | 'navigate' | 'controlMusic'>
 
 function excerpt(text: string, query: string) {
   const index = text.toLocaleLowerCase().indexOf(query.toLocaleLowerCase())

@@ -12,6 +12,8 @@ import type { AgentRuntimeStatus } from './agent'
 import { createSpeechToTextProvider, createTextToSpeechProvider } from '../../infrastructure/companionVoiceProvider'
 import { toSpokenText } from './speechText'
 import type { AgentPermissionRequest } from './agent/types'
+import { assertExternalAiAllowed } from '../trust/trustPolicy'
+import { PrivacySession, type PrivacyReviewRequest } from '../privacy'
 
 const isTauri = () => '__TAURI_INTERNALS__' in window
 const chatWindowWidth = 350
@@ -86,21 +88,28 @@ export function CompanionDesktopBridge() {
   const chatVisible = useRef(false)
   const chatTogglePending = useRef(false)
   const permissionRequests = useRef(new Map<string, (allowed: boolean) => void>())
+  const privacyRequests = useRef(new Map<string, (allowed: boolean) => void>())
   const speechGeneration = useRef(0)
   const activeTurn = useRef<AbortController | undefined>(undefined)
   const [visualState, setVisualState] = useState<CompanionVideoState>()
   const [agentStatus, setAgentStatus] = useState<AgentRuntimeStatus>()
-  const snapshot = useMemo(() => companionDesktopSnapshot(data.companion, data.session.activeView, playback.playing, data.assets, visualState, agentStatus), [data.companion, data.session.activeView, playback.playing, data.assets, visualState, agentStatus])
-  const publish = useCallback(async () => {
-    await invoke('set_companion_asset_scope', { ids: companionVisualAssetIds(snapshot) })
+  const snapshot = useMemo(() => companionDesktopSnapshot(data.companion, data.session.activeView, playback.playing, data.assets, visualState, agentStatus, data.settings.trust.externalAiProcessing), [data.companion, data.session.activeView, playback.playing, data.assets, visualState, agentStatus, data.settings.trust.externalAiProcessing])
+  const snapshotRef = useRef(snapshot)
+  snapshotRef.current = snapshot
+  const publish = useCallback(async (nextSnapshot = snapshotRef.current) => {
+    await invoke('set_companion_asset_scope', { ids: companionVisualAssetIds(nextSnapshot) })
     await Promise.all([
-      emitTo('companion', 'companion:snapshot', snapshot),
-      emitTo('companion-chat', 'companion:snapshot', snapshot),
+      emitTo('companion', 'companion:snapshot', nextSnapshot),
+      emitTo('companion-chat', 'companion:snapshot', nextSnapshot),
     ])
-  }, [snapshot])
+  }, [])
   useEffect(() => {
     if (!isTauri()) return
-    let stopHide: (() => void) | undefined; let stopOpen: (() => void) | undefined; let stopReady: (() => void) | undefined; let stopToggleChat: (() => void) | undefined; let stopOpenChat: (() => void) | undefined; let stopMoved: (() => void) | undefined; let stopChat: (() => void) | undefined; let stopNewChat: (() => void) | undefined; let stopVoice: (() => void) | undefined; let stopVoiceToken: (() => void) | undefined; let stopPermission: (() => void) | undefined; let stopSpeech: (() => void) | undefined; let stopSpeechPause: (() => void) | undefined; let stopTurn: (() => void) | undefined
+    void publish(snapshot)
+  }, [publish, snapshot])
+  useEffect(() => {
+    if (!isTauri()) return
+    let stopHide: (() => void) | undefined; let stopOpen: (() => void) | undefined; let stopReady: (() => void) | undefined; let stopToggleChat: (() => void) | undefined; let stopOpenChat: (() => void) | undefined; let stopMoved: (() => void) | undefined; let stopChat: (() => void) | undefined; let stopNewChat: (() => void) | undefined; let stopVoice: (() => void) | undefined; let stopVoiceToken: (() => void) | undefined; let stopPermission: (() => void) | undefined; let stopPrivacy: (() => void) | undefined; let stopSpeech: (() => void) | undefined; let stopSpeechPause: (() => void) | undefined; let stopTurn: (() => void) | undefined
     const windows = async () => {
       const all = await getAllWindows()
       return { portrait: all.find((item) => item.label === 'companion'), chat: all.find((item) => item.label === 'companion-chat') }
@@ -113,6 +122,23 @@ export function CompanionDesktopBridge() {
       await pair.chat.show()
       chatVisible.current = true
       await pair.chat.setFocus().catch(() => undefined)
+    }
+    const cancelActiveTurn = () => {
+      activeTurn.current?.abort()
+      activeTurn.current = undefined
+      sending.current = false
+      permissionRequests.current.forEach((resolve) => resolve(false))
+      permissionRequests.current.clear()
+      privacyRequests.current.forEach((resolve) => resolve(false))
+      privacyRequests.current.clear()
+      speechGeneration.current += 1
+      const audio = spokenAudio.current
+      audio?.pause()
+      audio?.dispatchEvent(new Event('ended'))
+      setAgentStatus(undefined)
+      setVisualState(undefined)
+      void emitTo('companion-chat', 'companion:stream-text', { text: '' })
+      void emitTo('companion-chat', 'companion:speech-state', { active: false, paused: false })
     }
     void listen('companion:hide-request', () => setCompanionDesktop(false)).then((stop) => { stopHide = stop })
     void listen('companion:open-main', () => { void getCurrentWindow().show(); void getCurrentWindow().setFocus() }).then((stop) => { stopOpen = stop })
@@ -142,6 +168,12 @@ export function CompanionDesktopBridge() {
       permissionRequests.current.delete(event.payload.requestId)
       resolve(event.payload.allowed)
     }).then((stop) => { stopPermission = stop })
+    void listen<{ requestId: string; allowed: boolean }>('companion:privacy-review-response', (event) => {
+      const resolve = privacyRequests.current.get(event.payload.requestId)
+      if (!resolve) return
+      privacyRequests.current.delete(event.payload.requestId)
+      resolve(event.payload.allowed)
+    }).then((stop) => { stopPrivacy = stop })
     void listen('companion:speech-stop', () => {
       speechGeneration.current += 1
       const audio = spokenAudio.current
@@ -158,32 +190,31 @@ export function CompanionDesktopBridge() {
       void emitTo('companion-chat', 'companion:speech-state', { active: true, paused: event.payload.paused })
     }).then((stop) => { stopSpeechPause = stop })
     void listen('companion:turn-stop', () => {
-      const controller = activeTurn.current
-      if (!controller) return
-      controller.abort()
-      activeTurn.current = undefined
-      sending.current = false
-      permissionRequests.current.forEach((resolve) => resolve(false))
-      permissionRequests.current.clear()
-      speechGeneration.current += 1
-      const audio = spokenAudio.current
-      audio?.pause()
-      audio?.dispatchEvent(new Event('ended'))
-      setAgentStatus(undefined)
-      setVisualState(undefined)
-      void emitTo('companion-chat', 'companion:stream-text', { text: '' })
-      void emitTo('companion-chat', 'companion:speech-state', { active: false, paused: false })
+      cancelActiveTurn()
     }).then((stop) => { stopTurn = stop })
-    void listen<{ message: string; inputMode?: 'text' | 'voice' }>('companion:chat-send', (event) => {
-      if (sending.current || !event.payload.message.trim()) return
+    void listen<{ message: string; inputMode?: 'text' | 'voice'; wake?: boolean; replace?: boolean; requestId?: string }>('companion:chat-send', (event) => {
+      if (!event.payload.message.trim()) return
+      if (sending.current) {
+        if (!event.payload.replace) return
+        cancelActiveTurn()
+      }
       sending.current = true
       const turn = new AbortController()
       activeTurn.current = turn
+      if (event.payload.requestId) {
+        void emitTo('companion-chat', 'companion:chat-send-accepted', { requestId: event.payload.requestId })
+      }
       void emitTo('companion-chat', 'companion:stream-text', { text: '' })
       const voice = useLibraryStore.getState().data.companion.voice
-      const speechEnabled = voice.autoSpeak && voice.tts.providerId !== 'none' && Boolean(voice.tts.voice)
+      const trust = useLibraryStore.getState().data.settings.trust
+      if (!trust.retainConversationHistory) {
+        void emitTo('companion-chat', 'companion:transient-message', { role: 'user', content: event.payload.message })
+      }
+      const externalVoiceAllowed = voice.tts.providerId === 'none' || trust.externalAiProcessing
+      const speechEnabled = externalVoiceAllowed && (voice.autoSpeak || event.payload.wake) && voice.tts.providerId !== 'none' && Boolean(voice.tts.voice)
       const speechLimit = voice.longReplySpeech === 'full' ? Number.POSITIVE_INFINITY : 220
       const speechProvider = speechEnabled ? createTextToSpeechProvider(voice.tts) : undefined
+      const speechPrivacy = new PrivacySession(trust.privateDictionary)
       const speechId = ++speechGeneration.current
       let speechBuffer = ''
       let speechQueue = Promise.resolve()
@@ -205,9 +236,10 @@ export function CompanionDesktopBridge() {
         spokenCharacters += spoken.length
         speechQueue = speechQueue.then(async () => {
           if (speechId !== speechGeneration.current) return
+          window.clearTimeout(resetStateTimer.current)
           setVisualState('speaking')
           void emitTo('companion-chat', 'companion:speech-state', { active: true, paused: false })
-          const blob = await speechProvider.synthesize(spoken)
+          const blob = await speechProvider.synthesize(trust.outboundProtection ? speechPrivacy.sanitize(spoken).text : spoken)
           if (speechId !== speechGeneration.current) return
           await playAudioBlob(blob, spokenAudio)
         })
@@ -236,7 +268,7 @@ export function CompanionDesktopBridge() {
           resetStateTimer.current = window.setTimeout(() => setVisualState(undefined), 6000)
         },
         inputMode: event.payload.inputMode ?? 'text',
-        voiceReplyLength: voice.replyLength,
+        voiceReplyLength: event.payload.wake ? 'short' : voice.replyLength,
         signal: turn.signal,
         requestPermission: (request: AgentPermissionRequest) => new Promise((resolve) => {
           const requestId = crypto.randomUUID()
@@ -249,8 +281,22 @@ export function CompanionDesktopBridge() {
             pending(false)
           }, 120_000)
         }),
-      }).then(() => {
+        requestPrivacyReview: (request: PrivacyReviewRequest) => new Promise((resolve) => {
+          const requestId = crypto.randomUUID()
+          privacyRequests.current.set(requestId, resolve)
+          void emitTo('companion-chat', 'companion:privacy-review-request', { requestId, request })
+          window.setTimeout(() => {
+            const pending = privacyRequests.current.get(requestId)
+            if (!pending) return
+            privacyRequests.current.delete(requestId)
+            pending(false)
+          }, 120_000)
+        }),
+      }).then((responseText) => {
         if (turn.signal.aborted) return
+        if (!trust.retainConversationHistory) {
+          void emitTo('companion-chat', 'companion:transient-message', { role: 'companion', content: responseText })
+        }
         flushSpeech(true)
         void emitTo('companion-chat', 'companion:stream-text', { text: '' })
         if (!speechProvider) return
@@ -274,11 +320,15 @@ export function CompanionDesktopBridge() {
     void listen('companion:new-chat', () => {
       if (sending.current) return
       clearCompanionMessages()
+      void emitTo('companion-chat', 'companion:transient-clear')
       setAgentStatus(undefined)
       setVisualState(undefined)
     }).then((stop) => { stopNewChat = stop })
     void listen<{ audio: number[]; mimeType: string }>('companion:voice-transcribe', (event) => {
-      const voice = useLibraryStore.getState().data.companion.voice
+      const current = useLibraryStore.getState().data
+      const voice = current.companion.voice
+      try { assertExternalAiAllowed(voice.stt.providerId, current.settings.trust, 'voice') }
+      catch (error) { void emitTo('companion', 'companion:voice-error', { message: error instanceof Error ? error.message : String(error) }); return }
       setVisualState('listening')
       void createSpeechToTextProvider(voice.stt).transcribe(new Blob([new Uint8Array(event.payload.audio)], { type: event.payload.mimeType }))
         .then((text) => emitTo('companion', 'companion:voice-transcript', { text }))
@@ -286,7 +336,10 @@ export function CompanionDesktopBridge() {
         .finally(() => setVisualState(undefined))
     }).then((stop) => { stopVoice = stop })
     void listen<{ requestId: string }>('companion:voice-token-request', (event) => {
-      const voice = useLibraryStore.getState().data.companion.voice
+      const current = useLibraryStore.getState().data
+      const voice = current.companion.voice
+      try { assertExternalAiAllowed(voice.stt.providerId, current.settings.trust, 'voice') }
+      catch (error) { void emitTo('companion-chat', 'companion:voice-token-response', { requestId: event.payload.requestId, error: error instanceof Error ? error.message : String(error) }); return }
       if (voice.stt.providerId !== 'elevenlabs') {
         void emitTo('companion-chat', 'companion:voice-token-response', { requestId: event.payload.requestId, error: '当前语音识别服务不支持实时转写' })
         return
@@ -295,7 +348,7 @@ export function CompanionDesktopBridge() {
         .then((token) => emitTo('companion-chat', 'companion:voice-token-response', { requestId: event.payload.requestId, token }))
         .catch((error) => emitTo('companion-chat', 'companion:voice-token-response', { requestId: event.payload.requestId, error: error instanceof Error ? error.message : String(error) }))
     }).then((stop) => { stopVoiceToken = stop })
-    return () => { stopHide?.(); stopOpen?.(); stopReady?.(); stopToggleChat?.(); stopOpenChat?.(); stopMoved?.(); stopChat?.(); stopNewChat?.(); stopVoice?.(); stopVoiceToken?.(); stopPermission?.(); stopSpeech?.(); stopSpeechPause?.(); stopTurn?.(); activeTurn.current?.abort(); permissionRequests.current.forEach((resolve) => resolve(false)); permissionRequests.current.clear(); speechGeneration.current += 1; const audio = spokenAudio.current; audio?.pause(); audio?.dispatchEvent(new Event('ended')); window.clearTimeout(resetStateTimer.current) }
+    return () => { stopHide?.(); stopOpen?.(); stopReady?.(); stopToggleChat?.(); stopOpenChat?.(); stopMoved?.(); stopChat?.(); stopNewChat?.(); stopVoice?.(); stopVoiceToken?.(); stopPermission?.(); stopPrivacy?.(); stopSpeech?.(); stopSpeechPause?.(); stopTurn?.(); activeTurn.current?.abort(); permissionRequests.current.forEach((resolve) => resolve(false)); permissionRequests.current.clear(); privacyRequests.current.forEach((resolve) => resolve(false)); privacyRequests.current.clear(); speechGeneration.current += 1; const audio = spokenAudio.current; audio?.pause(); audio?.dispatchEvent(new Event('ended')); window.clearTimeout(resetStateTimer.current) }
   }, [clearCompanionMessages, publish, setCompanionDesktop])
   useEffect(() => {
     if (!isTauri()) return

@@ -55,16 +55,64 @@ export function createCompanionToolRegistry(onVisualState?: (state: CompanionVid
       execute: (args, services) => requireService(services.createTodo, '待办写入')!(String(args.title), optionalText(args.dueDate)),
     })
     .register({
+      definition: { name: 'todo.update', description: '修改现有待办的标题、备注、日期或重要程度', inputSchema: { type: 'object', properties: { id: { type: 'string', minLength: 1 }, title: { type: 'string' }, note: { type: 'string' }, dueDate: { type: 'string', description: 'YYYY-MM-DD；空字符串表示清除' }, priority: { type: 'string', enum: ['low', 'medium', 'high'] } }, required: ['id'], additionalProperties: false }, capability: 'modify', risk: 'medium', scope: 'none' },
+      execute: (args, services) => requireService(services.updateTodo, '待办修改')!({ id: String(args.id), title: args.title as string | undefined, note: args.note as string | undefined, dueDate: args.dueDate as string | undefined, priority: args.priority as string | undefined }),
+    })
+    .register({
+      definition: { name: 'todo.set_completed', description: '将待办在指定日期设为完成或未完成', inputSchema: { type: 'object', properties: { id: { type: 'string', minLength: 1 }, date: { type: 'string', minLength: 10, description: 'YYYY-MM-DD' }, completed: { type: 'string', enum: ['true', 'false'] } }, required: ['id', 'date', 'completed'], additionalProperties: false }, capability: 'modify', risk: 'medium', scope: 'none' },
+      execute: (args, services) => requireService(services.setTodoCompleted, '待办完成状态修改')!(String(args.id), String(args.date), args.completed === 'true'),
+    })
+    .register({
       definition: { name: 'calendar.create_event', description: '在日历中创建事务；真正写入前必须由用户确认', inputSchema: { type: 'object', properties: { title: { type: 'string', minLength: 1, description: '事务标题' }, date: { type: 'string', minLength: 10, description: '日期 YYYY-MM-DD' }, time: { type: 'string', description: '可选时间 HH:mm' } }, required: ['title', 'date'], additionalProperties: false }, capability: 'create', risk: 'medium', scope: 'none' },
       execute: (args, services) => requireService(services.createCalendarEvent, '日历写入')!(String(args.title), String(args.date), optionalText(args.time)),
+    })
+    .register({
+      definition: { name: 'calendar.update_event', description: '修改现有日历事务', inputSchema: { type: 'object', properties: { id: { type: 'string', minLength: 1 }, title: { type: 'string' }, date: { type: 'string' }, time: { type: 'string', description: 'HH:mm；空字符串表示清除' }, note: { type: 'string' } }, required: ['id'], additionalProperties: false }, capability: 'modify', risk: 'medium', scope: 'none' },
+      execute: (args, services) => requireService(services.updateCalendarEvent, '日历事务修改')!({ id: String(args.id), title: args.title as string | undefined, date: args.date as string | undefined, time: args.time as string | undefined, note: args.note as string | undefined }),
     })
     .register({
       definition: { name: 'diary.append', description: '把内容追加到指定日期的日记；真正写入前必须由用户确认', inputSchema: { type: 'object', properties: { date: { type: 'string', minLength: 10, description: '日记日期 YYYY-MM-DD' }, title: { type: 'string', description: '仅在新建日记时使用的可选标题' }, content: { type: 'string', minLength: 1, description: '要追加的正文' } }, required: ['date', 'content'], additionalProperties: false }, capability: 'modify', risk: 'medium', scope: 'none' },
       execute: (args, services) => requireService(services.appendDiary, '日记写入')!(String(args.date), optionalText(args.title), String(args.content)),
     })
     .register({
+      definition: { name: 'diary.write', description: '新建或完整改写指定日期的日记；会替换该日原正文', inputSchema: { type: 'object', properties: { date: { type: 'string', minLength: 10, description: 'YYYY-MM-DD' }, title: { type: 'string', minLength: 1 }, content: { type: 'string', minLength: 1 } }, required: ['date', 'title', 'content'], additionalProperties: false }, capability: 'modify', risk: 'medium', scope: 'none' },
+      execute: (args, services) => requireService(services.writeDiary, '日记改写')!(String(args.date), String(args.title), String(args.content)),
+    })
+    .register({
+      definition: { name: 'work.create', description: '创建一个新作品并将其设为当前作品', inputSchema: { type: 'object', properties: { title: { type: 'string', minLength: 1 } }, required: ['title'], additionalProperties: false }, capability: 'create', risk: 'medium', scope: 'none' },
+      execute: (args, services) => requireService(services.createWork, '作品创建')!(String(args.title)),
+    })
+    .register({
+      definition: { name: 'work.rename_current', description: '重命名当前已授权作品', inputSchema: { type: 'object', properties: { title: { type: 'string', minLength: 1 } }, required: ['title'], additionalProperties: false }, capability: 'modify', risk: 'medium', scope: 'active_work' },
+      execute: (args, services) => requireService(services.renameCurrentWork, '作品修改')!(String(args.title)),
+    })
+    .register({
       definition: { name: 'chapter.create', description: '在当前已授权作品中新建章节；真正写入前必须由用户确认', inputSchema: { type: 'object', properties: { title: { type: 'string', minLength: 1, description: '新章节标题' } }, required: ['title'], additionalProperties: false }, capability: 'create', risk: 'medium', scope: 'active_work' },
       execute: (args, services) => requireService(services.createChapter, '章节写入')!(String(args.title)),
+    })
+    .register({
+      definition: { name: 'chapter.rename', description: '重命名一个已授权章节', inputSchema: { type: 'object', properties: { id: { type: 'string', minLength: 1 }, title: { type: 'string', minLength: 1 } }, required: ['id', 'title'], additionalProperties: false }, capability: 'modify', risk: 'medium', scope: 'chapters' },
+      execute: (args, services) => requireService(services.renameChapter, '章节修改')!(String(args.id), String(args.title)),
+    })
+    .register({
+      definition: { name: 'chapter.append', description: '在已授权章节末尾追加正文，不覆盖原有内容', inputSchema: { type: 'object', properties: { id: { type: 'string', minLength: 1 }, content: { type: 'string', minLength: 1 } }, required: ['id', 'content'], additionalProperties: false }, capability: 'modify', risk: 'medium', scope: 'chapters' },
+      execute: (args, services) => requireService(services.appendChapter, '章节正文写入')!(String(args.id), String(args.content)),
+    })
+    .register({
+      definition: { name: 'record.create', description: '创建人物、地点或时间线事件资料', inputSchema: { type: 'object', properties: { type: { type: 'string', enum: ['character', 'place', 'timeline'] }, name: { type: 'string', minLength: 1 }, description: { type: 'string' }, time: { type: 'string', description: '仅时间线事件使用的显示时间' } }, required: ['type', 'name'], additionalProperties: false }, capability: 'create', risk: 'medium', scope: 'records' },
+      execute: (args, services) => requireService(services.createRecord, '资料创建')!({ type: String(args.type), name: String(args.name), description: args.description as string | undefined, time: args.time as string | undefined }),
+    })
+    .register({
+      definition: { name: 'record.update', description: '修改人物、地点或时间线事件的名称与主要描述', inputSchema: { type: 'object', properties: { type: { type: 'string', enum: ['character', 'place', 'timeline'] }, id: { type: 'string', minLength: 1 }, name: { type: 'string' }, description: { type: 'string' }, time: { type: 'string' } }, required: ['type', 'id'], additionalProperties: false }, capability: 'modify', risk: 'medium', scope: 'records' },
+      execute: (args, services) => requireService(services.updateRecord, '资料修改')!({ type: String(args.type), id: String(args.id), name: args.name as string | undefined, description: args.description as string | undefined, time: args.time as string | undefined }),
+    })
+    .register({
+      definition: { name: 'course.create', description: '在课表中创建一门课程', inputSchema: { type: 'object', properties: { title: { type: 'string', minLength: 1 }, day: { type: 'string', enum: ['1', '2', '3', '4', '5', '6', '7'], description: '星期一到星期日' }, period: { type: 'string', enum: ['1', '2', '3', '4', '5', '6'] }, teacher: { type: 'string' }, location: { type: 'string' }, weeks: { type: 'string' }, note: { type: 'string' } }, required: ['title', 'day', 'period'], additionalProperties: false }, capability: 'create', risk: 'medium', scope: 'none' },
+      execute: (args, services) => requireService(services.createCourse, '课程创建')!({ title: String(args.title), day: Number(args.day), period: Number(args.period), teacher: args.teacher as string | undefined, location: args.location as string | undefined, weeks: args.weeks as string | undefined, note: args.note as string | undefined }),
+    })
+    .register({
+      definition: { name: 'course.update', description: '修改课表中现有课程', inputSchema: { type: 'object', properties: { id: { type: 'string', minLength: 1 }, title: { type: 'string' }, day: { type: 'string', enum: ['1', '2', '3', '4', '5', '6', '7'] }, period: { type: 'string', enum: ['1', '2', '3', '4', '5', '6'] }, teacher: { type: 'string' }, location: { type: 'string' }, weeks: { type: 'string' }, note: { type: 'string' } }, required: ['id'], additionalProperties: false }, capability: 'modify', risk: 'medium', scope: 'none' },
+      execute: (args, services) => requireService(services.updateCourse, '课程修改')!({ id: String(args.id), title: args.title as string | undefined, day: args.day === undefined ? undefined : Number(args.day), period: args.period === undefined ? undefined : Number(args.period), teacher: args.teacher as string | undefined, location: args.location as string | undefined, weeks: args.weeks as string | undefined, note: args.note as string | undefined }),
     })
     .register({
       definition: { name: 'memory.save', description: '保存一条由用户明确要求记住的伙伴记忆；真正写入前必须由用户确认', inputSchema: { type: 'object', properties: { content: { type: 'string', minLength: 1, description: '要记住的内容' } }, required: ['content'], additionalProperties: false }, capability: 'create', risk: 'medium', scope: 'none' },
@@ -82,7 +130,7 @@ export function createCompanionToolRegistry(onVisualState?: (state: CompanionVid
     definition: {
       name: 'companion.set_state',
       description: '为这次回应选择一个克制的伙伴视觉状态；仅在确有助于表达语气时调用一次',
-      inputSchema: { type: 'object', properties: { state: { type: 'string', enum: ['idle', 'happy', 'concerned', 'surprised'], description: '伙伴视觉状态' } }, required: ['state'], additionalProperties: false },
+      inputSchema: { type: 'object', properties: { state: { type: 'string', enum: ['idle', 'happy', 'concerned', 'surprised', 'shy', 'sad', 'annoyed', 'greeting', 'agreeing', 'celebrating', 'stretching', 'sleepy'], description: '伙伴表情或姿势状态' } }, required: ['state'], additionalProperties: false },
       capability: 'presentation', risk: 'low', scope: 'none',
     },
     execute: (args) => { onVisualState(String(args.state) as CompanionVideoState); return { state: args.state } },

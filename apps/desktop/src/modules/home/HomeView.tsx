@@ -28,14 +28,14 @@ export function HomeView() {
       generating.current = true
       setQuestionBusy(true)
       setQuestionError('')
-      try { saveDailyQuestion(await generateDailyQuestion(data.companion, data.planner.dailyQuestions, questionDate)) }
+      try { saveDailyQuestion(await generateDailyQuestion(data.companion, data.planner.dailyQuestions, data.settings.trust, questionDate)) }
       catch (error) { setQuestionError(error instanceof Error ? error.message : '今天的问题暂时没有抵达') }
       finally { generating.current = false; setQuestionBusy(false) }
     }
     void ensureQuestion()
     const timer = window.setInterval(() => void ensureQuestion(), 60_000)
     return () => window.clearInterval(timer)
-  }, [dailyQuestion, data.companion, data.planner.dailyQuestions, questionDate, retry, saveDailyQuestion])
+  }, [dailyQuestion, data.companion, data.planner.dailyQuestions, data.settings.trust, questionDate, retry, saveDailyQuestion])
 
   const talkAboutQuestion = async () => {
     if (!dailyQuestion) return

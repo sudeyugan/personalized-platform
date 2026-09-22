@@ -6,7 +6,7 @@ type SetStore = (partial: Partial<LibraryStore>) => void
 const makeId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
 const commit = (data: LibraryData, set: SetStore) => { set({ data }); void libraryRepository.save(data) }
 
-type PlannerActions = 'saveDiaryEntry' | 'openDiary' | 'saveDailyQuestion' | 'startDailyQuestionDiary' | 'saveMoodEntry' | 'deleteMoodEntry' | 'addCourse' | 'updateCourse' | 'deleteCourse' | 'addCalendarEvent' | 'deleteCalendarEvent' | 'addTodo' | 'updateTodo' | 'toggleTodoForDate' | 'toggleTodoHoliday' | 'recordTodoCompletion' | 'removeTodoCompletion' | 'deleteTodo'
+type PlannerActions = 'saveDiaryEntry' | 'openDiary' | 'saveDailyQuestion' | 'startDailyQuestionDiary' | 'saveMoodEntry' | 'deleteMoodEntry' | 'addCourse' | 'updateCourse' | 'deleteCourse' | 'addCalendarEvent' | 'updateCalendarEvent' | 'deleteCalendarEvent' | 'addTodo' | 'updateTodo' | 'toggleTodoForDate' | 'toggleTodoHoliday' | 'recordTodoCompletion' | 'removeTodoCompletion' | 'deleteTodo'
 
 export function createPlannerSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, PlannerActions> {
   const updatePlanner = (planner: LibraryData['planner']) => commit({ ...get().data, planner }, set)
@@ -67,6 +67,11 @@ export function createPlannerSlice(get: () => LibraryStore, set: SetStore): Pick
       if (!clean) return
       const planner = get().data.planner
       updatePlanner({ ...planner, calendarEvents: [...planner.calendarEvents, { ...event, title: clean, id: makeId('calendar-event') }] })
+    },
+    updateCalendarEvent: (id, changes) => {
+      const planner = get().data.planner
+      const cleanTitle = changes.title?.trim()
+      updatePlanner({ ...planner, calendarEvents: planner.calendarEvents.map((event) => event.id === id ? { ...event, ...changes, ...(cleanTitle ? { title: cleanTitle } : {}) } : event) })
     },
     deleteCalendarEvent: (id) => {
       const planner = get().data.planner

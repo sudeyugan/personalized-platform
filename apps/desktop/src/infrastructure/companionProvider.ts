@@ -104,7 +104,7 @@ class CustomCompanionModel implements AgentModelProvider {
     if (this.id !== 'deepseek') throw new Error('自定义 Provider 尚未授权联网；当前只开放 DeepSeek')
     if (!this.endpoint.startsWith('https://api.deepseek.com')) throw new Error('DeepSeek 服务地址必须使用 https://api.deepseek.com')
     if (!await hasCompanionKey()) throw new Error('请先安全保存对话模型 API Key')
-    await this.generate({ messages: [{ role: 'user', content: '只回复：连接正常' }], context: { page: 'settings', companion: { name: '一隅' } }, tools: [] })
+    await this.generate({ messages: [{ role: 'user', content: '只回复：连接正常' }], context: { page: 'settings', companion: { name: '一隅' }, localTime: { timeZone: 'Asia/Shanghai', date: '2000-01-01', time: '00:00:00', weekday: '星期六', period: '凌晨' } }, tools: [] })
     return `DeepSeek 已连接：${this.model || '未命名模型'}。`
   }
 
@@ -112,6 +112,7 @@ class CustomCompanionModel implements AgentModelProvider {
     if (this.id !== 'deepseek') throw new Error('PROVIDER_PROTOCOL_UNCONFIGURED:自定义 Provider 尚未开放联网')
     const toolNames = new Map(request.tools.map((tool) => [tool.name.replaceAll('.', '__'), tool.name]))
     const context = [
+      `当前北京时间：${request.context.localTime.date} ${request.context.localTime.weekday} ${request.context.localTime.time}（${request.context.localTime.period}）`,
       `当前页面：${request.context.page}`,
       request.context.activeWork ? `当前作品：${request.context.activeWork.title}` : '',
       request.context.activeChapter ? `当前章节：${request.context.activeChapter.title}` : '',

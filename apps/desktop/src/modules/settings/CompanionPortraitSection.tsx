@@ -1,28 +1,41 @@
 import { listen } from '@tauri-apps/api/event'
-import { Check, Film, ImagePlus, LoaderCircle, Trash2 } from 'lucide-react'
+import { Check, Film, ImagePlus, LoaderCircle, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { CompanionVideoState } from '../../domain/models'
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { AssetImage } from '../assets/AssetImage'
 
-const videoStates: { id: CompanionVideoState; label: string; hint: string }[] = [
+const interactionStates: { id: CompanionVideoState; label: string; hint: string }[] = [
   { id: 'idle', label: '基础待机', hint: '必需 · 平时循环播放' },
   { id: 'listening', label: '正在倾听', hint: '可选 · 录音或输入时' },
   { id: 'thinking', label: '正在思考', hint: '可选 · 模型或 Tool 工作时' },
   { id: 'speaking', label: '正在回应', hint: '可选 · 回复或 TTS 播放时' },
+]
+const expressionStates: { id: CompanionVideoState; label: string; hint: string }[] = [
   { id: 'happy', label: '轻松积极', hint: '可选 · Agent 情绪状态' },
   { id: 'concerned', label: '认真关切', hint: '可选 · Agent 情绪状态' },
   { id: 'surprised', label: '稍感意外', hint: '可选 · Agent 情绪状态' },
+  { id: 'shy', label: '害羞', hint: '可选 · 克制的害羞反应' },
+  { id: 'sad', label: '难过', hint: '可选 · 低落或安慰场景' },
+  { id: 'annoyed', label: '不满', hint: '可选 · 轻微不悦反应' },
 ]
+const poseStates: { id: CompanionVideoState; label: string; hint: string }[] = [
+  { id: 'greeting', label: '招手问候', hint: '可选 · 开始交谈时' },
+  { id: 'agreeing', label: '点头同意', hint: '可选 · 表示理解或认可' },
+  { id: 'celebrating', label: '庆祝', hint: '可选 · 达成目标时' },
+  { id: 'stretching', label: '伸懒腰', hint: '可选 · 闲置时的姿势变化' },
+  { id: 'sleepy', label: '困倦', hint: '可选 · 深夜或休息状态' },
+]
+const videoStates = [...interactionStates, ...expressionStates, ...poseStates]
 
 type ImportStatus = { tone: 'neutral' | 'working' | 'success' | 'error'; message: string }
 
 export function CompanionPortraitSection() {
-  const { data, importAsset, importCompanionVideo, setCompanionPortrait, setCompanionVideo } = useLibraryStore()
+  const { data, importAsset, importCompanionVideo, setCompanionPortrait, addCompanionVideo, removeCompanionVideo } = useLibraryStore()
   const visual = data.companion.desktop.visual
   const portraitId = data.companion.appearance.portraitAssetId
   const portrait = data.assets.find((asset) => asset.id === portraitId && !asset.deletedAt)
-  const videos = data.companion.desktop.videoAssets ?? (visual.type === 'video' ? visual.videos : {})
+  const clips = data.companion.desktop.videoClips ?? Object.fromEntries(Object.entries(data.companion.desktop.videoAssets ?? (visual.type === 'video' ? visual.videos : {})).map(([state, id]) => [state, id ? [id] : []]))
   const [editorMode, setEditorMode] = useState<'portrait' | 'video'>(visual.type === 'video' ? 'video' : 'portrait')
   const [status, setStatus] = useState<ImportStatus>({ tone: 'neutral', message: '选择一种桌面形象方式进行设置。' })
   const [busy, setBusy] = useState('')
@@ -60,7 +73,7 @@ export function CompanionPortraitSection() {
     setStatus({ tone: 'working', message: `已选择 ${file.name}，正在开始导入…` })
     try {
       const asset = await importCompanionVideo(file, (message) => setStatus({ tone: 'working', message }))
-      setCompanionVideo(state, asset.id)
+      addCompanionVideo(state, asset.id)
       const ratio = asset.height ? asset.width / asset.height : 0
       const ratioHint = ratio && Math.abs(ratio - 9 / 16) > 0.025
         ? '；画布不是 9:16，将完整包含显示'
@@ -75,13 +88,12 @@ export function CompanionPortraitSection() {
   }
 
   const renderVideoSlot = (item: (typeof videoStates)[number], featured = false) => {
-    const assetId = videos[item.id]
-    const asset = data.assets.find((entry) => entry.id === assetId && !entry.deletedAt)
-    return <div className={`companion-video-slot ${featured ? 'featured' : ''} ${asset ? 'filled' : ''}`} key={item.id}>
-      <span className="video-slot-icon">{busy === item.id ? <LoaderCircle className="spin" size={15} /> : asset ? <Check size={15} /> : <Film size={15} />}</span>
-      <span><strong>{item.label}</strong><small>{asset ? `${asset.fileName}${asset.width && asset.height ? ` · ${asset.width}×${asset.height}` : ''}` : item.hint}</small></span>
-      <label className={busy ? 'disabled' : ''}>{busy === item.id ? '导入中…' : asset ? '更换' : featured ? '选择 WebM' : '上传'}<input type="file" accept="video/webm,.webm" disabled={Boolean(busy)} onChange={(event) => { void importVideo(item.id, event.target.files?.[0]); event.target.value = '' }} /></label>
-      {asset && <button aria-label={`移除${item.label}`} disabled={Boolean(busy)} onClick={() => setCompanionVideo(item.id, undefined)}><Trash2 size={13} /></button>}
+    const assets = (clips[item.id] ?? []).map((id) => data.assets.find((entry) => entry.id === id && !entry.deletedAt)).filter((asset): asset is NonNullable<typeof asset> => Boolean(asset))
+    return <div className={`companion-video-slot ${featured ? 'featured' : ''} ${assets.length ? 'filled' : ''}`} key={item.id}>
+      <span className="video-slot-icon">{busy === item.id ? <LoaderCircle className="spin" size={15} /> : assets.length ? <Check size={15} /> : <Film size={15} />}</span>
+      <span><strong>{item.label}</strong><small>{assets.length ? `${assets.length} 段素材 · 播放时自动选择` : item.hint}</small></span>
+      <label className={busy ? 'disabled' : ''}>{busy === item.id ? '导入中…' : <><Plus size={12} />{assets.length ? '继续添加' : featured ? '选择 WebM' : '添加'}</>}<input type="file" accept="video/webm,.webm" disabled={Boolean(busy)} onChange={(event) => { void importVideo(item.id, event.target.files?.[0]); event.target.value = '' }} /></label>
+      {assets.length > 0 && <div className="video-slot-assets">{assets.map((asset) => <div key={asset.id}><span title={asset.fileName}>{asset.fileName}<small>{asset.width && asset.height ? `${asset.width}×${asset.height}` : 'WebM'}</small></span><button aria-label={`移除 ${asset.fileName}`} disabled={Boolean(busy)} onClick={() => removeCompanionVideo(item.id, asset.id)}><Trash2 size={12} /></button></div>)}</div>}
     </div>
   }
 
@@ -102,10 +114,12 @@ export function CompanionPortraitSection() {
       </div>
       {portrait ? <div className="portrait-settings-preview"><AssetImage asset={portrait} thumbnail={false} alt={data.companion.name + '立绘'} /><span><strong>{portrait.fileName}</strong><small>{portrait.width} × {portrait.height}</small></span></div> : <div className="visual-empty-state"><ImagePlus size={20} /><span>尚未添加静态立绘</span></div>}
     </div> : <div className="visual-editor-panel video-editor-panel">
-      <div className="visual-editor-heading"><span><strong>动态 WebM</strong><small>先添加基础待机；导入成功后会自动启用动态形象。</small></span>{videos.idle && visual.type !== 'video' && <button className="ghost-button" onClick={() => setCompanionVideo('idle', videos.idle)}>启用动态形象</button>}</div>
-      <div className="companion-video-slots primary-video-slot">{renderVideoSlot(videoStates[0], true)}</div>
-      <details className="optional-video-states"><summary>互动状态 <small>{videoStates.slice(1).filter((item) => videos[item.id]).length} / {videoStates.length - 1} 已添加</small></summary><div className="companion-video-slots">{videoStates.slice(1).map((item) => renderVideoSlot(item))}</div></details>
-      <p>推荐 1792 × 3184、透明背景、静音 VP9 WebM。互动状态可以以后再补，缺少时会自动使用基础待机。</p>
+      <div className="visual-editor-heading"><span><strong>动态 WebM 动作库</strong><small>同一状态可以添加多段；基础待机会在每段结束后自然轮换。</small></span>{clips.idle?.length && visual.type !== 'video' && <button className="ghost-button" onClick={() => addCompanionVideo('idle', clips.idle![0])}>启用动态形象</button>}</div>
+      <div className="companion-video-slots primary-video-slot">{renderVideoSlot(interactionStates[0], true)}</div>
+      <details className="optional-video-states" open><summary>交互状态 <small>{interactionStates.slice(1).filter((item) => clips[item.id]?.length).length} / {interactionStates.length - 1} 已配置</small></summary><div className="companion-video-slots">{interactionStates.slice(1).map((item) => renderVideoSlot(item))}</div></details>
+      <details className="optional-video-states"><summary>表情反应 <small>{expressionStates.filter((item) => clips[item.id]?.length).length} / {expressionStates.length} 已配置</small></summary><div className="companion-video-slots">{expressionStates.map((item) => renderVideoSlot(item))}</div></details>
+      <details className="optional-video-states"><summary>姿势动作 <small>{poseStates.filter((item) => clips[item.id]?.length).length} / {poseStates.length} 已配置</small></summary><div className="companion-video-slots">{poseStates.map((item) => renderVideoSlot(item))}</div></details>
+      <p>推荐 1792 × 3184、透明背景、静音 VP9 WebM，每段 3–6 秒且首尾姿势接近。其余状态可以逐步补齐，缺少时自动回退基础待机。</p>
     </div>}
   </div>
 }

@@ -28,7 +28,7 @@ export function buildCompanionContext(data: LibraryData, temporaryWorkIds: strin
   return { text: parts.join('\n'), summary: parts.length ? parts.map((part) => part.split('：')[0]).join('、') : '未授权任何上下文' }
 }
 
-export function createCompanionSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, 'setCompanionProfile' | 'setCompanionAppearance' | 'setCompanionDesktop' | 'setCompanionShortcut' | 'setCompanionPortrait' | 'setCompanionVideo' | 'setCompanionProvider' | 'setCompanionVoice' | 'setCompanionPermissions' | 'grantTemporaryCompanionWork' | 'addCompanionMessage' | 'addCompanionAudit' | 'clearCompanionMessages' | 'addCompanionMemory' | 'updateCompanionMemory' | 'deleteCompanionMemory' | 'setCompanionGrowthEnabled' | 'setCompanionPersonality' | 'rollbackCompanionGrowth' | 'resetCompanionPersonality'> {
+export function createCompanionSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, 'setCompanionProfile' | 'setCompanionAppearance' | 'setCompanionDesktop' | 'setCompanionShortcut' | 'setCompanionPortrait' | 'setCompanionVideo' | 'addCompanionVideo' | 'removeCompanionVideo' | 'setCompanionProvider' | 'setCompanionVoice' | 'setCompanionPermissions' | 'grantTemporaryCompanionWork' | 'addCompanionMessage' | 'addCompanionAudit' | 'clearCompanionMessages' | 'addCompanionMemory' | 'updateCompanionMemory' | 'deleteCompanionMemory' | 'setCompanionGrowthEnabled' | 'setCompanionPersonality' | 'rollbackCompanionGrowth' | 'resetCompanionPersonality'> {
   const updatePersonality = (changes: Partial<CompanionPersonality>, reason: string) => {
     const current = get().data
     const before = current.companion.personality
@@ -45,15 +45,33 @@ export function createCompanionSlice(get: () => LibraryStore, set: SetStore): Pi
     setCompanionPortrait: (assetId) => { const current = get().data; commit({ ...current, companion: { ...current.companion, appearance: { ...current.companion.appearance, portraitAssetId: assetId }, desktop: { ...current.companion.desktop, visual: { type: 'portrait', assetId } } } }, set) },
     setCompanionVideo: (state, assetId) => {
       const current = get().data
-      const videos = { ...(current.companion.desktop.videoAssets ?? (current.companion.desktop.visual.type === 'video' ? current.companion.desktop.visual.videos : {})) }
-      if (assetId) videos[state] = assetId
-      else delete videos[state]
+      const clips = { ...(current.companion.desktop.videoClips ?? {}) }
+      if (assetId) clips[state] = [assetId]
+      else delete clips[state]
+      const videos = Object.fromEntries(Object.entries(clips).flatMap(([key, ids]) => ids?.[0] ? [[key, ids[0]]] : []))
       const visual = videos.idle
-        ? { type: 'video' as const, videos }
+        ? { type: 'video' as const, videos, clips }
         : current.companion.desktop.visual.type === 'video'
           ? { type: 'portrait' as const, assetId: current.companion.appearance.portraitAssetId }
           : current.companion.desktop.visual
-      commit({ ...current, companion: { ...current.companion, desktop: { ...current.companion.desktop, videoAssets: videos, visual } } }, set)
+      commit({ ...current, companion: { ...current.companion, desktop: { ...current.companion.desktop, videoAssets: videos, videoClips: clips, visual } } }, set)
+    },
+    addCompanionVideo: (state, assetId) => {
+      const current = get().data
+      const clips = { ...(current.companion.desktop.videoClips ?? {}) }
+      clips[state] = [...new Set([...(clips[state] ?? []), assetId])]
+      const videos = Object.fromEntries(Object.entries(clips).flatMap(([key, ids]) => ids?.[0] ? [[key, ids[0]]] : []))
+      commit({ ...current, companion: { ...current.companion, desktop: { ...current.companion.desktop, videoAssets: videos, videoClips: clips, visual: clips.idle?.length ? { type: 'video', videos, clips } : current.companion.desktop.visual } } }, set)
+    },
+    removeCompanionVideo: (state, assetId) => {
+      const current = get().data
+      const clips = { ...(current.companion.desktop.videoClips ?? {}) }
+      const remaining = (clips[state] ?? []).filter((id) => id !== assetId)
+      if (remaining.length) clips[state] = remaining
+      else delete clips[state]
+      const videos = Object.fromEntries(Object.entries(clips).flatMap(([key, ids]) => ids?.[0] ? [[key, ids[0]]] : []))
+      const visual = clips.idle?.length ? { type: 'video' as const, videos, clips } : { type: 'portrait' as const, assetId: current.companion.appearance.portraitAssetId }
+      commit({ ...current, companion: { ...current.companion, desktop: { ...current.companion.desktop, videoAssets: videos, videoClips: clips, visual } } }, set)
     },
     setCompanionProvider: (changes) => { const current = get().data; commit({ ...current, companion: { ...current.companion, provider: { ...current.companion.provider, ...changes } } }, set) },
     setCompanionVoice: (changes) => {

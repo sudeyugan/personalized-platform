@@ -43,7 +43,12 @@ describe('agent tool registry', () => {
     expect(registry.lookup('character.search')?.definition.risk).toBe('read_only')
     expect(registry.lookup('place.search')?.definition.scope).toBe('records')
     expect(registry.lookup('timeline.search')?.definition.scope).toBe('records')
-    expect(registry.definitions()).toHaveLength(13)
+    expect(registry.lookup('todo.update')?.definition.capability).toBe('modify')
+    expect(registry.lookup('calendar.update_event')?.definition.risk).toBe('medium')
+    expect(registry.lookup('chapter.append')?.definition.scope).toBe('chapters')
+    expect(registry.lookup('record.update')?.definition.scope).toBe('records')
+    expect(registry.lookup('course.create')?.definition.capability).toBe('create')
+    expect(registry.definitions()).toHaveLength(25)
     expect(() => registry.register(registry.lookup('character.search')!)).toThrow('already registered')
   })
 
@@ -156,7 +161,7 @@ describe('agent runtime', () => {
     const current = fixture()
     const provider = new ScriptedProvider([{ type: 'text', text: '简短回答。' }])
     await runAgent({ message: '今天怎么样', history: [], provider, registry: createCompanionToolRegistry(), responseMode: 'voice', voiceReplyLength: 'short', ...current })
-    expect(provider.requests[0].messages.find((message) => message.role === 'system')?.content).toContain('3 至 5 句')
+    expect(provider.requests[0].messages.find((message) => message.role === 'system')?.content).toContain('2 至 4 句')
   })
 
   it('lets the model recover from invalid arguments', async () => {

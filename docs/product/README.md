@@ -6,7 +6,7 @@
 默认语言：简体中文
 
 <!-- generated:project-status:start -->
-> 实现状态（2026-09-21）：应用 `2.0.0` 的 M10 AI 伙伴 Agent 与立绘基础为“进行中”；自动门禁已通过，人工验收待验收；下一阶段为后续方向待用户确认。本文档包仍是需求基线，实时机器状态见 `../../.agent/project-status.json`。
+> 实现状态（2026-09-22）：应用 `2.0.0` 的 M10 AI 伙伴 Agent 与立绘基础为“进行中”；自动门禁未通过，人工验收待验收；下一阶段为后续方向待用户确认。本文档包仍是需求基线，实时机器状态见 `../../.agent/project-status.json`。
 <!-- generated:project-status:end -->
 
 ## 一句话定位
@@ -24,7 +24,9 @@
 
 ## 当前范围
 
-当前已完成可日常使用的写作、资料、图片和数据安全闭环，在 M7 加入本地音乐与权限受控的写作侧栏伙伴，在 M8 交付桌面伙伴、可治理记忆和成长，并于 M10 把伙伴升级为 Tool 受控的轻量 Agent、把桌面形象收敛为单张透明立绘。旧差分角色包只保留资料兼容；Live2D、写入 Tool、Computer Use 与 MCP 仍属于后续阶段。
+当前已完成可日常使用的写作、资料、图片和数据安全闭环，在 M7 加入本地音乐与权限受控的写作侧栏伙伴，在 M8 交付桌面伙伴、可治理记忆和成长，并于 M10 把伙伴升级为 Tool 受控的轻量 Agent、把桌面形象收敛为透明立绘与语义 WebM 动作库。常用应用内创建和修改已通过逐次确认的写入 Tool 开放，删除与系统操作仍关闭；旧差分角色包只保留资料兼容，Live2D、Computer Use 与 MCP 仍属于后续阶段。
+
+动态动作库、外部数据边界和安全能力模型的专项设计见 [动态伙伴与隐私安全层](./06-动态伙伴与隐私安全层.md)。
 
 ## 不可妥协的产品原则
 
@@ -55,6 +57,6 @@
 
 > `2.0.0` 角色 Runtime 反馈补丁（2026-08-19）：桌面伙伴支持导入 `character.json` 驱动的同画布透明 PNG 角色包，按差分层完成表情、眨眼和嘴型，按固定序列帧完成 wave/nod/surprise/sleep；主窗口只给桌面窗口开放当前角色包素材白名单，关闭主窗口会统一结束全部窗口。
 
-> `2.0.0` Agent/立绘架构调整（2026-09-18）：角色包 Runtime 已退出正式显示路径，设置改为直接选择单张透明 PNG/WebP 立绘，旧数据不删除。伙伴对话改为 `ModelProvider → Agent Runtime → Tool Registry → Permission Engine → Application Service`，首批只读 Tool 为当前作品、章节搜索/读取和人物搜索；模型不能直接访问 Store、Repository、SQLite、文件或 shell。
+> `2.0.0` Agent/立绘架构调整（2026-09-18 起）：角色包 Runtime 已退出正式显示路径，设置改为直接选择透明 PNG/WebP 立绘或透明 WebM 语义动作库，同一状态可保存多段素材，旧单段数据自动兼容。伙伴对话采用 `ModelProvider → Agent Runtime → Tool Registry → Permission Engine → Application Service`；隐私策略先决定是否外发及携带哪些上下文，安全策略再约束 Tool、scope、确认与审计，模型不能直接访问 Store、Repository、SQLite、文件或 shell。Agent 明确感知北京时间；ElevenLabs 可选开启“小鱼”唤醒。
 
 `1.0.0` 当前实现还统一了人物、地点、事件、作品、卷、章节和素材的删除确认体验：回收站操作与永久删除采用不同提示，默认焦点留在安全取消操作。

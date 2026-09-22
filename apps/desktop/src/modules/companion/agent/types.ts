@@ -5,6 +5,13 @@ export type AgentToolScope = 'none' | 'active_work' | 'chapters' | 'records' | '
 export interface AgentContextSnapshot {
   page: string
   companion: { name: string }
+  localTime: {
+    timeZone: 'Asia/Shanghai'
+    date: string
+    time: string
+    weekday: string
+    period: string
+  }
   activeWork?: { id: string; title: string }
   activeChapter?: { id: string; title: string }
   selection?: string

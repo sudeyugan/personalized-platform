@@ -124,10 +124,11 @@ export interface CompanionMessage { id: string; role: 'user' | 'companion'; cont
 export interface CompanionMemory { id: string; content: string; source: 'manual' | 'conversation'; sourceLabel: string; createdAt: string; updatedAt: string; confidence: number; authorized: boolean; sourceWorkId?: string }
 export interface CompanionPersonality { warmth: number; curiosity: number; initiative: number }
 export interface CompanionGrowthLog { id: string; before: CompanionPersonality; after: CompanionPersonality; reason: string; createdAt: string }
-export type CompanionVideoState = 'idle' | 'listening' | 'thinking' | 'speaking' | 'happy' | 'concerned' | 'surprised'
+export type CompanionVideoState = 'idle' | 'listening' | 'thinking' | 'speaking' | 'happy' | 'concerned' | 'surprised' | 'shy' | 'sad' | 'annoyed' | 'greeting' | 'agreeing' | 'celebrating' | 'stretching' | 'sleepy'
+export type CompanionVideoLibrary = Partial<Record<CompanionVideoState, string[]>>
 export type CompanionVisual =
   | { type: 'portrait'; assetId?: string }
-  | { type: 'video'; videos: Partial<Record<CompanionVideoState, string>> }
+  | { type: 'video'; videos: Partial<Record<CompanionVideoState, string>>; clips?: CompanionVideoLibrary }
   | { type: 'live2d'; modelAssetId?: string }
 export interface CompanionAgentAuditEntry {
   id: string
@@ -172,12 +173,13 @@ export interface CompanionData {
   name: string
   expression: 'calm' | 'warm' | 'thinking'
   appearance: { hair: 'ink' | 'short' | 'long'; outfit: 'linen' | 'night' | 'sage'; portraitAssetId?: string }
-  desktop: { visible: boolean; visual: CompanionVisual; videoAssets?: Partial<Record<CompanionVideoState, string>>; toggleShortcut: string; characterPackage?: CompanionCharacterPackage }
+  desktop: { visible: boolean; visual: CompanionVisual; videoAssets?: Partial<Record<CompanionVideoState, string>>; videoClips?: CompanionVideoLibrary; toggleShortcut: string; characterPackage?: CompanionCharacterPackage }
   provider: { providerId: 'mock' | 'deepseek' | 'custom'; endpoint: string; model: string }
   voice: {
     stt: { providerId: 'none' | 'elevenlabs' | 'custom'; endpoint: string; model: string }
     tts: { providerId: 'none' | 'elevenlabs' | 'custom'; endpoint: string; model: string; voice: string }
     autoSpeak: boolean
+    wakeEnabled: boolean
     replyLength: 'short' | 'standard'
     longReplySpeech: 'summary' | 'full'
   }
@@ -311,6 +313,15 @@ export interface AnswerBookData {
   favorites: AnswerBookFavorite[]
 }
 
+export type PrivateDictionaryCategory = 'person' | 'place' | 'organization' | 'project' | 'account' | 'other'
+export interface PrivateDictionaryEntry {
+  id: string
+  value: string
+  category: PrivateDictionaryCategory
+  enabled: boolean
+}
+export type OutboundReviewMode = 'balanced' | 'strict'
+
 export interface PersonRelation { id: string; fromPersonId: string; toPersonId: string; relationType: string; description: string }
 export interface EntityLink { id: string; sourceType: EntityType; sourceId: string; targetType: EntityType; targetId: string; relationType: 'mentions' | 'occurs_at' | 'involves' | 'related'; anchor?: TextAnchor; createdAt: string }
 
@@ -349,6 +360,15 @@ export interface LibraryData {
     ai: { providerId: 'mock' | 'openrouter' | 'custom'; endpoint: string; model: string; stylePreset: string }
     backup: { dailyEnabled: boolean; directory: string; retentionCount: number; lastAutomaticDate?: string; lastAutomaticError?: string }
     security: { autoLockMinutes: number }
+    trust: {
+      externalAiProcessing: boolean
+      shareAuthorizedContext: boolean
+      shareRecentConversation: boolean
+      retainConversationHistory: boolean
+      outboundProtection: boolean
+      outboundReviewMode: OutboundReviewMode
+      privateDictionary: PrivateDictionaryEntry[]
+    }
     music: { volume: number; loop: 'off' | 'all' | 'one'; autoSwitch: boolean; playerVisible: boolean }
   }
   session: {
