@@ -1,6 +1,7 @@
 import { BookHeart, BookOpenText, ChevronDown, ChevronLeft, ChevronRight, CloudOff, FileText, PanelRight, Search, X } from 'lucide-react'
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react'
 import { navigationItems } from './moduleManifest'
+import { resolveContentBackground } from './backgrounds'
 import { useLibraryStore } from '../state/useLibraryStore'
 import { libraryRepository, type SearchHit } from '../infrastructure/libraryRepository'
 import { PlaybackDock } from '../modules/music/PlaybackDock'
@@ -39,6 +40,9 @@ export function AppShell() {
   const answerBookEnabled = data.settings.modules.find((module) => module.id === 'answerBook')?.enabled ?? true
   const orderedNavigation = data.settings.navigationOrder.map((id) => navigationItems.find((item) => item.id === id)).filter((item) => item && (item.group !== 'writing' || writingEnabled) && (item.id !== 'music' || musicEnabled) && (item.id !== 'answerBook' || answerBookEnabled))
   const writingViewActive = navigationItems.some((item) => item.group === 'writing' && item.id === activeView)
+  const contentBackground = resolveContentBackground(data.settings, activeView)
+  const sidebarBackground = data.settings.backgrounds.images.sidebar
+  const sidebarStyle = sidebarBackground ? { '--sidebar-art': `url(${sidebarBackground})` } as CSSProperties : undefined
 
   const toggleWritingNavigation = () => {
     setWritingNavigationOpen((current) => {
@@ -65,7 +69,7 @@ export function AppShell() {
 
   return (
     <div className={data.session.focusMode ? 'app-frame focus-mode' : 'app-frame'}>
-      <aside className="primary-sidebar">
+      <aside className={`primary-sidebar sidebar-background-${data.settings.backgrounds.sidebarMode}${sidebarBackground ? ' has-sidebar-background' : ''}`} style={sidebarStyle}>
         <div className="brand-lockup">
           <div className="brand-mark small">隅</div>
           <div><strong>一隅</strong><span>安放你的故事</span></div>
@@ -104,6 +108,7 @@ export function AppShell() {
       </aside>
 
       <section className="workspace">
+        {contentBackground.image && <div className="workspace-background" key={`${contentBackground.scene}-${contentBackground.image.length}-${contentBackground.image.slice(-12)}`} style={{ backgroundImage: `linear-gradient(color-mix(in srgb, var(--app-bg) 86%, transparent), color-mix(in srgb, var(--app-bg) 86%, transparent)), url(${contentBackground.image})` }} />}
         <header className="window-toolbar">
           <div className="history-buttons"><button aria-label="后退"><ChevronLeft size={17} /></button><button aria-label="前进"><ChevronRight size={17} /></button></div>
           <div className="toolbar-spacer" />

@@ -352,7 +352,15 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
 
   setBackgroundImage: (backgroundImage) => {
-    const data = { ...get().data, settings: { ...get().data.settings, backgroundImage } }
+    const current = get().data
+    const data = { ...current, settings: { ...current.settings, backgroundImage: undefined, backgrounds: { ...current.settings.backgrounds, images: { ...current.settings.backgrounds.images, default: backgroundImage } } } }
+    set({ data }); void persist(data)
+  },
+
+  setBackgroundSettings: (changes) => {
+    const current = get().data
+    const backgrounds = { ...current.settings.backgrounds, ...changes, images: { ...current.settings.backgrounds.images, ...changes.images } }
+    const data = { ...current, settings: { ...current.settings, backgrounds, backgroundImage: undefined } }
     set({ data }); void persist(data)
   },
 

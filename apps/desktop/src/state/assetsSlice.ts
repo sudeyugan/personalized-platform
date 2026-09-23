@@ -57,6 +57,9 @@ export function referencedAssetIds(data: LibraryData) {
   const ids = new Set<string>()
   Object.values(data.chapters).forEach((chapter) => { assetIdsInContent(chapter.content).forEach((id) => ids.add(id)); if (chapter.impressionAssetId) ids.add(chapter.impressionAssetId) })
   if (data.settings.backgroundImage?.startsWith('asset:')) ids.add(data.settings.backgroundImage.slice(6))
+  Object.values(data.settings.backgrounds?.images ?? {}).forEach((source) => {
+    if (source?.startsWith('asset:')) ids.add(source.slice(6))
+  })
   const visual = data.companion.desktop.visual
   if (visual.type === 'portrait' && visual.assetId) ids.add(visual.assetId)
   if (visual.type === 'video') {

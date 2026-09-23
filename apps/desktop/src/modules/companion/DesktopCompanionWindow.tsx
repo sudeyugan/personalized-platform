@@ -86,7 +86,9 @@ export function DesktopCompanionWindow() {
   const [snapshot, setSnapshot] = useState(emptyCompanionDesktopSnapshot)
   const [receivedSnapshot, setReceivedSnapshot] = useState(false)
   const [readyVisual, setReadyVisual] = useState<ReadyVisual>()
+  const [outgoingVisual, setOutgoingVisual] = useState<ReadyVisual>()
   const [selectedVideoId, setSelectedVideoId] = useState<string>()
+  const visualTransitionTimer = useRef<number | undefined>(undefined)
   const pointerStart = useRef<{ x: number; y: number } | undefined>(undefined)
   const pointerId = useRef<number | undefined>(undefined)
   const dragged = useRef(false)
@@ -99,6 +101,13 @@ export function DesktopCompanionWindow() {
     }).then((value) => { stopSnapshot = value; void emitTo('main', 'companion:ready') })
     return () => { stopSnapshot?.() }
   }, [])
+  useEffect(() => {
+    const appWindow = getCurrentWindow()
+    void Promise.all([
+      appWindow.setIgnoreCursorEvents(snapshot.desktopMode === 'quiet'),
+      appWindow.setAlwaysOnTop(snapshot.desktopMode !== 'normal'),
+    ]).catch(() => undefined)
+  }, [snapshot.desktopMode])
   useEffect(() => {
     const appWindow = getCurrentWindow()
     let correctionTimer: ReturnType<typeof setTimeout> | undefined
@@ -130,10 +139,18 @@ export function DesktopCompanionWindow() {
       ? Boolean(snapshot.visual.assetId)
       : true
   useEffect(() => {
-    if (receivedSnapshot && !hasConfiguredVisual) setReadyVisual(undefined)
+    if (!receivedSnapshot || hasConfiguredVisual) return
+    window.clearTimeout(visualTransitionTimer.current)
+    setOutgoingVisual(undefined)
+    setReadyVisual(undefined)
   }, [hasConfiguredVisual, receivedSnapshot])
+  useEffect(() => () => window.clearTimeout(visualTransitionTimer.current), [])
   const markReady = (next: ReadyVisual) => {
+    if (next.id !== desiredVisual?.id || next.id === readyVisual?.id) return
+    window.clearTimeout(visualTransitionTimer.current)
+    setOutgoingVisual(readyVisual)
     setReadyVisual(next)
+    visualTransitionTimer.current = window.setTimeout(() => setOutgoingVisual(undefined), 180)
     void emitTo('main', 'companion:visual-ready', { assetId: next.id })
   }
   const reportLoadError = (assetId: string) => {
@@ -145,11 +162,14 @@ export function DesktopCompanionWindow() {
   }
   const loopVideo = snapshot.action !== 'idle' || videoCandidates.length < 2
   const visual = <>
+    {outgoingVisual && outgoingVisual.id !== readyVisual?.id && (outgoingVisual.kind === 'video'
+      ? <video className="desktop-media outgoing" key={outgoingVisual.id} src={outgoingVisual.url} autoPlay loop muted playsInline draggable={false} />
+      : <img className="desktop-media outgoing" key={outgoingVisual.id} src={outgoingVisual.url} alt="" draggable={false} />)}
     {readyVisual && (readyVisual.kind === 'video'
       ? <video className="desktop-media ready" key={readyVisual.id} src={readyVisual.url} autoPlay loop={loopVideo} muted playsInline draggable={false} onEnded={advanceIdle} />
       : <img className="desktop-media ready" key={readyVisual.id} src={readyVisual.url} alt="" draggable={false} />)}
     {isChangingVisual && desiredVisual && (desiredVisual.kind === 'video'
-      ? <video className="desktop-media pending" key={desiredVisual.id} src={desiredVisual.url} autoPlay loop={loopVideo} muted playsInline preload="auto" draggable={false} onCanPlay={() => markReady(desiredVisual)} onError={() => reportLoadError(desiredVisual.id)} />
+      ? <video className="desktop-media pending" key={desiredVisual.id} src={desiredVisual.url} autoPlay loop={loopVideo} muted playsInline preload="auto" draggable={false} onPlaying={() => markReady(desiredVisual)} onError={() => reportLoadError(desiredVisual.id)} />
       : <img className="desktop-media pending" key={desiredVisual.id} src={desiredVisual.url} alt="" draggable={false} onLoad={() => markReady(desiredVisual)} onError={() => reportLoadError(desiredVisual.id)} />)}
     {!readyVisual && receivedSnapshot && !hasConfiguredVisual && <div className={`desktop-character hair-${snapshot.appearance.hair} outfit-${snapshot.appearance.outfit} expression-${snapshot.expression}`}><span className="character-hair" /><span className="character-face">隅</span><span className="character-outfit" /></div>}
   </>
@@ -180,7 +200,7 @@ export function DesktopCompanionWindow() {
     pointerId.current = undefined
     dragged.current = false
   }
-  return <main className={`desktop-companion action-${snapshot.action}`}>
+  return <main className={`desktop-companion mode-${snapshot.desktopMode} action-${snapshot.action}`}>
     <div className="desktop-visual">{visual}<div className="desktop-interaction-layer" role="button" tabIndex={0} onPointerDown={beginPointer} onPointerMove={movePointer} onPointerUp={endPointer} onPointerCancel={cancelPointer} onDoubleClick={() => void emitTo('main', 'companion:open-main')} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') void emitTo('main', 'companion:chat-toggle') }} aria-label={`${snapshot.name}，${snapshot.actionLabel}`} /></div>
   </main>
 }

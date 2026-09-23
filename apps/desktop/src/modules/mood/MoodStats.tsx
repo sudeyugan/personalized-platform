@@ -6,6 +6,7 @@ import { MoodBlendBar } from './MoodBlendBar'
 import { moodSummary } from './moodUtils'
 
 type ReflectionRange = 'week' | 'month'
+type DetailMode = 'day' | 'range'
 
 function datesFor(referenceDate: string, range: ReflectionRange) {
   const reference = new Date(`${referenceDate}T12:00:00`)
@@ -56,6 +57,8 @@ export function MoodStats({ entries, referenceDate, range }: { entries: MoodEntr
 
 function MoodReflection({ entries, referenceDate }: { entries: MoodEntry[]; referenceDate: string }) {
   const [range, setRange] = useState<ReflectionRange>('week')
+  const [selectedDate, setSelectedDate] = useState(referenceDate)
+  const [detailMode, setDetailMode] = useState<DetailMode>('day')
   const stats = useMemo(() => {
     const dates = datesFor(referenceDate, range)
     const dateSet = new Set(dates)
@@ -71,10 +74,18 @@ function MoodReflection({ entries, referenceDate }: { entries: MoodEntry[]; refe
       period.id,
       totalsFor(selected.filter((entry) => entry.period === period.id)),
     ])) as Record<MoodPeriod, MoodPoints>
-    return { dates, selected, totals, totalPoints, composition, byPeriod, expected: availableSlots(dates, referenceDate) }
+    const byPeriodCount = Object.fromEntries(moodPeriods.map((period) => [
+      period.id,
+      selected.filter((entry) => entry.period === period.id).length,
+    ])) as Record<MoodPeriod, number>
+    return { dates, selected, totals, totalPoints, composition, byPeriod, byPeriodCount, expected: availableSlots(dates, referenceDate) }
   }, [entries, range, referenceDate])
 
   const entryFor = (date: string, period: MoodPeriod) => stats.selected.find((entry) => entry.date === date && entry.period === period)
+  const activeDate = stats.dates.includes(selectedDate) ? selectedDate : referenceDate
+  const activeDateLabel = new Date(`${activeDate}T12:00:00`).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' })
+  const chooseDate = (date: string) => { setSelectedDate(date); setDetailMode('day') }
+  const chooseRange = (nextRange: ReflectionRange) => { setRange(nextRange); setSelectedDate(referenceDate); setDetailMode('day') }
   const firstWeekday = new Date(`${stats.dates[0]}T12:00:00`).getDay()
   const monthOffset = firstWeekday === 0 ? 7 : firstWeekday
 
@@ -84,8 +95,8 @@ function MoodReflection({ entries, referenceDate }: { entries: MoodEntry[]; refe
       <div className="mood-stats-body">
         <header className="mood-reflection-header">
           <div className="mood-range-switch" aria-label="选择情绪回望范围">
-            <button type="button" className={range === 'week' ? 'active' : ''} aria-pressed={range === 'week'} onClick={() => setRange('week')}>本周</button>
-            <button type="button" className={range === 'month' ? 'active' : ''} aria-pressed={range === 'month'} onClick={() => setRange('month')}>本月</button>
+            <button type="button" className={range === 'week' ? 'active' : ''} aria-pressed={range === 'week'} onClick={() => chooseRange('week')}>本周</button>
+            <button type="button" className={range === 'month' ? 'active' : ''} aria-pressed={range === 'month'} onClick={() => chooseRange('month')}>本月</button>
           </div>
           <span>已记录 {stats.selected.length} / {stats.expected} 个可记录时段</span>
         </header>
@@ -98,20 +109,20 @@ function MoodReflection({ entries, referenceDate }: { entries: MoodEntry[]; refe
 
           {range === 'week' ? <section className="mood-week-tapestry" aria-label="本周早中晚情绪织带">
             <span />
-            {stats.dates.map((date) => <strong key={date}>{new Date(`${date}T12:00:00`).toLocaleDateString('zh-CN', { weekday: 'short' }).replace('周', '')}</strong>)}
+            {stats.dates.map((date) => <button type="button" className={date === activeDate ? 'mood-week-day selected' : 'mood-week-day'} aria-label={`查看 ${date} 的心情`} aria-pressed={date === activeDate} key={date} onClick={() => chooseDate(date)}>{new Date(`${date}T12:00:00`).toLocaleDateString('zh-CN', { weekday: 'short' }).replace('周', '')}</button>)}
             {moodPeriods.map((period) => <div className="mood-week-row" key={period.id}>
               <b>{period.label}</b>
-              {stats.dates.map((date) => <PeriodCell entry={entryFor(date, period.id)} key={date} />)}
+              {stats.dates.map((date) => <button type="button" className={date === activeDate ? 'mood-week-cell selected' : 'mood-week-cell'} aria-label={`查看 ${date} ${period.label}的心情`} aria-pressed={date === activeDate} key={date} onClick={() => chooseDate(date)}><PeriodCell entry={entryFor(date, period.id)} /></button>)}
             </div>)}
           </section> : <section className="mood-month-calendar" aria-label="本月情绪日历">
             {['一', '二', '三', '四', '五', '六', '日'].map((day) => <strong key={day}>{day}</strong>)}
             {stats.dates.map((date, index) => {
               const dayEntries = stats.selected.filter((entry) => entry.date === date)
               const isFuture = date > formatLocalDate()
-              return <div className={isFuture ? 'future' : ''} style={index === 0 ? { gridColumnStart: monthOffset } : undefined} title={dayEntries.length ? `${date}：${dayEntries.length} 个时段` : date} key={date}>
+              return <button type="button" className={`${isFuture ? 'future ' : ''}${date === activeDate ? 'selected' : ''}`} style={index === 0 ? { gridColumnStart: monthOffset } : undefined} title={dayEntries.length ? `${date}：${dayEntries.length} 个时段` : date} aria-label={`查看 ${date} 的心情`} aria-pressed={date === activeDate} key={date} onClick={() => chooseDate(date)}>
                 <span>{Number(date.slice(-2))}</span>
                 <i>{moodPeriods.map((period) => <PeriodCell entry={entryFor(date, period.id)} key={period.id} />)}</i>
-              </div>
+              </button>
             })}
           </section>}
 
@@ -125,8 +136,16 @@ function MoodReflection({ entries, referenceDate }: { entries: MoodEntry[]; refe
             })}
           </section>
 
-          <section className="mood-period-stats" aria-label="早中晚情绪构成">
-            {moodPeriods.map((period) => <div key={period.id}><span>{period.label}</span><MoodBlendBar compact points={stats.byPeriod[period.id]} /><small>{moodSummary(stats.byPeriod[period.id]) || '未记录'}</small></div>)}
+          <section className="mood-day-detail" aria-label={`${activeDateLabel}早中晚心情详情`}>
+            <header><span>{detailMode === 'day' ? activeDateLabel : `${range === 'week' ? '本周' : '本月'}时段汇总`}</span><div className="mood-detail-switch"><button type="button" className={detailMode === 'day' ? 'active' : ''} aria-pressed={detailMode === 'day'} onClick={() => setDetailMode('day')}>当日</button><button type="button" className={detailMode === 'range' ? 'active' : ''} aria-pressed={detailMode === 'range'} onClick={() => setDetailMode('range')}>{range === 'week' ? '本周汇总' : '本月汇总'}</button></div></header>
+            <div className="mood-period-stats">
+              {moodPeriods.map((period) => {
+                const entry = entryFor(activeDate, period.id)
+                const points = detailMode === 'day' ? entry?.points : stats.byPeriod[period.id]
+                const hasRecord = detailMode === 'day' ? Boolean(entry) : stats.byPeriodCount[period.id] > 0
+                return <div key={period.id}><span>{period.label}</span>{hasRecord && points ? <MoodBlendBar compact points={points} /> : <span className="mood-reflection-empty" />}<small>{hasRecord && points ? moodSummary(points) : '未记录'}</small>{detailMode === 'day' && entry?.note && <p>{entry.note}</p>}{detailMode === 'range' && hasRecord && <p>已记录 {stats.byPeriodCount[period.id]} 次</p>}</div>
+              })}
+            </div>
           </section>
         </> : <p>这个范围内还没有心情记录。</p>}
       </div>

@@ -15,7 +15,7 @@ describe('HelpView', () => {
     expect(screen.getByText(/不要求完成固定验收清单/)).toBeInTheDocument()
     expect(screen.queryByText('十个验收场景')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '开始 7 天试用记录' })).not.toBeInTheDocument()
-    expect(screen.getByText('自定义背景图', { selector: 'summary' })).toBeInTheDocument()
+    expect(screen.getByText('自定义背景套组', { selector: 'summary' })).toBeInTheDocument()
     expect(screen.getByText('待办与周期次数', { selector: 'summary' })).toBeInTheDocument()
     expect(screen.getByText('私密词典与发送前保护', { selector: 'summary' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: '先做 4 张候选，再做 2 次微调' })).not.toBeInTheDocument()

@@ -1,18 +1,55 @@
 mod commands;
+mod local_voice;
 mod repositories;
 mod services;
 #[cfg(test)]
 mod spikes;
 
-use tauri::Manager;
+use tauri::{
+    menu::{Menu, MenuItem},
+    tray::TrayIconBuilder,
+    Emitter, Manager,
+};
 
+fn install_tray(app: &mut tauri::App) -> tauri::Result<()> {
+    let interact = MenuItem::with_id(app, "companion-interactive", "显示伙伴并交谈", true, None::<&str>)?;
+    let quiet = MenuItem::with_id(app, "companion-quiet", "安静显示（鼠标穿透）", true, None::<&str>)?;
+    let hide = MenuItem::with_id(app, "companion-hide", "隐藏伙伴", true, None::<&str>)?;
+    let open = MenuItem::with_id(app, "open-main", "打开一隅", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "退出一隅", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&interact, &quiet, &hide, &open, &quit])?;
+    let mut tray = TrayIconBuilder::with_id("yiyu-main")
+        .menu(&menu)
+        .tooltip("一隅")
+        .show_menu_on_left_click(true)
+        .on_menu_event(|app, event| match event.id().as_ref() {
+            "companion-interactive" => { let _ = app.emit_to("main", "companion:tray-action", "interactive"); }
+            "companion-quiet" => { let _ = app.emit_to("main", "companion:tray-action", "quiet"); }
+            "companion-hide" => { let _ = app.emit_to("main", "companion:tray-action", "hide"); }
+            "open-main" => {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+            "quit" => app.exit(0),
+            _ => {}
+        });
+    if let Some(icon) = app.default_window_icon() {
+        tray = tray.icon(icon.clone());
+    }
+    tray.build(app)?;
+    Ok(())
+}
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(commands::CompanionAssetScope::default())
+        .manage(local_voice::LocalVoiceState::default())
         .setup(|app| {
             repositories::install_panic_marker(app.handle())?;
+            install_tray(app)?;
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
@@ -50,6 +87,14 @@ pub fn run() {
             commands::elevenlabs_text_to_speech,
             commands::elevenlabs_speech_to_text,
             commands::elevenlabs_realtime_scribe_token,
+            local_voice::local_voice_status,
+            local_voice::local_voice_install_models,
+            local_voice::local_voice_cancel_install,
+            local_voice::local_voice_enroll,
+            local_voice::local_voice_delete_profile,
+            local_voice::local_voice_start,
+            local_voice::local_voice_process_pcm,
+            local_voice::local_voice_stop,
             commands::create_backup,
             commands::ensure_daily_backup,
             commands::list_backups,

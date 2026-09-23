@@ -181,8 +181,8 @@
 .intelligence-section .setting-row { gap: 18px; }
 .intelligence-section .setting-row > div { min-width: 0; }
 .intelligence-section .setting-row input:not([type='checkbox']):not([type='radio']),
-.intelligence-section .setting-row select,
 .secret-setting input { width: min(280px, 48%); min-height: 34px; font: 11px/1.4 var(--serif); }
+.intelligence-section .setting-row select { width: min(230px, 42%); min-height: 29px; padding: 5px 25px 5px 8px; font-family: inherit; font-size: 9px; font-weight: 400; line-height: 1.2; }
 .permission-list > div > svg { width: 16px; height: 16px; color: var(--sage); }
 .permission-list strong { font: 500 10px/1.4 var(--serif); }
 .permission-scope-group { margin-top: 10px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--surface-soft) 62%, transparent); }

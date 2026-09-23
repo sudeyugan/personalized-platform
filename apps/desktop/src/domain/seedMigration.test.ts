@@ -3,6 +3,35 @@ import type { LibraryData } from './models'
 import { createSeedLibrary, normalizeLibrary } from './seed'
 
 describe('library compatibility normalization', () => {
+  it('adds local wake and voiceprint defaults to older companion voice settings', () => {
+    const legacy = createSeedLibrary()
+    delete (legacy.companion.voice as Partial<LibraryData['companion']['voice']>).wakeWord
+    delete (legacy.companion.voice as Partial<LibraryData['companion']['voice']>).wakeSensitivity
+    delete (legacy.companion.voice as Partial<LibraryData['companion']['voice']>).speakerVerification
+    delete (legacy.companion.voice as Partial<LibraryData['companion']['voice']>).modelDownloadSource
+    delete (legacy.companion.desktop as Partial<LibraryData['companion']['desktop']>).mode
+
+    const upgraded = normalizeLibrary(legacy)
+
+    expect(upgraded.companion.voice.wakeWord).toBe('小鱼')
+    expect(upgraded.companion.voice.wakeSensitivity).toBe('standard')
+    expect(upgraded.companion.voice.speakerVerification).toBe(true)
+    expect(upgraded.companion.voice.modelDownloadSource).toBe('china')
+    expect(upgraded.companion.desktop.mode).toBe('quiet')
+  })
+
+  it('moves the legacy single background into the default background slot', () => {
+    const legacy = createSeedLibrary()
+    delete (legacy.settings as Partial<LibraryData['settings']>).backgrounds
+    legacy.settings.backgroundImage = 'data:image/png;base64,legacy'
+
+    const upgraded = normalizeLibrary(legacy)
+
+    expect(upgraded.settings.backgrounds.images.default).toBe('data:image/png;base64,legacy')
+    expect(upgraded.settings.backgrounds.sidebarMode).toBe('decoration')
+    expect(upgraded.settings.backgroundImage).toBeUndefined()
+  })
+
   it('adds M7 music and companion defaults without changing existing writing data', () => {
     const legacy = createSeedLibrary()
     const originalText = legacy.chapters['chapter-welcome'].plainText
@@ -27,6 +56,7 @@ describe('library compatibility normalization', () => {
     expect(upgraded.companion.memories).toEqual([])
     expect(upgraded.companion.desktop.visible).toBe(false)
     expect(upgraded.companion.desktop.toggleShortcut).toBe('CommandOrControl+Alt+Y')
+    expect(upgraded.companion.desktop.quietShortcut).toBe('CommandOrControl+Alt+T')
     expect(upgraded.companion.personality).toEqual({ warmth: 60, curiosity: 50, initiative: 30 })
     expect(upgraded.settings.music.autoSwitch).toBe(false)
     expect(upgraded.settings.modules.find((module) => module.id === 'music')?.available).toBe(true)

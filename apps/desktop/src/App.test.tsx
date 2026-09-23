@@ -37,14 +37,14 @@ describe('App', () => {
   it('shows a styled background picker with image guidance', async () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: '设置' }))
-    expect(await screen.findByText(/推荐 1920 × 1080/)).toBeInTheDocument()
-    expect(await screen.findByText('选择图片')).toBeInTheDocument()
+    expect(await screen.findByText(/内容背景推荐 16:9、1920 × 1080/)).toBeInTheDocument()
+    expect(await screen.findByText('通用背景')).toBeInTheDocument()
   })
 
   it('opens the built-in help center without a mandatory checklist', async () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: '帮助中心' }))
-    expect(await screen.findByRole('heading', { name: '让每一份文字都有退路' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '遇到问题时，从这里开始' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: '十个验收场景' })).not.toBeInTheDocument()
   })
 

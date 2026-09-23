@@ -4,7 +4,7 @@ import { LogicalSize, PhysicalPosition } from '@tauri-apps/api/dpi'
 import { availableMonitors, getAllWindows, getCurrentWindow, type Monitor, type Window as TauriWindow } from '@tauri-apps/api/window'
 import { register, unregister } from '@tauri-apps/plugin-global-shortcut'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { CompanionVideoState } from '../../domain/models'
+import type { CompanionDesktopMode, CompanionVideoState } from '../../domain/models'
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { companionDesktopSnapshot, companionVisualAssetIds } from './companionDesktop'
 import { sendCompanionTurn } from './companionConversation'
@@ -87,13 +87,15 @@ export function CompanionDesktopBridge() {
   const resetStateTimer = useRef<number | undefined>(undefined)
   const chatVisible = useRef(false)
   const chatTogglePending = useRef(false)
+  const quietShortcutRestoreMode = useRef<Exclude<CompanionDesktopMode, 'quiet'>>('interactive')
   const permissionRequests = useRef(new Map<string, (allowed: boolean) => void>())
   const privacyRequests = useRef(new Map<string, (allowed: boolean) => void>())
   const speechGeneration = useRef(0)
   const activeTurn = useRef<AbortController | undefined>(undefined)
   const [visualState, setVisualState] = useState<CompanionVideoState>()
+  const [desktopModeOverride, setDesktopModeOverride] = useState<CompanionDesktopMode>()
   const [agentStatus, setAgentStatus] = useState<AgentRuntimeStatus>()
-  const snapshot = useMemo(() => companionDesktopSnapshot(data.companion, data.session.activeView, playback.playing, data.assets, visualState, agentStatus, data.settings.trust.externalAiProcessing), [data.companion, data.session.activeView, playback.playing, data.assets, visualState, agentStatus, data.settings.trust.externalAiProcessing])
+  const snapshot = useMemo(() => companionDesktopSnapshot(data.companion, data.session.activeView, playback.playing, data.assets, visualState, agentStatus, data.settings.trust.externalAiProcessing, desktopModeOverride), [data.companion, data.session.activeView, playback.playing, data.assets, visualState, agentStatus, data.settings.trust.externalAiProcessing, desktopModeOverride])
   const snapshotRef = useRef(snapshot)
   snapshotRef.current = snapshot
   const publish = useCallback(async (nextSnapshot = snapshotRef.current) => {
@@ -109,12 +111,13 @@ export function CompanionDesktopBridge() {
   }, [publish, snapshot])
   useEffect(() => {
     if (!isTauri()) return
-    let stopHide: (() => void) | undefined; let stopOpen: (() => void) | undefined; let stopReady: (() => void) | undefined; let stopToggleChat: (() => void) | undefined; let stopOpenChat: (() => void) | undefined; let stopMoved: (() => void) | undefined; let stopChat: (() => void) | undefined; let stopNewChat: (() => void) | undefined; let stopVoice: (() => void) | undefined; let stopVoiceToken: (() => void) | undefined; let stopPermission: (() => void) | undefined; let stopPrivacy: (() => void) | undefined; let stopSpeech: (() => void) | undefined; let stopSpeechPause: (() => void) | undefined; let stopTurn: (() => void) | undefined
+    let stopHide: (() => void) | undefined; let stopOpen: (() => void) | undefined; let stopReady: (() => void) | undefined; let stopToggleChat: (() => void) | undefined; let stopOpenChat: (() => void) | undefined; let stopMoved: (() => void) | undefined; let stopChat: (() => void) | undefined; let stopNewChat: (() => void) | undefined; let stopVoice: (() => void) | undefined; let stopVoiceToken: (() => void) | undefined; let stopPermission: (() => void) | undefined; let stopPrivacy: (() => void) | undefined; let stopSpeech: (() => void) | undefined; let stopSpeechPause: (() => void) | undefined; let stopTurn: (() => void) | undefined; let stopVoiceShow: (() => void) | undefined; let stopVoiceEnd: (() => void) | undefined; let stopVoiceHide: (() => void) | undefined; let stopTray: (() => void) | undefined
     const windows = async () => {
       const all = await getAllWindows()
       return { portrait: all.find((item) => item.label === 'companion'), chat: all.find((item) => item.label === 'companion-chat') }
     }
     const showChat = async (draft?: string) => {
+      setDesktopModeOverride('interactive')
       const pair = await windows()
       if (!pair.portrait || !pair.chat) return
       await positionCompanionChat(pair.portrait, pair.chat)
@@ -141,6 +144,21 @@ export function CompanionDesktopBridge() {
       void emitTo('companion-chat', 'companion:speech-state', { active: false, paused: false })
     }
     void listen('companion:hide-request', () => setCompanionDesktop(false)).then((stop) => { stopHide = stop })
+    void listen('companion:voice-show-request', () => { setDesktopModeOverride('interactive'); setCompanionDesktop(true) }).then((stop) => { stopVoiceShow = stop })
+    void listen('companion:voice-session-ended', () => {
+      setDesktopModeOverride(undefined)
+      chatVisible.current = false
+      void windows().then((pair) => pair.chat?.hide())
+    }).then((stop) => { stopVoiceEnd = stop })
+    void listen('companion:voice-hide-request', () => {
+      setDesktopModeOverride(undefined)
+      setCompanionDesktop(false)
+    }).then((stop) => { stopVoiceHide = stop })
+    void listen<string>('companion:tray-action', (event) => {
+      if (event.payload === 'interactive') { setDesktopModeOverride('interactive'); setCompanionDesktop(true); void showChat(); return }
+      if (event.payload === 'quiet') { setDesktopModeOverride('quiet'); setCompanionDesktop(true); chatVisible.current = false; void windows().then((pair) => pair.chat?.hide()); return }
+      if (event.payload === 'hide') { setDesktopModeOverride(undefined); setCompanionDesktop(false) }
+    }).then((stop) => { stopTray = stop })
     void listen('companion:open-main', () => { void getCurrentWindow().show(); void getCurrentWindow().setFocus() }).then((stop) => { stopOpen = stop })
     void listen('companion:ready', () => { void publish() }).then((stop) => { stopReady = stop })
     void listen('companion:chat-toggle', () => {
@@ -151,6 +169,7 @@ export function CompanionDesktopBridge() {
         const visible = await pair.chat.isVisible().catch(() => chatVisible.current)
         if (visible) {
           chatVisible.current = false
+          setDesktopModeOverride(undefined)
           await pair.chat.hide()
           return
         }
@@ -348,7 +367,7 @@ export function CompanionDesktopBridge() {
         .then((token) => emitTo('companion-chat', 'companion:voice-token-response', { requestId: event.payload.requestId, token }))
         .catch((error) => emitTo('companion-chat', 'companion:voice-token-response', { requestId: event.payload.requestId, error: error instanceof Error ? error.message : String(error) }))
     }).then((stop) => { stopVoiceToken = stop })
-    return () => { stopHide?.(); stopOpen?.(); stopReady?.(); stopToggleChat?.(); stopOpenChat?.(); stopMoved?.(); stopChat?.(); stopNewChat?.(); stopVoice?.(); stopVoiceToken?.(); stopPermission?.(); stopPrivacy?.(); stopSpeech?.(); stopSpeechPause?.(); stopTurn?.(); activeTurn.current?.abort(); permissionRequests.current.forEach((resolve) => resolve(false)); permissionRequests.current.clear(); privacyRequests.current.forEach((resolve) => resolve(false)); privacyRequests.current.clear(); speechGeneration.current += 1; const audio = spokenAudio.current; audio?.pause(); audio?.dispatchEvent(new Event('ended')); window.clearTimeout(resetStateTimer.current) }
+    return () => { stopHide?.(); stopOpen?.(); stopReady?.(); stopToggleChat?.(); stopOpenChat?.(); stopMoved?.(); stopChat?.(); stopNewChat?.(); stopVoice?.(); stopVoiceToken?.(); stopPermission?.(); stopPrivacy?.(); stopSpeech?.(); stopSpeechPause?.(); stopTurn?.(); stopVoiceShow?.(); stopVoiceEnd?.(); stopVoiceHide?.(); stopTray?.(); activeTurn.current?.abort(); permissionRequests.current.forEach((resolve) => resolve(false)); permissionRequests.current.clear(); privacyRequests.current.forEach((resolve) => resolve(false)); privacyRequests.current.clear(); speechGeneration.current += 1; const audio = spokenAudio.current; audio?.pause(); audio?.dispatchEvent(new Event('ended')); window.clearTimeout(resetStateTimer.current) }
   }, [clearCompanionMessages, publish, setCompanionDesktop])
   useEffect(() => {
     if (!isTauri()) return
@@ -358,6 +377,7 @@ export function CompanionDesktopBridge() {
       if (!desktop) return
       await publish()
       if (data.companion.desktop.visible) await desktop.show(); else {
+        setDesktopModeOverride(undefined)
         chatVisible.current = false
         await Promise.all([desktop.hide(), chat?.hide()])
       }
@@ -380,7 +400,8 @@ export function CompanionDesktopBridge() {
       return register(shortcut, (event) => {
         if (event.state !== 'Pressed') return
         const store = useLibraryStore.getState()
-        store.setCompanionDesktop(!store.data.companion.desktop.visible)
+        if (store.data.companion.desktop.visible) { setDesktopModeOverride(undefined); store.setCompanionDesktop(false) }
+        else { setDesktopModeOverride('interactive'); store.setCompanionDesktop(true) }
       })
     }).then(() => {
       if (!disposed) report('全局快捷键已启用。')
@@ -389,6 +410,46 @@ export function CompanionDesktopBridge() {
     })
     return () => { disposed = true; void unregister(shortcut).catch(() => undefined) }
   }, [data.companion.desktop.toggleShortcut])
+  useEffect(() => {
+    if (!isTauri()) return
+    const shortcut = data.companion.desktop.quietShortcut
+    const visibilityShortcut = data.companion.desktop.toggleShortcut
+    const report = (message: string) => {
+      window.localStorage.setItem('yiyu:companion-quiet-shortcut-status', message)
+      window.dispatchEvent(new CustomEvent('yiyu:companion-quiet-shortcut-status', { detail: message }))
+    }
+    if (!shortcut) {
+      window.localStorage.removeItem('yiyu:companion-quiet-shortcut-status')
+      return
+    }
+    if (shortcut === visibilityShortcut) {
+      report('与显示 / 隐藏快捷键冲突，请更换组合。')
+      return
+    }
+    let disposed = false
+    void unregister(shortcut).catch(() => undefined).then(() => {
+      if (disposed) return
+      return register(shortcut, (event) => {
+        if (event.state !== 'Pressed') return
+        const store = useLibraryStore.getState()
+        const currentMode = snapshotRef.current.desktopMode
+        if (store.data.companion.desktop.visible && currentMode === 'quiet') {
+          setDesktopModeOverride(quietShortcutRestoreMode.current)
+        } else {
+          if (currentMode !== 'quiet') quietShortcutRestoreMode.current = currentMode
+          setDesktopModeOverride('quiet')
+          chatVisible.current = false
+          void getAllWindows().then((items) => items.find((item) => item.label === 'companion-chat')?.hide())
+        }
+        if (!store.data.companion.desktop.visible) store.setCompanionDesktop(true)
+      })
+    }).then(() => {
+      if (!disposed) report('全局快捷键已启用；再次按下会恢复原显示方式。')
+    }).catch((error) => {
+      if (!disposed) report(error instanceof Error ? `快捷键注册失败：${error.message}` : '快捷键注册失败，可能已被其他程序占用。')
+    })
+    return () => { disposed = true; void unregister(shortcut).catch(() => undefined) }
+  }, [data.companion.desktop.quietShortcut, data.companion.desktop.toggleShortcut])
   useEffect(() => {
     const trackId = data.session.currentTrackId
     if (!trackId || !playback.playing || learnedTrack.current === trackId || !data.companion.growth.enabled || !data.companion.permissions.musicContext) return

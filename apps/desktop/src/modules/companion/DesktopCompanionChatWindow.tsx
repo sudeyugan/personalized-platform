@@ -1,7 +1,7 @@
 import { emitTo, listen } from '@tauri-apps/api/event'
 import { CommitStrategy, RealtimeConnection, RealtimeEvents, Scribe } from '@elevenlabs/client'
 import { CircleStop, MessageSquarePlus, Mic, Pause, Play, Send, VolumeX } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { emptyCompanionDesktopSnapshot, type CompanionDesktopSnapshot } from './companionDesktop'
 import { CompanionRichText } from './CompanionRichText'
 import type { AgentPermissionRequest } from './agent/types'
@@ -9,6 +9,7 @@ import { AgentPermissionCard } from './AgentPermissionCard'
 import type { CompanionMessage } from '../../domain/models'
 import type { PrivacyReviewRequest } from '../privacy'
 import { PrivacyReviewCard } from './PrivacyReviewCard'
+import { useCompanionVoiceWake } from './useCompanionVoiceWake'
 
 export function DesktopCompanionChatWindow() {
   const [snapshot, setSnapshot] = useState(emptyCompanionDesktopSnapshot)
@@ -28,16 +29,26 @@ export function DesktopCompanionChatWindow() {
   const recorder = useRef<MediaRecorder | undefined>(undefined)
   const recordingStream = useRef<MediaStream | undefined>(undefined)
   const realtimeConnection = useRef<RealtimeConnection | undefined>(undefined)
-  const wakeConnection = useRef<RealtimeConnection | undefined>(undefined)
-  const wakeCommitTimer = useRef<number | undefined>(undefined)
-  const wakeArmedTimer = useRef<number | undefined>(undefined)
-  const wakeArmed = useRef(false)
   const agentBusy = useRef(false)
   const speechBusy = useRef(false)
   const tokenRequests = useRef(new Map<string, { resolve: (token: string) => void; reject: (error: Error) => void }>())
 
   useEffect(() => { agentBusy.current = Boolean(snapshot.agentStatus) }, [snapshot.agentStatus])
   useEffect(() => { speechBusy.current = speechActive }, [speechActive])
+  const requestVoiceToken = useCallback(() => {
+    const requestId = crypto.randomUUID()
+    return new Promise<string>((resolve, reject) => {
+      tokenRequests.current.set(requestId, { resolve, reject })
+      void emitTo('main', 'companion:voice-token-request', { requestId })
+      window.setTimeout(() => {
+        const pending = tokenRequests.current.get(requestId)
+        if (!pending) return
+        tokenRequests.current.delete(requestId)
+        pending.reject(new Error('VOICE_TOKEN_TIMEOUT:实时转写连接超时'))
+      }, 20_000)
+    })
+  }, [])
+  useCompanionVoiceWake({ voice: snapshot.voice, agentBusy, speechBusy, requestToken: requestVoiceToken, setSpeechNote })
 
   useEffect(() => {
     let stopSnapshot: (() => void) | undefined
@@ -97,120 +108,12 @@ export function DesktopCompanionChatWindow() {
       stopTransientMessage?.()
       stopTransientClear?.()
       realtimeConnection.current?.close()
-      wakeConnection.current?.close()
-      window.clearTimeout(wakeCommitTimer.current)
-      window.clearTimeout(wakeArmedTimer.current)
       window.clearTimeout(sendAckTimer.current)
       tokenRequests.current.forEach((pending) => pending.reject(new Error('VOICE_CANCELLED:语音窗口已关闭')))
       tokenRequests.current.clear()
       recordingStream.current?.getTracks().forEach((track) => track.stop())
     }
   }, [])
-
-  useEffect(() => {
-    if (!snapshot.voice.wakeEnabled || snapshot.voice.sttProviderId !== 'elevenlabs') {
-      wakeConnection.current?.close()
-      wakeConnection.current = undefined
-      wakeArmed.current = false
-      window.clearTimeout(wakeCommitTimer.current)
-      window.clearTimeout(wakeArmedTimer.current)
-      return
-    }
-    let disposed = false
-    let reconnectTimer: number | undefined
-
-    const requestToken = () => {
-      const requestId = crypto.randomUUID()
-      return new Promise<string>((resolve, reject) => {
-        tokenRequests.current.set(requestId, { resolve, reject })
-        void emitTo('main', 'companion:voice-token-request', { requestId })
-        window.setTimeout(() => {
-          const pending = tokenRequests.current.get(requestId)
-          if (!pending) return
-          tokenRequests.current.delete(requestId)
-          pending.reject(new Error('VOICE_TOKEN_TIMEOUT:语音唤醒连接超时'))
-        }, 20_000)
-      })
-    }
-    const disarmLater = () => {
-      window.clearTimeout(wakeArmedTimer.current)
-      wakeArmedTimer.current = window.setTimeout(() => {
-        wakeArmed.current = false
-        setSpeechNote('说“小鱼”即可再次唤醒。')
-      }, 45_000)
-    }
-    const handleUtterance = (value: string) => {
-      if (agentBusy.current || speechBusy.current) return
-      const text = value.trim()
-      if (!text) return
-      const match = /小\s*[鱼魚]/.exec(text)
-      if (match) {
-        const question = text.slice((match.index ?? 0) + match[0].length).replace(/^[，。！？,.!?：:]+/, '').trim()
-        void emitTo('main', 'companion:chat-open-request', {})
-        if (!question) {
-          wakeArmed.current = true
-          setSpeechNote('小鱼在听，接下来可以连续交谈。')
-          disarmLater()
-          return
-        }
-        wakeArmed.current = true
-        disarmLater()
-        setSpeechNote('已进入语音聊天，回答后可以继续说。')
-        void emitTo('main', 'companion:chat-send', { message: question, inputMode: 'voice', wake: true })
-        return
-      }
-      if (!wakeArmed.current) return
-      disarmLater()
-      setSpeechNote('语音聊天中，回答后可以继续说。')
-      void emitTo('main', 'companion:chat-open-request', {})
-      void emitTo('main', 'companion:chat-send', { message: text, inputMode: 'voice', wake: true })
-    }
-    const connect = async () => {
-      try {
-        const token = await requestToken()
-        if (disposed) return
-        let partial = ''
-        const connection = Scribe.connect({
-          token,
-          modelId: 'scribe_v2_realtime',
-          commitStrategy: CommitStrategy.MANUAL,
-          microphone: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-            workletPaths: { scribeAudioProcessor: '/vendor/elevenlabs/scribe-audio-processor.js' },
-          },
-        })
-        connection.on(RealtimeEvents.PARTIAL_TRANSCRIPT, (event) => {
-          partial = event.text
-          window.clearTimeout(wakeCommitTimer.current)
-          wakeCommitTimer.current = window.setTimeout(() => { if (partial.trim()) connection.commit() }, 900)
-        })
-        connection.on(RealtimeEvents.COMMITTED_TRANSCRIPT, (event) => { partial = ''; handleUtterance(event.text) })
-        connection.on(RealtimeEvents.ERROR, (event) => setSpeechNote(`语音唤醒暂不可用：${event.error || '实时转写失败'}`))
-        connection.on(RealtimeEvents.CLOSE, () => {
-          if (wakeConnection.current === connection) wakeConnection.current = undefined
-          if (!disposed) reconnectTimer = window.setTimeout(() => void connect(), 2500)
-        })
-        wakeConnection.current = connection
-        setSpeechNote('语音唤醒已开启，说“小鱼”开始交谈。')
-      } catch (error) {
-        if (disposed) return
-        setSpeechNote(`语音唤醒暂不可用：${error instanceof Error ? error.message.replace(/^[A-Z_]+:/, '') : '请检查语音服务'}`)
-        reconnectTimer = window.setTimeout(() => void connect(), 5000)
-      }
-    }
-    void connect()
-    return () => {
-      disposed = true
-      window.clearTimeout(reconnectTimer)
-      window.clearTimeout(wakeCommitTimer.current)
-      window.clearTimeout(wakeArmedTimer.current)
-      wakeConnection.current?.close()
-      wakeConnection.current = undefined
-      wakeArmed.current = false
-    }
-  }, [snapshot.voice.sttProviderId, snapshot.voice.wakeEnabled])
 
   const send = () => {
     const message = draft.trim()
@@ -258,23 +161,15 @@ export function DesktopCompanionChatWindow() {
     }
     try {
       if (snapshot.voice.sttProviderId === 'elevenlabs') {
-        const requestId = crypto.randomUUID()
-        const token = await new Promise<string>((resolve, reject) => {
-          tokenRequests.current.set(requestId, { resolve, reject })
-          void emitTo('main', 'companion:voice-token-request', { requestId })
-          window.setTimeout(() => {
-            const pending = tokenRequests.current.get(requestId)
-            if (!pending) return
-            tokenRequests.current.delete(requestId)
-            pending.reject(new Error('VOICE_TOKEN_TIMEOUT:实时转写连接超时'))
-          }, 20_000)
-        })
+        const token = await requestVoiceToken()
         const prefix = draft.trim()
         let committed = ''
         const updateDraft = (partial = '') => { voiceDraft.current = true; setDraft([prefix, committed, partial].filter(Boolean).join(' ')) }
         const connection = Scribe.connect({
           token,
           modelId: 'scribe_v2_realtime',
+          languageCode: 'zh',
+          secondaryLanguages: ['en'],
           commitStrategy: CommitStrategy.MANUAL,
           microphone: {
             echoCancellation: true,

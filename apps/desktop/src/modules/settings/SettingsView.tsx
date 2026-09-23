@@ -1,5 +1,5 @@
-import { BookMarked, Check, Database, ImageUp, LockKeyhole, Music2, Palette, Puzzle, Sparkles, Trash2 } from 'lucide-react'
-import { useState, type ChangeEvent, type ReactNode } from 'react'
+import { BookMarked, Check, Database, LockKeyhole, Music2, Palette, Puzzle, Sparkles } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 import { navigationItems } from '../../app/moduleManifest'
 import type { ThemeId } from '../../domain/models'
 import { useLibraryStore } from '../../state/useLibraryStore'
@@ -8,6 +8,7 @@ import { TransferSettingsSection } from './TransferSettingsSection'
 import { EncryptionSettingsSection } from './EncryptionSettingsSection'
 import { IntelligenceSettingsHub } from './IntelligenceSettingsHub'
 import { TrustSettingsSection } from './TrustSettingsSection'
+import { BackgroundSettingsSection } from './BackgroundSettingsSection'
 
 const themes: { id: ThemeId; name: string; description: string }[] = [
   { id: 'warm', name: '安静温暖', description: '米白、茶褐与一点暮色' },
@@ -24,37 +25,13 @@ const settingsTabs: { id: SettingsTab; title: string; description: string; icon:
 ]
 
 export function SettingsView() {
-  const { data, setTheme, toggleRightPanel, setDailyTarget, setLayoutProfile, setBackgroundImage, moveNavigation, toggleModule, setMusicSettings } = useLibraryStore()
-  const [backgroundMessage, setBackgroundMessage] = useState('推荐 1920 × 1080 或更高的 16:9 图片，JPG / PNG / WebP，建议不超过 10 MB。')
+  const { data, setTheme, toggleRightPanel, setDailyTarget, setLayoutProfile, moveNavigation, toggleModule, setMusicSettings } = useLibraryStore()
   const [activeTab, setActiveTab] = useState<SettingsTab>(() => {
     const stored = localStorage.getItem('yiyu.settings.activeTab')
     return settingsTabs.some((item) => item.id === stored) ? stored as SettingsTab : 'appearance'
   })
   const chooseTab = (tab: SettingsTab) => { setActiveTab(tab); localStorage.setItem('yiyu.settings.activeTab', tab) }
   const activeMeta = settingsTabs.find((item) => item.id === activeTab)!
-
-  const chooseBackground = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) return
-    if (file.size > 10 * 1024 * 1024) {
-      setBackgroundMessage('图片超过 10 MB，请压缩后再选择。')
-      return
-    }
-    const reader = new FileReader()
-    reader.onerror = () => setBackgroundMessage('无法读取这张图片，请换一张重试。')
-    reader.onload = () => {
-      const source = String(reader.result)
-      const image = new Image()
-      image.onerror = () => setBackgroundMessage('图片格式无法识别，请使用 JPG、PNG 或 WebP。')
-      image.onload = () => {
-        setBackgroundImage(source)
-        setBackgroundMessage(`${image.naturalWidth} × ${image.naturalHeight} · ${image.naturalWidth < 1600 || image.naturalHeight < 900 ? '尺寸偏小，放大窗口时可能模糊。' : '尺寸合适。'}`)
-      }
-      image.src = source
-    }
-    reader.readAsDataURL(file)
-  }
 
   return (
     <main className="settings-view scroll-view">
@@ -72,15 +49,9 @@ export function SettingsView() {
       <section className="settings-section">
         <div className="settings-title"><Palette /><div><h2>外观与主题</h2><p>界面主题与导出文稿样式彼此独立。</p></div></div>
         <div className="theme-grid">{themes.map((theme) => <button className={data.settings.theme === theme.id ? 'theme-choice active' : 'theme-choice'} key={theme.id} onClick={() => setTheme(theme.id)}><span className={`theme-preview ${theme.id}`}><i /><i /><i /></span><strong>{theme.name}</strong><small>{theme.description}</small>{data.settings.theme === theme.id && <b><Check size={13} /></b>}</button>)}</div>
-        <div className="background-setting">
-          <div className="background-copy"><strong>空间背景图</strong><span>{backgroundMessage}</span></div>
-          <div className="background-actions">
-            <label className="background-upload"><input type="file" accept="image/jpeg,image/png,image/webp" onChange={chooseBackground} /><ImageUp size={16} /><span>{data.settings.backgroundImage ? '更换图片' : '选择图片'}</span></label>
-            {data.settings.backgroundImage && <button className="background-remove" onClick={() => { setBackgroundImage(undefined); setBackgroundMessage('背景已清除。推荐 1920 × 1080 或更高的 16:9 图片。') }}><Trash2 size={15} />清除</button>}
-          </div>
-          {data.settings.backgroundImage && <div className="background-preview" style={{ backgroundImage: `url(${data.settings.backgroundImage})` }} />}
-        </div>
       </section>
+
+      <BackgroundSettingsSection />
 
       <section className="settings-section">
         <div className="settings-title"><Puzzle /><div><h2>布局与写作</h2><p>保留真正需要的信息。</p></div></div>

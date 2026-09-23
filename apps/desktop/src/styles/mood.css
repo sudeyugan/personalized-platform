@@ -59,17 +59,21 @@
 .mood-overall-tone small{margin-top:3px;overflow:hidden;color:var(--ink-faint);font-size:7px;text-overflow:ellipsis;white-space:nowrap}
 .mood-overall-tone>.mood-blend-bar{height:10px}
 .mood-week-tapestry{display:grid;grid-template-columns:34px repeat(7,minmax(18px,1fr));align-items:center;gap:7px 5px;padding:13px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
-.mood-week-tapestry>strong{text-align:center;color:var(--ink-faint);font-size:7px;font-weight:500}
+.mood-week-day{min-width:0;padding:4px 1px;border-radius:6px;color:var(--ink-faint);background:transparent;text-align:center;font-size:7px;font-weight:500}
+.mood-week-day.selected,.mood-week-cell.selected{color:var(--accent-strong);background:var(--accent-soft)}
 .mood-week-row{display:contents}
 .mood-week-row>b{color:var(--ink-faint);font-size:7px;font-weight:400}
-.mood-week-row .mood-blend-bar,.mood-reflection-empty{height:7px;min-width:0;border-radius:5px}
+.mood-week-cell{min-width:0;display:grid;align-items:center;padding:4px 2px;border-radius:6px;background:transparent}
+.mood-week-row .mood-blend-bar,.mood-week-row .mood-reflection-empty{width:100%;height:7px;min-width:0;border-radius:5px}
 .mood-reflection-empty{display:block;background:var(--surface-soft)}
 .mood-month-calendar{display:grid;grid-template-columns:repeat(7,minmax(26px,1fr));gap:5px;padding:11px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
 .mood-month-calendar>strong{text-align:center;color:var(--ink-faint);font-size:7px;font-weight:500}
-.mood-month-calendar>div{min-width:0;display:grid;gap:5px;padding:5px;border-radius:7px;background:var(--surface-soft)}
-.mood-month-calendar>div.future{opacity:.32}
-.mood-month-calendar>div>span{color:var(--ink-soft);font-size:7px}
-.mood-month-calendar>div>i{display:grid;gap:2px;font-style:normal}
+.mood-month-calendar>button{min-width:0;display:grid;gap:5px;padding:5px;border:1px solid transparent;border-radius:7px;background:var(--surface-soft);text-align:left}
+.mood-month-calendar>button:hover{border-color:color-mix(in srgb,var(--accent) 28%,var(--line))}
+.mood-month-calendar>button.selected{border-color:var(--accent);background:var(--accent-soft)}
+.mood-month-calendar>button.future{opacity:.32}
+.mood-month-calendar>button>span{color:var(--ink-soft);font-size:7px}
+.mood-month-calendar>button>i{display:grid;gap:2px;font-style:normal}
 .mood-month-calendar .mood-blend-bar,.mood-month-calendar .mood-reflection-empty{width:100%;height:3px;min-width:0;box-shadow:none}
 .mood-composition{display:grid;align-content:start;gap:8px;padding:13px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
 .mood-composition>header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px}
@@ -82,10 +86,16 @@
 .mood-composition>div em{grid-column:1/-1;height:5px;overflow:hidden;border-radius:4px;background:var(--surface-soft);font-style:normal}
 .mood-composition>div em::after{content:'';width:var(--mood-share);height:100%;display:block;border-radius:inherit;background:var(--mood-color)}
 .mood-period-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.mood-period-stats{grid-column:1/-1}
 .mood-period-stats>div{min-width:0;display:grid;grid-template-columns:auto minmax(50px,1fr);align-items:center;gap:5px 8px;padding:8px 10px;border-radius:9px;background:var(--surface)}
 .mood-period-stats span{color:var(--ink-faint);font-size:7px}
 .mood-period-stats small{grid-column:1/-1;overflow:hidden;color:var(--ink-faint);font-size:7px;text-overflow:ellipsis;white-space:nowrap}
+.mood-period-stats p{grid-column:1/-1;margin:0;color:var(--ink-soft);font:7px/1.5 var(--serif)}
+.mood-day-detail{grid-column:1/-1;display:grid;gap:7px}
+.mood-day-detail>header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 2px}
+.mood-day-detail>header span{color:var(--ink-soft);font:500 9px var(--serif)}
+.mood-detail-switch{display:flex;padding:2px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.mood-detail-switch button{padding:4px 9px;border-radius:6px;color:var(--ink-faint);background:transparent;font-size:7px}
+.mood-detail-switch button.active{color:var(--accent-strong);background:var(--accent-soft)}
 
 .month-grid>button{position:relative}
 .month-grid>button>.calendar-mood-bands{position:absolute;top:8px;right:7px;width:32px;height:auto;display:grid;place-items:initial;gap:2px;border-radius:0;background:transparent}

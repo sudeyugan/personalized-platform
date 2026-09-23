@@ -2,6 +2,13 @@ import type { JSONContent } from '@tiptap/react'
 
 export type ThemeId = 'warm' | 'light' | 'dark'
 export type ViewId = 'home' | 'answerBook' | 'calendar' | 'todos' | 'writing' | 'diary' | 'people' | 'places' | 'timeline' | 'assets' | 'music' | 'help' | 'settings'
+export type BackgroundSlot = 'default' | 'daily' | 'creation' | 'immersive' | 'sidebar'
+export type SidebarBackgroundMode = 'soft' | 'decoration'
+
+export interface BackgroundSettings {
+  images: Partial<Record<BackgroundSlot, string>>
+  sidebarMode: SidebarBackgroundMode
+}
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 export type EntityType = 'chapter' | 'person' | 'place' | 'event'
 export type RecordType = Exclude<EntityType, 'chapter'>
@@ -124,6 +131,7 @@ export interface CompanionMessage { id: string; role: 'user' | 'companion'; cont
 export interface CompanionMemory { id: string; content: string; source: 'manual' | 'conversation'; sourceLabel: string; createdAt: string; updatedAt: string; confidence: number; authorized: boolean; sourceWorkId?: string }
 export interface CompanionPersonality { warmth: number; curiosity: number; initiative: number }
 export interface CompanionGrowthLog { id: string; before: CompanionPersonality; after: CompanionPersonality; reason: string; createdAt: string }
+export type CompanionDesktopMode = 'interactive' | 'quiet' | 'normal'
 export type CompanionVideoState = 'idle' | 'listening' | 'thinking' | 'speaking' | 'happy' | 'concerned' | 'surprised' | 'shy' | 'sad' | 'annoyed' | 'greeting' | 'agreeing' | 'celebrating' | 'stretching' | 'sleepy'
 export type CompanionVideoLibrary = Partial<Record<CompanionVideoState, string[]>>
 export type CompanionVisual =
@@ -173,13 +181,17 @@ export interface CompanionData {
   name: string
   expression: 'calm' | 'warm' | 'thinking'
   appearance: { hair: 'ink' | 'short' | 'long'; outfit: 'linen' | 'night' | 'sage'; portraitAssetId?: string }
-  desktop: { visible: boolean; visual: CompanionVisual; videoAssets?: Partial<Record<CompanionVideoState, string>>; videoClips?: CompanionVideoLibrary; toggleShortcut: string; characterPackage?: CompanionCharacterPackage }
+  desktop: { visible: boolean; mode: CompanionDesktopMode; visual: CompanionVisual; videoAssets?: Partial<Record<CompanionVideoState, string>>; videoClips?: CompanionVideoLibrary; toggleShortcut: string; quietShortcut: string; characterPackage?: CompanionCharacterPackage }
   provider: { providerId: 'mock' | 'deepseek' | 'custom'; endpoint: string; model: string }
   voice: {
     stt: { providerId: 'none' | 'elevenlabs' | 'custom'; endpoint: string; model: string }
     tts: { providerId: 'none' | 'elevenlabs' | 'custom'; endpoint: string; model: string; voice: string }
     autoSpeak: boolean
     wakeEnabled: boolean
+    wakeWord: string
+    wakeSensitivity: 'low' | 'standard' | 'high'
+    speakerVerification: boolean
+    modelDownloadSource: 'china' | 'auto' | 'global'
     replyLength: 'short' | 'standard'
     longReplySpeech: 'summary' | 'full'
   }
@@ -356,6 +368,8 @@ export interface LibraryData {
     modules: ModuleSetting[]
     layoutProfile: 'writing' | 'minimal' | 'custom'
     navigationOrder: ViewId[]
+    backgrounds: BackgroundSettings
+    /** Legacy single-background field. Normalization migrates it into backgrounds.default. */
     backgroundImage?: string
     ai: { providerId: 'mock' | 'openrouter' | 'custom'; endpoint: string; model: string; stylePreset: string }
     backup: { dailyEnabled: boolean; directory: string; retentionCount: number; lastAutomaticDate?: string; lastAutomaticError?: string }

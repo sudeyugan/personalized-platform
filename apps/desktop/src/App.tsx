@@ -29,7 +29,6 @@ function MainApp() {
   const hydrate = useLibraryStore((state) => state.hydrate)
   const ready = useLibraryStore((state) => state.ready)
   const theme = useLibraryStore((state) => state.data.settings.theme)
-  const backgroundImage = useLibraryStore((state) => state.data.settings.backgroundImage)
   const refreshVaultLocks = useLibraryStore((state) => state.refreshVaultLocks)
   const lockAllWorks = useLibraryStore((state) => state.lockAllWorks)
   const setTheme = useLibraryStore((state) => state.setTheme)
@@ -56,5 +55,5 @@ function MainApp() {
 
   const completeOnboarding = async (result: OnboardingResult) => { const configured = await startupRepository.configure(result.libraryDirectory); await hydrate(); setTheme(result.theme); setBackupSettings({ directory: result.backupDirectory }); setStorage({ ...configured, libraryExists: true }) }
 
-  return <div className="app-window"><WindowTitleBar /><ErrorBoundary><div className="app-background" style={backgroundImage ? { backgroundImage: `linear-gradient(color-mix(in srgb, var(--app-bg) 88%, transparent), color-mix(in srgb, var(--app-bg) 88%, transparent)), url(${backgroundImage})` } : undefined}>{startupError ? <main className="launch-screen"><div className="brand-mark">隅</div><p>{startupError}</p></main> : storage && !storage.libraryExists ? <OnboardingWizard defaultDirectory={storage.directory} onComplete={completeOnboarding} /> : ready ? <><CompanionDesktopBridge /><AppShell /></> : <main className="launch-screen"><div className="brand-mark">隅</div><p>正在拾起你的这一隅天地…</p></main>}</div></ErrorBoundary></div>
+  return <div className="app-window"><WindowTitleBar /><ErrorBoundary><div className="app-background">{startupError ? <main className="launch-screen"><div className="brand-mark">隅</div><p>{startupError}</p></main> : storage && !storage.libraryExists ? <OnboardingWizard defaultDirectory={storage.directory} onComplete={completeOnboarding} /> : ready ? <><CompanionDesktopBridge /><AppShell /></> : <main className="launch-screen"><div className="brand-mark">隅</div><p>正在拾起你的这一隅天地…</p></main>}</div></ErrorBoundary></div>
 }

@@ -138,7 +138,7 @@ export function createSeedLibrary(): LibraryData {
     aiGenerations: [],
     tracks: [],
     musicContexts: { global: [], works: {}, chapters: {}, focus: [] },
-    companion: { name: '小隅', expression: 'calm', appearance: { hair: 'ink', outfit: 'linen' }, desktop: { visible: false, visual: { type: 'portrait' }, videoAssets: {}, videoClips: {}, toggleShortcut: 'CommandOrControl+Alt+Y' }, provider: { providerId: 'mock', endpoint: '', model: 'mock-companion-v1' }, voice: { stt: { providerId: 'none', endpoint: '', model: 'scribe_v2' }, tts: { providerId: 'none', endpoint: '', model: 'eleven_flash_v2_5', voice: '' }, autoSpeak: false, wakeEnabled: false, replyLength: 'short', longReplySpeech: 'summary' }, permissions: { workIds: [], chapterIds: [], records: false, musicContext: false, writeActions: false }, messages: [], memories: [], agentAudit: [], personality: { warmth: 60, curiosity: 50, initiative: 30 }, growth: { enabled: false, logs: [] } },
+    companion: { name: '小隅', expression: 'calm', appearance: { hair: 'ink', outfit: 'linen' }, desktop: { visible: false, mode: 'quiet', visual: { type: 'portrait' }, videoAssets: {}, videoClips: {}, toggleShortcut: 'CommandOrControl+Alt+Y', quietShortcut: 'CommandOrControl+Alt+T' }, provider: { providerId: 'mock', endpoint: '', model: 'mock-companion-v1' }, voice: { stt: { providerId: 'none', endpoint: '', model: 'scribe_v2' }, tts: { providerId: 'none', endpoint: '', model: 'eleven_flash_v2_5', voice: '' }, autoSpeak: false, wakeEnabled: false, wakeWord: '小鱼', wakeSensitivity: 'standard', speakerVerification: true, modelDownloadSource: 'china', replyLength: 'short', longReplySpeech: 'summary' }, permissions: { workIds: [], chapterIds: [], records: false, musicContext: false, writeActions: false }, messages: [], memories: [], agentAudit: [], personality: { warmth: 60, curiosity: 50, initiative: 30 }, growth: { enabled: false, logs: [] } },
     planner: { courses: importedScheduleCourses.map((course) => ({ ...course })), diaryEntries: [], moodEntries: [], todos: [], holidayDates: [], dailyQuestions: [], calendarEvents: [], term: { startDate: '2026-09-14', totalWeeks: 16 }, courseImportVersion: 1 },
     answerBook: { favorites: [] },
     settings: {
@@ -154,6 +154,7 @@ export function createSeedLibrary(): LibraryData {
       ],
       layoutProfile: 'writing',
       navigationOrder: ['home', 'answerBook', 'calendar', 'todos', 'writing', 'diary', 'people', 'places', 'timeline', 'assets', 'music', 'help', 'settings'],
+      backgrounds: { images: {}, sidebarMode: 'decoration' },
       ai: { providerId: 'mock', endpoint: '', model: 'mock-illustration-v1', stylePreset: '温暖手绘' },
       backup: { dailyEnabled: true, directory: '', retentionCount: 14 },
       security: { autoLockMinutes: 15 },
@@ -241,6 +242,16 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
       modules,
       layoutProfile: data.settings.layoutProfile ?? 'writing',
       navigationOrder,
+      backgrounds: {
+        ...seed.settings.backgrounds,
+        ...data.settings.backgrounds,
+        images: {
+          ...seed.settings.backgrounds.images,
+          ...(data.settings.backgrounds?.images ?? {}),
+          default: data.settings.backgrounds?.images?.default ?? data.settings.backgroundImage,
+        },
+      },
+      backgroundImage: undefined,
       ai: { ...seed.settings.ai, ...data.settings.ai },
       backup: { ...seed.settings.backup, ...data.settings.backup },
       security: { ...seed.settings.security, ...data.settings.security },
