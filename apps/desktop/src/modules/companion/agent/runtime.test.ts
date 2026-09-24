@@ -152,6 +152,31 @@ describe('agent runtime', () => {
     expect(result.audit).toHaveLength(0)
   })
 
+  it('routes an explicit domain open through the real tool chain before asking the model to respond', async () => {
+    const current = fixture()
+    current.data.companion.computer.enabled = true
+    const access = buildAgentAccess(current.data, [])
+    const opened: { action?: string; target?: unknown } = {}
+    const services = createAgentApplicationServices(current.data, access, {
+      computer: { execute: async (request) => {
+        opened.action = request.action
+        opened.target = request.params?.target
+        return { opened: true, target: request.params?.target, status: 'submitted_to_default_handler' }
+      } },
+    })
+    const permissions = new AgentPermissionEngine({
+      policy: { autoAllow: ['read'] },
+      resourcePermissions: current.data.companion.permissions,
+      computer: current.data.companion.computer,
+      access,
+    })
+    const provider = new ScriptedProvider([{ type: 'text', text: '已交给 Windows 默认浏览器打开。' }])
+    const result = await runAgent({ message: '打开 bilibili.com', history: [], provider, registry: createCompanionToolRegistry(), services, permissions, context: buildAgentContext(current.data, access) })
+    expect(opened).toEqual({ action: 'app_open', target: 'https://bilibili.com' })
+    expect(provider.requests).toHaveLength(1)
+    expect(provider.requests[0].messages.at(-1)).toMatchObject({ role: 'tool', toolName: 'system.open' })
+    expect(result.audit[0]).toMatchObject({ toolName: 'system.open', resultStatus: 'success' })
+  })
   it('runs model to tool to result to model and records append-only events', async () => {
     const current = fixture()
     const provider = new ScriptedProvider([

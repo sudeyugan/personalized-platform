@@ -121,19 +121,55 @@ fn wide(value: &str) -> Vec<u16> {
     value.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
-pub fn open_target(target: &str) -> Result<(), String> {
+fn looks_like_web_domain(value: &str) -> bool {
+    if value.chars().any(char::is_whitespace) || value.contains('\\') {
+        return false;
+    }
+    let host = value.split(['/', '?', '#']).next().unwrap_or_default();
+    let host = host.strip_prefix("www.").unwrap_or(host);
+    let labels = host.split('.').collect::<Vec<_>>();
+    if labels.len() < 2
+        || labels.iter().any(|label| {
+            label.is_empty()
+                || label.starts_with('-')
+                || label.ends_with('-')
+                || !label.chars().all(|character| character.is_ascii_alphanumeric() || character == '-')
+        })
+    {
+        return false;
+    }
+    matches!(
+        labels.last().copied().unwrap_or_default().to_ascii_lowercase().as_str(),
+        "com" | "cn" | "net" | "org" | "io" | "ai" | "dev" | "app" | "tv" | "me" | "co"
+    )
+}
+
+fn normalize_open_target(target: &str) -> String {
+    let trimmed = target.trim();
+    if looks_like_web_domain(trimmed) {
+        format!("https://{trimmed}")
+    } else {
+        trimmed.to_string()
+    }
+}
+
+pub fn open_target(target: &str) -> Result<String, String> {
     if target.trim().is_empty() {
         return Err("APP_OPEN_INVALID:目标不能为空".into());
     }
-let lower = target.trim().to_lowercase();
+    let target = normalize_open_target(target);
+    let lower = target.to_lowercase();
     if lower.contains("://") && !lower.starts_with("https://") {
         return Err("APP_OPEN_PROTOCOL_DENIED:只允许打开 HTTPS 链接".into());
     }
-    if [".cmd", ".bat", ".ps1", ".vbs", ".js", ".reg", ".msi", ".lnk"].iter().any(|extension| lower.ends_with(extension)) {
+    if [".cmd", ".bat", ".ps1", ".vbs", ".js", ".reg", ".msi", ".lnk"]
+        .iter()
+        .any(|extension| lower.ends_with(extension))
+    {
         return Err("APP_OPEN_EXECUTABLE_SCRIPT_DENIED:脚本或安装操作必须使用受确认的进程工具".into());
     }
     let operation = wide("open");
-    let file = wide(target.trim());
+    let file = wide(&target);
     let result = unsafe {
         ShellExecuteW(
             None,
@@ -147,10 +183,9 @@ let lower = target.trim().to_lowercase();
     if result.0 as isize <= 32 {
         Err(format!("APP_OPEN_FAILED:ShellExecuteW={}", result.0 as isize))
     } else {
-        Ok(())
+        Ok(target)
     }
 }
-
 pub fn click(x: i32, y: i32, button: &str) -> Result<(), String> {
     unsafe { SetCursorPos(x, y) }.map_err(|error| format!("INPUT_CURSOR:{error}"))?;
     let (down, up) = match button {
@@ -244,4 +279,23 @@ pub fn hotkey(keys: &[String]) -> Result<(), String> {
         unsafe { keybd_event(*code, 0, KEYEVENTF_KEYUP, 0); }
     }
     Ok(())
+}
+#[cfg(test)]
+mod tests {
+    use super::{looks_like_web_domain, normalize_open_target};
+
+    #[test]
+    fn normalizes_plain_web_domains_to_https() {
+        assert!(looks_like_web_domain("bilibili.com"));
+        assert_eq!(normalize_open_target("bilibili.com"), "https://bilibili.com");
+        assert_eq!(normalize_open_target("www.bilibili.com/video/BV1"), "https://www.bilibili.com/video/BV1");
+        assert_eq!(normalize_open_target("https://bilibili.com"), "https://bilibili.com");
+    }
+
+    #[test]
+    fn does_not_reinterpret_apps_or_files_as_websites() {
+        assert!(!looks_like_web_domain("notepad.exe"));
+        assert!(!looks_like_web_domain(r"D:\\coding\\README.md"));
+        assert_eq!(normalize_open_target("notepad.exe"), "notepad.exe");
+    }
 }

@@ -38,7 +38,7 @@ function tool(input: {
 export function createComputerTools(): AgentTool[] {
   return [
     tool({ name: 'app.list', description: '列出当前正在运行的桌面应用与窗口', action: 'app_list', capability: 'applications', risk: 'read_only' }),
-    tool({ name: 'system.open', description: '打开应用、文件或 HTTPS 网页', action: 'app_open', capability: 'applications', properties: { target: string('应用路径、文件路径、应用名或 HTTPS URL') }, required: ['target'], targetArgument: 'target' }),
+    tool({ name: 'system.open', description: '实际打开应用、文件或网页。网页可传完整 HTTPS URL 或普通域名，普通域名会在本地补全 https://；只有工具成功后才能告诉用户已打开', action: 'app_open', capability: 'applications', properties: { target: string('应用路径、文件路径、应用名、HTTPS URL 或普通域名') }, required: ['target'], targetArgument: 'target' }),
     tool({ name: 'window.list', description: '列出可见窗口的标题、进程和位置', action: 'window_list', capability: 'windows', risk: 'read_only' }),
     tool({ name: 'window.focus', description: '按标题聚焦一个窗口', action: 'window_focus', capability: 'windows', properties: { title: string() }, required: ['title'], targetArgument: 'title' }),
     tool({ name: 'window.close', description: '关闭一个普通应用窗口', action: 'window_close', capability: 'windows', properties: { title: string() }, required: ['title'], targetArgument: 'title', destructive: true }),

@@ -56,8 +56,8 @@ fn execute(
     match request.action.as_str() {
         "app_list" | "window_list" => serde_json::to_value(windows::list_windows().map_err(|error| error.to_string())?).map_err(|error| error.to_string()),
         "app_open" => {
-            windows::open_target(string(request, "target")?)?;
-            Ok(json!({ "opened": true }))
+            let target = windows::open_target(string(request, "target")?)?;
+            Ok(json!({ "opened": true, "target": target, "status": "submitted_to_default_handler" }))
         }
         "window_focus" => {
             windows::focus_window(string(request, "title")?)?;

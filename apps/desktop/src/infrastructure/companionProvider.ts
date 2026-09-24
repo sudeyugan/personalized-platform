@@ -41,6 +41,10 @@ function toolAnswer(message: AgentMessage): string {
     const chapter = result.data as Record<string, unknown> | undefined
     return chapter && chapter.found !== false ? `《${chapter.title}》的相关内容是：${chapter.plainText}` : '没有找到这个已授权章节。'
   }
+  if (message.toolName === 'system.open') {
+    const opened = result.data as { opened?: boolean; target?: string } | undefined
+    return opened?.opened ? `已将 ${opened.target ?? '目标'} 交给 Windows 默认程序打开。` : 'Windows 没有确认接收这个打开请求。'
+  }
   if (message.toolName === 'work.get_current') {
     const work = result.data as Record<string, unknown> | undefined
     return work && work.found !== false ? `当前作品是《${work.title}》，共有 ${work.chapterCount} 个章节。` : '当前作品尚未授权给伙伴读取。'
