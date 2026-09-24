@@ -160,6 +160,8 @@ export const localVoice = {
         const result = await invoke<LocalVoiceDetection>('local_voice_process_pcm', { samples: chunk })
         if (result.detected) onDetection(result)
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        if (message.includes('VOICE_SAMPLE_SHORT:')) return
         stopped = true
         queued = []
         capture?.stop()

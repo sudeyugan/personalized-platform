@@ -23,6 +23,7 @@ use tauri::{ipc::Channel, AppHandle, Manager, State, WebviewWindow};
 use crate::repositories::SecretRepository;
 
 const SAMPLE_RATE: i32 = 16_000;
+const MIN_SPEAKER_SAMPLES: usize = SAMPLE_RATE as usize * 2;
 const PROFILE_SECRET: &str = "companion-speaker-profile";
 const KWS_ARCHIVE_URL: &str = "https://github.com/k2-fsa/sherpa-onnx/releases/download/kws-models/sherpa-onnx-kws-zipformer-wenetspeech-3.3M-2024-01-01-mobile.tar.bz2";
 const KWS_ARCHIVE_SHA256: &str = "B812A043AEF628A6915F89CB9A94E55F8E87E89FF904B516F822D7E0A3E6DE2B";
@@ -78,6 +79,7 @@ struct LocalWakeEngine {
     enrolled: Vec<Vec<f32>>,
     ring: VecDeque<f32>,
     speaker_threshold: f32,
+    pending_speaker_verification: bool,
 }
 
 #[derive(Serialize)]
@@ -510,9 +512,13 @@ fn create_speaker_extractor(app: &AppHandle) -> Result<SpeakerEmbeddingExtractor
     SpeakerEmbeddingExtractor::create(&config).ok_or_else(|| "VOICE_SPEAKER_INIT:无法加载本地声纹模型".into())
 }
 
+fn speaker_audio_ready(sample_count: usize) -> bool {
+    sample_count >= MIN_SPEAKER_SAMPLES
+}
+
 fn embedding(extractor: &SpeakerEmbeddingExtractor, samples: &[f32]) -> Result<Vec<f32>, String> {
-    if samples.len() < SAMPLE_RATE as usize * 2 {
-        return Err("VOICE_SAMPLE_SHORT:每段录音至少需要两秒有效声音".into());
+    if !speaker_audio_ready(samples.len()) {
+        return Err("VOICE_SAMPLE_SHORT:音频长度不足两秒，请重新录制".into());
     }
     let stream = extractor.create_stream().ok_or("VOICE_SPEAKER_STREAM:无法创建声纹流")?;
     stream.accept_waveform(SAMPLE_RATE, samples);
@@ -617,6 +623,7 @@ pub fn local_voice_start(window: WebviewWindow, app: AppHandle, state: State<Loc
         enrolled,
         ring: VecDeque::with_capacity(SAMPLE_RATE as usize * 4),
         speaker_threshold: 0.55,
+        pending_speaker_verification: false,
     });
     Ok(())
 }
@@ -627,6 +634,22 @@ fn cosine(left: &[f32], right: &[f32]) -> f32 {
     let a = left.iter().map(|value| value * value).sum::<f32>().sqrt();
     let b = right.iter().map(|value| value * value).sum::<f32>().sqrt();
     if a == 0.0 || b == 0.0 { 0.0 } else { dot / (a * b) }
+}
+
+fn verify_live_speaker(engine: &mut LocalWakeEngine) -> Result<LocalVoiceDetection, String> {
+    let audio = engine.ring.iter().copied().collect::<Vec<_>>();
+    let extractor = engine.speaker.as_ref().ok_or("VOICE_SPEAKER_INIT:声纹校验器尚未启动")?;
+    let query = match embedding(extractor, &audio) {
+        Ok(query) => query,
+        Err(error) if error.starts_with("VOICE_SAMPLE_SHORT:") => {
+            engine.ring.clear();
+            return Ok(LocalVoiceDetection { detected: true, speaker_matched: false, speaker_score: None });
+        }
+        Err(error) => return Err(error),
+    };
+    let score = engine.enrolled.iter().map(|item| cosine(item, &query)).fold(0.0f32, f32::max);
+    engine.ring.clear();
+    Ok(LocalVoiceDetection { detected: true, speaker_matched: score >= engine.speaker_threshold, speaker_score: Some(score) })
 }
 
 #[tauri::command]
@@ -640,17 +663,22 @@ pub fn local_voice_process_pcm(window: WebviewWindow, state: State<LocalVoiceSta
     engine.stream.accept_waveform(SAMPLE_RATE, &samples);
     engine.ring.extend(samples);
     while engine.ring.len() > SAMPLE_RATE as usize * 4 { engine.ring.pop_front(); }
+    if engine.pending_speaker_verification && speaker_audio_ready(engine.ring.len()) {
+        engine.pending_speaker_verification = false;
+        return verify_live_speaker(engine);
+    }
     while engine.spotter.is_ready(&engine.stream) {
         engine.spotter.decode(&engine.stream);
         if engine.spotter.get_result(&engine.stream).is_some_and(|result| !result.keyword.is_empty()) {
             engine.spotter.reset(&engine.stream);
-            let audio = engine.ring.iter().copied().collect::<Vec<_>>();
-            engine.ring.clear();
-            if let Some(extractor) = &engine.speaker {
-                let query = embedding(extractor, &audio)?;
-                let score = engine.enrolled.iter().map(|item| cosine(item, &query)).fold(0.0f32, f32::max);
-                return Ok(LocalVoiceDetection { detected: true, speaker_matched: score >= engine.speaker_threshold, speaker_score: Some(score) });
+            if engine.speaker.is_some() {
+                if !speaker_audio_ready(engine.ring.len()) {
+                    engine.pending_speaker_verification = true;
+                    return Ok(LocalVoiceDetection { detected: false, speaker_matched: false, speaker_score: None });
+                }
+                return verify_live_speaker(engine);
             }
+            engine.ring.clear();
             return Ok(LocalVoiceDetection { detected: true, speaker_matched: true, speaker_score: None });
         }
     }
@@ -667,8 +695,8 @@ pub fn local_voice_stop(window: WebviewWindow, state: State<LocalVoiceState>) ->
 #[cfg(test)]
 mod tests {
     use super::{
-        cosine, keyword_spec, split_pinyin, KWS_ARCHIVE_SHA256, KWS_FALLBACK_FILES,
-        SPEAKER_MODEL_SHA256,
+        cosine, keyword_spec, speaker_audio_ready, split_pinyin, KWS_ARCHIVE_SHA256,
+        KWS_FALLBACK_FILES, MIN_SPEAKER_SAMPLES, SPEAKER_MODEL_SHA256,
     };
 
     fn is_sha256(value: &str) -> bool {
@@ -699,6 +727,11 @@ mod tests {
         assert!(keyword_spec("hello").is_err());
     }
 
+    #[test]
+    fn waits_for_two_seconds_before_live_speaker_verification() {
+        assert!(!speaker_audio_ready(MIN_SPEAKER_SAMPLES - 1));
+        assert!(speaker_audio_ready(MIN_SPEAKER_SAMPLES));
+    }
     #[test]
     fn compares_normalized_speaker_embeddings() {
         assert!((cosine(&[1.0, 0.0], &[2.0, 0.0]) - 1.0).abs() < 0.001);
