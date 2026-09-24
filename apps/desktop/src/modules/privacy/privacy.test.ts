@@ -13,6 +13,11 @@ describe('privacy egress', () => {
     expect(findings.map((item) => item.kind)).toEqual(['person', 'phone', 'identity'])
   })
 
+  it('detects card numbers in prose but ignores Luhn-valid URL identifiers', () => {
+    expect(detectPrivacy('card 4111111111111111')).toMatchObject([{ kind: 'bank_card' }])
+    expect(detectPrivacy('source https://example.com/article/4111111111111111')).toEqual([])
+  })
+
   it('blocks secrets before a provider is called', async () => {
     let called = false
     const base: AgentModelProvider = { id: 'deepseek', testConnection: async () => '', generate: async () => { called = true; return { type: 'text', text: '' } } }

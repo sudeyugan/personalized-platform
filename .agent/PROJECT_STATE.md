@@ -11,6 +11,7 @@
 <!-- generated:project-status:end -->
 
 ## 状态摘要
+- 2026-09-24：修复联网搜索结果被误报为银行卡。真实复现确认腾讯结果中的今日头条 19 位文章 ID 偶然通过 Luhn；银行卡检测增加 URL 上下文排除，普通正文中的有效卡号继续保护。TypeScript 与 Windows Release/NSIS 构建通过；Vitest 定向进程两次只输出启动行后异常结束，未取得通过证据，已保留为验证异常。桌面直接运行版已更新且与 Release SHA-256 一致：`3451B5B9E2548DB09FB416ED067F04062D19C8E1F5B564ADEDF4AD7A6FF1C6D`；安装包 SHA-256：`22C3502497A34CB5EF0CAD9BBBA2CABDFDD198E1A463C31202F6162E542824B4`。
 - 2026-09-24：受控联网查询从固定 Bing RSS 升级为可替换 Provider。默认腾讯云轻量版，可切换博查 Web Search；两者独立 API Key 均复用 Windows DPAPI，固定 HTTPS 端点且不进入资料、Prompt 或审计正文。Bing 只作为可关闭的无密钥/故障应急降级，统一结果携带实际 Provider，权限页可配置服务、密钥、降级并诊断实际路由/结果数/耗时；`web.search`、权限与 Egress Gateway 契约保持不变。TypeScript 通过，Rust Provider 定向测试 3/3，生产 Web、Windows Release 与 NSIS 通过；未跑 lint 或全量测试，本机缺少 rustfmt。Release 与桌面 EXE SHA-256 均为 `0A59813370C65820A6E005BAA3F1B729F82E77133914D327352605839A0F93B0`，安装包为 `B266195EAF2A3078A68C2308D59E09172183A2DA1A651638CDDB38D8F97C47F1`。真实腾讯云/博查 Key 与检索质量待用户自然验证；旧 `commands.rs` 的未使用 Bing 私有实现因本机补丁辅助层持续故障暂未物理删除，只产生非阻断 `dead_code` 警告，正式入口已唯一切换到 `web_search` 模块。
 
 - 2026-09-24：用户更新持续协作偏好：每次代码更新完成风险匹配验证与 Windows Release 构建后，自动创建本地 Git 提交并推送远端 `main`；纯调查或纯文档同步不重复构建，但需要形成持久变更时仍随最近一次提交推送。推送失败必须明确报告，不把本地提交误称为已同步远端。

@@ -1,14 +1,14 @@
 import type { PrivateDictionaryEntry } from '../../domain/models'
 import type { PrivacyFinding, PrivacyFindingKind } from './types'
 
-const patterns: { kind: PrivacyFindingKind; severity: PrivacyFinding['severity']; pattern: RegExp; validate?: (value: string) => boolean }[] = [
+const patterns: { kind: PrivacyFindingKind; severity: PrivacyFinding['severity']; pattern: RegExp; validate?: (value: string, text: string, start: number) => boolean }[] = [
   { kind: 'secret', severity: 'secret', pattern: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g },
   { kind: 'secret', severity: 'secret', pattern: /\b(?:sk-[A-Za-z0-9_-]{16,}|AIza[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{12,})\b/g },
   { kind: 'secret', severity: 'secret', pattern: /\b(?:api[_ -]?key|access[_ -]?token|secret|password|passwd|authorization)\s*[:=]\s*["']?[^\s,"']{8,}/gi },
   { kind: 'email', severity: 'private', pattern: /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi },
   { kind: 'phone', severity: 'private', pattern: /(?<!\d)(?:\+?86[- ]?)?1[3-9]\d{9}(?!\d)/g },
   { kind: 'identity', severity: 'private', pattern: /(?<!\d)\d{17}[\dXx](?!\d)/g, validate: isValidChineseId },
-  { kind: 'bank_card', severity: 'private', pattern: /(?<!\d)(?:\d[ -]?){15,18}\d(?!\d)/g, validate: isValidLuhn },
+  { kind: 'bank_card', severity: 'private', pattern: /(?<!\d)(?:\d[ -]?){15,18}\d(?!\d)/g, validate: isLikelyBankCard },
   { kind: 'ip', severity: 'private', pattern: /\b(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3}\b/g },
   { kind: 'file_path', severity: 'private', pattern: /\b[A-Za-z]:\\(?:[^\\\r\n:*?"<>|]+\\)*[^\\\r\n:*?"<>|]*/g },
 ]
@@ -23,6 +23,14 @@ function isValidLuhn(value: string) {
     sum += digit; double = !double
   }
   return sum % 10 === 0
+}
+
+function isLikelyBankCard(value: string, text: string, start: number) {
+  if (!isValidLuhn(value)) return false
+  // Search results commonly contain long numeric article IDs that can pass
+  // Luhn by chance. They are public URL identifiers, not payment-card data.
+  const prefix = text.slice(Math.max(0, start - 256), start)
+  return !/(?:https?:\/\/|www\.)[^\s"'<>]{0,240}$/i.test(prefix)
 }
 
 function isValidChineseId(value: string) {
@@ -42,7 +50,7 @@ export function detectPrivacy(text: string, dictionary: PrivateDictionaryEntry[]
   for (const definition of patterns) {
     for (const match of text.matchAll(definition.pattern)) {
       const value = match[0]; const start = match.index ?? 0
-      if (definition.validate && !definition.validate(value)) continue
+      if (definition.validate && !definition.validate(value, text, start)) continue
       const finding = { kind: definition.kind, severity: definition.severity, start, end: start + value.length, value } satisfies PrivacyFinding
       if (!overlaps(finding, findings)) findings.push(finding)
     }
