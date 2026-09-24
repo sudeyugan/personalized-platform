@@ -387,6 +387,7 @@ export interface LibraryData {
     /** Legacy single-background field. Normalization migrates it into backgrounds.default. */
     backgroundImage?: string
     ai: { providerId: 'mock' | 'openrouter' | 'custom'; endpoint: string; model: string; stylePreset: string }
+    webSearch: { providerId: 'tencent' | 'bocha' | 'bing'; fallbackToBing: boolean }
     backup: { dailyEnabled: boolean; directory: string; retentionCount: number; lastAutomaticDate?: string; lastAutomaticError?: string }
     security: { autoLockMinutes: number }
     trust: {

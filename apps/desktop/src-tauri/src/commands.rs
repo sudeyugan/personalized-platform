@@ -129,8 +129,7 @@ async fn fetch_web_search(query: &str) -> Result<Vec<WebSearchResult>, String> {
     Err(format!("WEB_SEARCH_UNAVAILABLE:{}", failures.join(" | ")))
 }
 
-#[tauri::command]
-pub async fn web_search(window: WebviewWindow, query: String) -> Result<Vec<WebSearchResult>, String> {
+async fn legacy_bing_search(window: WebviewWindow, query: String) -> Result<Vec<WebSearchResult>, String> {
     require_main(&window)?;
     let query = query.trim();
     if query.is_empty() || query.chars().count() > 200 {

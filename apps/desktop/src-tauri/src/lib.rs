@@ -2,6 +2,7 @@ mod commands;
 mod local_voice;
 mod repositories;
 mod services;
+mod web_search;
 #[cfg(test)]
 mod spikes;
 
@@ -107,7 +108,7 @@ pub fn run() {
             commands::delete_secret,
             commands::companion_chat_completion,
             commands::companion_chat_completion_stream,
-            commands::web_search,
+            web_search::web_search,
             commands::elevenlabs_text_to_speech,
             commands::elevenlabs_speech_to_text,
             commands::elevenlabs_realtime_scribe_token,

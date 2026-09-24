@@ -240,10 +240,10 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
     },
     searchWeb: async (query) => searchWeb(await protectOutboundText(query, {
       trust: data.settings.trust,
-      destination: 'Bing Search',
+      destination: data.settings.webSearch.providerId === 'tencent' ? '腾讯云联网搜索' : data.settings.webSearch.providerId === 'bocha' ? '博查联网搜索' : 'Bing Search',
       purpose: '联网查询',
       requestReview: options.requestPrivacyReview,
-    })),
+    }), data.settings.webSearch),
   })
   const registry = createCompanionToolRegistry(options.onVisualState)
   const permissions = new AgentPermissionEngine({

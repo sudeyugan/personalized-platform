@@ -389,6 +389,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
 
   setAiSettings: (changes) => { const current = get().data; const data = { ...current, settings: { ...current.settings, ai: { ...current.settings.ai, ...changes } } }; set({ data }); void persist(data) },
+  setWebSearchSettings: (changes) => { const current = get().data; const data = { ...current, settings: { ...current.settings, webSearch: { ...current.settings.webSearch, ...changes } } }; set({ data }); void persist(data) },
   setBackupSettings: (changes) => { const current = get().data; const data = { ...current, settings: { ...current.settings, backup: { ...current.settings.backup, ...changes } } }; set({ data }); void persist(data) },
   setSecuritySettings: (changes) => { const current = get().data; const data = { ...current, settings: { ...current.settings, security: { ...current.settings.security, ...changes } } }; set({ data }); void persist(data) },
   setTrustSettings: (changes) => { const current = get().data; const data = { ...current, settings: { ...current.settings, trust: { ...current.settings.trust, ...changes } } }; set({ data }); void persist(data) },

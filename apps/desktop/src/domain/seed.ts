@@ -156,6 +156,7 @@ export function createSeedLibrary(): LibraryData {
       navigationOrder: ['home', 'answerBook', 'calendar', 'todos', 'writing', 'diary', 'people', 'places', 'timeline', 'assets', 'music', 'help', 'settings'],
       backgrounds: { images: {}, sidebarMode: 'decoration' },
       ai: { providerId: 'mock', endpoint: '', model: 'mock-illustration-v1', stylePreset: '温暖手绘' },
+      webSearch: { providerId: 'tencent', fallbackToBing: true },
       backup: { dailyEnabled: true, directory: '', retentionCount: 14 },
       security: { autoLockMinutes: 15 },
       trust: { externalAiProcessing: false, shareAuthorizedContext: true, shareRecentConversation: true, retainConversationHistory: true, outboundProtection: true, outboundReviewMode: 'balanced', privateDictionary: [] },
@@ -280,6 +281,7 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
       },
       backgroundImage: undefined,
       ai: { ...seed.settings.ai, ...data.settings.ai },
+      webSearch: { ...seed.settings.webSearch, ...data.settings.webSearch },
       backup: { ...seed.settings.backup, ...data.settings.backup },
       security: { ...seed.settings.security, ...data.settings.security },
       trust: data.settings.trust

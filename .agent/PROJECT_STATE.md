@@ -11,6 +11,7 @@
 <!-- generated:project-status:end -->
 
 ## 状态摘要
+- 2026-09-24：受控联网查询从固定 Bing RSS 升级为可替换 Provider。默认腾讯云轻量版，可切换博查 Web Search；两者独立 API Key 均复用 Windows DPAPI，固定 HTTPS 端点且不进入资料、Prompt 或审计正文。Bing 只作为可关闭的无密钥/故障应急降级，统一结果携带实际 Provider，权限页可配置服务、密钥、降级并诊断实际路由/结果数/耗时；`web.search`、权限与 Egress Gateway 契约保持不变。TypeScript 通过，Rust Provider 定向测试 3/3，生产 Web、Windows Release 与 NSIS 通过；未跑 lint 或全量测试，本机缺少 rustfmt。Release 与桌面 EXE SHA-256 均为 `0A59813370C65820A6E005BAA3F1B729F82E77133914D327352605839A0F93B0`，安装包为 `B266195EAF2A3078A68C2308D59E09172183A2DA1A651638CDDB38D8F97C47F1`。真实腾讯云/博查 Key 与检索质量待用户自然验证；旧 `commands.rs` 的未使用 Bing 私有实现因本机补丁辅助层持续故障暂未物理删除，只产生非阻断 `dead_code` 警告，正式入口已唯一切换到 `web_search` 模块。
 
 - 2026-09-24：用户更新持续协作偏好：每次代码更新完成风险匹配验证与 Windows Release 构建后，自动创建本地 Git 提交并推送远端 `main`；纯调查或纯文档同步不重复构建，但需要形成持久变更时仍随最近一次提交推送。推送失败必须明确报告，不把本地提交误称为已同步远端。
 - 2026-09-24：桌面语音唤醒增加可控的托盘后台生命周期，但不注册开机自启动。语音唤醒开启时关闭主窗口只隐藏界面，主进程、本地关键词和声纹监听继续运行；托盘“退出一隅”仍彻底停止。官方单实例插件保证后台已有实例时再次启动只显示原主窗口。TypeScript、旧资料迁移 5/5、Rust 生命周期 1/1、Web、Rust Release 与 NSIS 构建通过；桌面直接运行版已刷新，Release 与桌面 EXE SHA-256 同为 `FA5F09009A1979C42BC2E50067DA8BDEED37F010DF3F981760D084F80353F575`，安装包为 `F80C59FBD611567A7BBA7AB333DC5B5B9496B1C3154C662E3396A5430A8B4846`。未运行 lint 或全量测试；托盘关闭、重复启动接管和真实“小鱼”唤出需用户自然体验。程序完全退出或 Windows 重启后不会自行监听，重启后需从安装目录或开始菜单手动启动一次。
