@@ -52,7 +52,7 @@ describe('library compatibility normalization', () => {
     expect(upgraded.assets).toEqual([])
     expect(upgraded.aiGenerations).toEqual([])
     expect(upgraded.tracks).toEqual([])
-    expect(upgraded.companion.permissions).toEqual({ workIds: [], chapterIds: [], records: false, musicContext: false, writeActions: false })
+    expect(upgraded.companion.permissions).toEqual({ workIds: [], chapterIds: [], records: false, planner: false, todos: false, calendar: false, courses: false, dailyQuestions: false, diary: false, mood: false, memories: false, answerBook: false, musicContext: false, internet: false, writeActions: false, writePolicy: 'balanced' })
     expect(upgraded.companion.memories).toEqual([])
     expect(upgraded.companion.desktop.visible).toBe(false)
     expect(upgraded.companion.desktop.toggleShortcut).toBe('CommandOrControl+Alt+Y')

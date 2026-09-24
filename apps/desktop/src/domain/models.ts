@@ -84,6 +84,8 @@ export interface Asset {
   chapterIds: string[]
   alt?: string
   caption?: string
+  /** Separates technical companion media from the creative asset library. */
+  purpose?: 'creative' | 'companion'
   deletedAt?: string
 }
 
@@ -124,8 +126,20 @@ export interface CompanionPermission {
   workIds: string[]
   chapterIds: string[]
   records: boolean
+  /** @deprecated Kept to migrate libraries saved before granular planner permissions. */
+  planner: boolean
+  todos: boolean
+  calendar: boolean
+  courses: boolean
+  dailyQuestions: boolean
+  diary: boolean
+  mood: boolean
+  memories: boolean
+  answerBook: boolean
   musicContext: boolean
+  internet: boolean
   writeActions: boolean
+  writePolicy: 'always_ask' | 'balanced'
 }
 export interface CompanionMessage { id: string; role: 'user' | 'companion'; content: string; createdAt: string; contextSummary?: string }
 export interface CompanionMemory { id: string; content: string; source: 'manual' | 'conversation'; sourceLabel: string; createdAt: string; updatedAt: string; confidence: number; authorized: boolean; sourceWorkId?: string }
@@ -148,6 +162,7 @@ export interface CompanionAgentAuditEntry {
   resultStatus: 'success' | 'error'
   durationMs: number
   errorCode?: 'ToolNotFound' | 'InvalidArguments' | 'PermissionDenied' | 'ExecutionFailed' | 'Timeout' | 'AgentStepLimit' | 'AgentCancelled' | 'ModelError'
+  errorDetail?: string
 }
 export interface CharacterSlot {
   x: number
@@ -397,5 +412,16 @@ export interface LibraryData {
     pinnedRecord?: EntityRef
     currentTrackId?: string
     activeDiaryDate?: string
+    agentNavigation?: AgentNavigationIntent
   }
+}
+
+export interface AgentNavigationIntent {
+  id: string
+  destination: string
+  date?: string
+  range?: 'week' | 'month'
+  targetId?: string
+  filter?: string
+  section?: string
 }

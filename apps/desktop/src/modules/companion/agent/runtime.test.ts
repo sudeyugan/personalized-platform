@@ -48,7 +48,12 @@ describe('agent tool registry', () => {
     expect(registry.lookup('chapter.append')?.definition.scope).toBe('chapters')
     expect(registry.lookup('record.update')?.definition.scope).toBe('records')
     expect(registry.lookup('course.create')?.definition.capability).toBe('create')
-    expect(registry.definitions()).toHaveLength(25)
+    expect(registry.definitions().length).toBeGreaterThanOrEqual(40)
+    expect(registry.lookup('diary.search')?.definition.scope).toBe('diary')
+    expect(registry.lookup('mood.get_summary')?.definition.scope).toBe('mood')
+    expect(registry.lookup('app.open')?.definition.capability).toBe('presentation')
+    expect(registry.lookup('web.search')?.definition).toMatchObject({ capability: 'external', scope: 'web' })
+    expect(registry.lookup('asset.list')).toBeUndefined()
     expect(() => registry.register(registry.lookup('character.search')!)).toThrow('already registered')
   })
 
@@ -68,6 +73,29 @@ describe('agent tool registry', () => {
     })
     await expect(registry.execute({ id: '2', name: 'test.fail', arguments: {} }, current.services)).resolves.toMatchObject({ success: false, error: { code: 'ExecutionFailed' } })
     await expect(registry.execute({ id: '3', name: 'missing', arguments: {} }, current.services)).resolves.toMatchObject({ success: false, error: { code: 'ToolNotFound' } })
+  })
+
+  it('reads personal modules only after their resource scope is granted', async () => {
+    const current = fixture()
+    current.data.planner.diaryEntries.push({ date: '2026-09-23', title: '今天', content: '完成了统一 Agent 接入', updatedAt: new Date().toISOString() })
+    const locked = current.permissions.check(createCompanionToolRegistry().lookup('diary.search')!.definition, { query: 'Agent' })
+    expect(locked.allowed).toBe(false)
+    current.data.companion.permissions.diary = true
+    const access = buildAgentAccess(current.data, [])
+    const services = createAgentApplicationServices(current.data, access)
+    const allowed = new AgentPermissionEngine({ policy: { autoAllow: ['read'] }, resourcePermissions: current.data.companion.permissions, access })
+    expect(allowed.check(createCompanionToolRegistry().lookup('diary.search')!.definition, { query: 'Agent' }).allowed).toBe(true)
+    await expect(createCompanionToolRegistry().execute({ id: 'diary-1', name: 'diary.search', arguments: { query: 'Agent' } }, services)).resolves.toMatchObject({ success: true, data: [{ date: '2026-09-23' }] })
+  })
+
+  it('allows controlled web search only after the internet permission is enabled', () => {
+    const current = fixture()
+    const tool = createCompanionToolRegistry().lookup('web.search')!.definition
+    expect(current.permissions.check(tool, { query: '北京天气' }).allowed).toBe(false)
+    current.data.companion.permissions.internet = true
+    const access = buildAgentAccess(current.data, [])
+    const permissions = new AgentPermissionEngine({ policy: { autoAllow: ['read'] }, resourcePermissions: current.data.companion.permissions, access })
+    expect(permissions.check(tool, { query: '北京天气' }).allowed).toBe(true)
   })
 
   it('keeps visual-state selection inside the typed low-risk tool boundary', async () => {
@@ -118,6 +146,8 @@ describe('agent runtime', () => {
   it('executes an enabled write tool only after explicit confirmation', async () => {
     const current = fixture()
     current.data.companion.permissions.writeActions = true
+    current.data.companion.permissions.todos = true
+    current.data.companion.permissions.writePolicy = 'always_ask'
     let created = ''
     current.services.createTodo = (title) => { created = title; return { created: true } }
     const provider = new ScriptedProvider([

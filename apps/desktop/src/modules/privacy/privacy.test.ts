@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentModelProvider } from '../companion/agent/types'
 import { detectPrivacy } from './detectors'
-import { createPrivacyProtectedProvider } from './egressGateway'
+import { createPrivacyProtectedProvider, protectOutboundText } from './egressGateway'
 import { PrivacyEgressError } from './types'
 
 const trust = { externalAiProcessing: true, shareAuthorizedContext: true, shareRecentConversation: true, retainConversationHistory: true, outboundProtection: true, outboundReviewMode: 'balanced' as const, privateDictionary: [{ id: 'one', value: '林夏', category: 'person' as const, enabled: true }] }
@@ -19,6 +19,21 @@ describe('privacy egress', () => {
     const provider = createPrivacyProtectedProvider(base, { trust, destination: 'DeepSeek', purpose: 'test' })
     await expect(provider.generate(request('api_key=sk-abcdefghijklmnopqrstuvwxyz'))).rejects.toBeInstanceOf(PrivacyEgressError)
     expect(called).toBe(false)
+  })
+
+  it('protects a restored tool query again before web search', async () => {
+    let reviewPreview = ''
+    const protectedQuery = await protectOutboundText('搜索林夏的近况', {
+      trust,
+      destination: 'Bing Search',
+      purpose: '联网查询',
+      requestReview: async (review) => {
+        reviewPreview = review.sanitizedPreview
+        return true
+      },
+    })
+    expect(protectedQuery).toBe('搜索[PERSON_1]的近况')
+    expect(reviewPreview).toBe(protectedQuery)
   })
 
   it('uses stable aliases, restores replies and asks once before sending', async () => {

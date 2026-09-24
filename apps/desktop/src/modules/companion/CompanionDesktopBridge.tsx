@@ -8,8 +8,10 @@ import type { CompanionDesktopMode, CompanionVideoState } from '../../domain/mod
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { companionDesktopSnapshot, companionVisualAssetIds } from './companionDesktop'
 import { sendCompanionTurn } from './companionConversation'
+import { isTransientVideoState } from './companionVideoPlayback'
 import type { AgentRuntimeStatus } from './agent'
 import { createSpeechToTextProvider, createTextToSpeechProvider } from '../../infrastructure/companionVoiceProvider'
+import { syncBackgroundRuntime } from '../../infrastructure/backgroundRuntime'
 import { toSpokenText } from './speechText'
 import type { AgentPermissionRequest } from './agent/types'
 import { assertExternalAiAllowed } from '../trust/trustPolicy'
@@ -93,9 +95,16 @@ export function CompanionDesktopBridge() {
   const speechGeneration = useRef(0)
   const activeTurn = useRef<AbortController | undefined>(undefined)
   const [visualState, setVisualState] = useState<CompanionVideoState>()
+  const visualStateRef = useRef<CompanionVideoState | undefined>(undefined)
+  visualStateRef.current = visualState
   const [desktopModeOverride, setDesktopModeOverride] = useState<CompanionDesktopMode>()
   const [agentStatus, setAgentStatus] = useState<AgentRuntimeStatus>()
   const snapshot = useMemo(() => companionDesktopSnapshot(data.companion, data.session.activeView, playback.playing, data.assets, visualState, agentStatus, data.settings.trust.externalAiProcessing, desktopModeOverride), [data.companion, data.session.activeView, playback.playing, data.assets, visualState, agentStatus, data.settings.trust.externalAiProcessing, desktopModeOverride])
+  useEffect(() => {
+    void syncBackgroundRuntime(data.companion.voice.wakeEnabled).catch((error) => {
+      console.warn('Unable to synchronize background voice wake:', error)
+    })
+  }, [data.companion.voice.wakeEnabled])
   const snapshotRef = useRef(snapshot)
   snapshotRef.current = snapshot
   const publish = useCallback(async (nextSnapshot = snapshotRef.current) => {
@@ -111,7 +120,7 @@ export function CompanionDesktopBridge() {
   }, [publish, snapshot])
   useEffect(() => {
     if (!isTauri()) return
-    let stopHide: (() => void) | undefined; let stopOpen: (() => void) | undefined; let stopReady: (() => void) | undefined; let stopToggleChat: (() => void) | undefined; let stopOpenChat: (() => void) | undefined; let stopMoved: (() => void) | undefined; let stopChat: (() => void) | undefined; let stopNewChat: (() => void) | undefined; let stopVoice: (() => void) | undefined; let stopVoiceToken: (() => void) | undefined; let stopPermission: (() => void) | undefined; let stopPrivacy: (() => void) | undefined; let stopSpeech: (() => void) | undefined; let stopSpeechPause: (() => void) | undefined; let stopTurn: (() => void) | undefined; let stopVoiceShow: (() => void) | undefined; let stopVoiceEnd: (() => void) | undefined; let stopVoiceHide: (() => void) | undefined; let stopTray: (() => void) | undefined
+    let stopHide: (() => void) | undefined; let stopOpen: (() => void) | undefined; let stopReady: (() => void) | undefined; let stopTransient: (() => void) | undefined; let stopToggleChat: (() => void) | undefined; let stopOpenChat: (() => void) | undefined; let stopMoved: (() => void) | undefined; let stopChat: (() => void) | undefined; let stopNewChat: (() => void) | undefined; let stopVoice: (() => void) | undefined; let stopVoiceActivity: (() => void) | undefined; let stopVoiceToken: (() => void) | undefined; let stopPermission: (() => void) | undefined; let stopPrivacy: (() => void) | undefined; let stopSpeech: (() => void) | undefined; let stopSpeechPause: (() => void) | undefined; let stopTurn: (() => void) | undefined; let stopVoiceShow: (() => void) | undefined; let stopVoiceEnd: (() => void) | undefined; let stopVoiceHide: (() => void) | undefined; let stopTray: (() => void) | undefined
     const windows = async () => {
       const all = await getAllWindows()
       return { portrait: all.find((item) => item.label === 'companion'), chat: all.find((item) => item.label === 'companion-chat') }
@@ -161,6 +170,11 @@ export function CompanionDesktopBridge() {
     }).then((stop) => { stopTray = stop })
     void listen('companion:open-main', () => { void getCurrentWindow().show(); void getCurrentWindow().setFocus() }).then((stop) => { stopOpen = stop })
     void listen('companion:ready', () => { void publish() }).then((stop) => { stopReady = stop })
+    void listen<{ state: CompanionVideoState }>('companion:transient-ended', (event) => {
+      if (visualStateRef.current !== event.payload.state || !isTransientVideoState(event.payload.state)) return
+      window.clearTimeout(resetStateTimer.current)
+      setVisualState(undefined)
+    }).then((stop) => { stopTransient = stop })
     void listen('companion:chat-toggle', () => {
       if (chatTogglePending.current) return
       chatTogglePending.current = true
@@ -205,9 +219,13 @@ export function CompanionDesktopBridge() {
       const audio = spokenAudio.current
       if (!audio) return
       if (event.payload.paused) audio.pause()
-      else void audio.play()
+      else { setVisualState('speaking'); void audio.play() }
       void emitTo('companion-chat', 'companion:speech-state', { active: true, paused: event.payload.paused })
     }).then((stop) => { stopSpeechPause = stop })
+    void listen<{ active: boolean }>('companion:voice-activity', (event) => {
+      if (event.payload.active) setVisualState('listening')
+      else if (visualStateRef.current === 'listening') setVisualState(undefined)
+    }).then((stop) => { stopVoiceActivity = stop })
     void listen('companion:turn-stop', () => {
       cancelActiveTurn()
     }).then((stop) => { stopTurn = stop })
@@ -237,6 +255,7 @@ export function CompanionDesktopBridge() {
       const speechId = ++speechGeneration.current
       let speechBuffer = ''
       let speechQueue = Promise.resolve()
+      let synthesisQueue = Promise.resolve()
       let spokenCharacters = 0
       let speechClosed = false
       let speechNoteSent = false
@@ -253,13 +272,17 @@ export function CompanionDesktopBridge() {
         if (!speechProvider || !spoken || speechClosed || speechId !== speechGeneration.current) return
         if (spokenCharacters > 0 && spokenCharacters + spoken.length > speechLimit) { closeLongSpeech(); return }
         spokenCharacters += spoken.length
+        const provider = speechProvider
+        const protectedText = trust.outboundProtection ? speechPrivacy.sanitize(spoken).text : spoken
+        const synthesis = synthesisQueue.then(() => provider.synthesize(protectedText))
+        synthesisQueue = synthesis.then(() => undefined, () => undefined)
         speechQueue = speechQueue.then(async () => {
+          if (speechId !== speechGeneration.current) return
+          const blob = await synthesis
           if (speechId !== speechGeneration.current) return
           window.clearTimeout(resetStateTimer.current)
           setVisualState('speaking')
-          void emitTo('companion-chat', 'companion:speech-state', { active: true, paused: false })
-          const blob = await speechProvider.synthesize(trust.outboundProtection ? speechPrivacy.sanitize(spoken).text : spoken)
-          if (speechId !== speechGeneration.current) return
+          void emitTo('companion-chat', 'companion:speech-state', { active: true, paused: false, text: spoken })
           await playAudioBlob(blob, spokenAudio)
         })
       }
@@ -284,7 +307,7 @@ export function CompanionDesktopBridge() {
           if (activeTurn.current !== turn) return
           window.clearTimeout(resetStateTimer.current)
           setVisualState(state)
-          resetStateTimer.current = window.setTimeout(() => setVisualState(undefined), 6000)
+          resetStateTimer.current = window.setTimeout(() => setVisualState(undefined), isTransientVideoState(state) ? 15_000 : state === 'sleepy' ? 60_000 : 6000)
         },
         inputMode: event.payload.inputMode ?? 'text',
         voiceReplyLength: event.payload.wake ? 'short' : voice.replyLength,
@@ -367,7 +390,7 @@ export function CompanionDesktopBridge() {
         .then((token) => emitTo('companion-chat', 'companion:voice-token-response', { requestId: event.payload.requestId, token }))
         .catch((error) => emitTo('companion-chat', 'companion:voice-token-response', { requestId: event.payload.requestId, error: error instanceof Error ? error.message : String(error) }))
     }).then((stop) => { stopVoiceToken = stop })
-    return () => { stopHide?.(); stopOpen?.(); stopReady?.(); stopToggleChat?.(); stopOpenChat?.(); stopMoved?.(); stopChat?.(); stopNewChat?.(); stopVoice?.(); stopVoiceToken?.(); stopPermission?.(); stopPrivacy?.(); stopSpeech?.(); stopSpeechPause?.(); stopTurn?.(); stopVoiceShow?.(); stopVoiceEnd?.(); stopVoiceHide?.(); stopTray?.(); activeTurn.current?.abort(); permissionRequests.current.forEach((resolve) => resolve(false)); permissionRequests.current.clear(); privacyRequests.current.forEach((resolve) => resolve(false)); privacyRequests.current.clear(); speechGeneration.current += 1; const audio = spokenAudio.current; audio?.pause(); audio?.dispatchEvent(new Event('ended')); window.clearTimeout(resetStateTimer.current) }
+    return () => { stopHide?.(); stopOpen?.(); stopReady?.(); stopTransient?.(); stopToggleChat?.(); stopOpenChat?.(); stopMoved?.(); stopChat?.(); stopNewChat?.(); stopVoice?.(); stopVoiceActivity?.(); stopVoiceToken?.(); stopPermission?.(); stopPrivacy?.(); stopSpeech?.(); stopSpeechPause?.(); stopTurn?.(); stopVoiceShow?.(); stopVoiceEnd?.(); stopVoiceHide?.(); stopTray?.(); activeTurn.current?.abort(); permissionRequests.current.forEach((resolve) => resolve(false)); permissionRequests.current.clear(); privacyRequests.current.forEach((resolve) => resolve(false)); privacyRequests.current.clear(); speechGeneration.current += 1; const audio = spokenAudio.current; audio?.pause(); audio?.dispatchEvent(new Event('ended')); window.clearTimeout(resetStateTimer.current) }
   }, [clearCompanionMessages, publish, setCompanionDesktop])
   useEffect(() => {
     if (!isTauri()) return

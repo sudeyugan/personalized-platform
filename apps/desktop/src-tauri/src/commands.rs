@@ -1,4 +1,4 @@
-use std::{collections::HashSet, sync::Mutex};
+use std::{collections::HashSet, error::Error as _, sync::Mutex, time::Duration};
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde::Serialize;
@@ -22,6 +22,121 @@ pub struct HealthStatus {
     runtime: &'static str,
     storage: &'static str,
     library_path: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WebSearchResult {
+    title: String,
+    snippet: String,
+    url: String,
+}
+
+fn xml_value(item: &str, tag: &str) -> String {
+    let start_tag = format!("<{tag}>");
+    let end_tag = format!("</{tag}>");
+    let Some(start) = item.find(&start_tag).map(|index| index + start_tag.len()) else { return String::new() };
+    let Some(end) = item[start..].find(&end_tag).map(|index| start + index) else { return String::new() };
+    item[start..end]
+        .replace("<![CDATA[", "").replace("]]>", "")
+        .replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
+        .replace("&quot;", &char::from(34).to_string()).replace("&#39;", "'")
+        .trim().to_string()
+}
+
+fn strip_html(value: &str) -> String {
+    let mut output = String::with_capacity(value.len());
+    let mut inside = false;
+    for character in value.chars() {
+        match character {
+            '<' => inside = true,
+            '>' => inside = false,
+            _ if !inside => output.push(character),
+            _ => {}
+        }
+    }
+    output.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn is_allowed_bing_url(url: &reqwest::Url) -> bool {
+    url.scheme() == "https" && matches!(url.host_str(), Some("www.bing.com" | "cn.bing.com"))
+}
+
+fn parse_web_search(body: &str) -> Vec<WebSearchResult> {
+    body.split("<item>").skip(1).take(6).filter_map(|item| {
+        let title = strip_html(&xml_value(item, "title"));
+        let snippet = strip_html(&xml_value(item, "description"));
+        let url = xml_value(item, "link");
+        (!title.is_empty() && url.starts_with("https://")).then_some(WebSearchResult { title, snippet, url })
+    }).collect()
+}
+
+fn classify_web_search_error(error: &reqwest::Error) -> &'static str {
+    if error.is_timeout() { return "TIMEOUT"; }
+    if error.is_redirect() { return "REDIRECT"; }
+    let mut details = error.to_string().to_ascii_lowercase();
+    let mut source = error.source();
+    while let Some(current) = source {
+        details.push_str(&current.to_string().to_ascii_lowercase());
+        source = current.source();
+    }
+    if details.contains("dns") || details.contains("name resolution") || details.contains("lookup address") { "DNS" }
+    else if details.contains("certificate") || details.contains("tls") || details.contains("ssl") { "TLS" }
+    else if details.contains("proxy") || details.contains("tunnel") { "PROXY" }
+    else if error.is_connect() { "CONNECT" }
+    else { "REQUEST" }
+}
+
+async fn fetch_web_search(query: &str) -> Result<Vec<WebSearchResult>, String> {
+    let client = reqwest::Client::builder()
+        .connect_timeout(Duration::from_secs(10))
+        .timeout(Duration::from_secs(25))
+        .redirect(reqwest::redirect::Policy::custom(|attempt| {
+            if attempt.previous().len() >= 3 || !is_allowed_bing_url(attempt.url()) {
+                attempt.stop()
+            } else {
+                attempt.follow()
+            }
+        }))
+        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Yiyu/2.0")
+        .build().map_err(|error| format!("WEB_SEARCH_CLIENT:{error}"))?;
+    let mut failures = Vec::new();
+    for (label, endpoint) in [("www", "https://www.bing.com/search"), ("cn", "https://cn.bing.com/search")] {
+        let response = match client.get(endpoint)
+            .header(reqwest::header::ACCEPT, "application/rss+xml, application/xml;q=0.9, text/xml;q=0.8")
+            .header(reqwest::header::ACCEPT_LANGUAGE, "zh-CN,zh;q=0.9")
+            .query(&[("format", "rss"), ("setlang", "zh-hans"), ("q", query)])
+            .send().await {
+                Ok(response) => response,
+                Err(error) => { failures.push(format!("{label}:{}", classify_web_search_error(&error))); continue; }
+            };
+        if !is_allowed_bing_url(response.url()) {
+            failures.push(format!("{label}:REDIRECT_DENIED"));
+            continue;
+        }
+        if !response.status().is_success() {
+            failures.push(format!("{label}:HTTP_{}", response.status().as_u16()));
+            continue;
+        }
+        let body = match response.text().await {
+            Ok(body) => body,
+            Err(_) => { failures.push(format!("{label}:BODY")); continue; }
+        };
+        let results = parse_web_search(&body);
+        if !results.is_empty() { return Ok(results); }
+        failures.push(format!("{label}:EMPTY_RSS"));
+    }
+    Err(format!("WEB_SEARCH_UNAVAILABLE:{}", failures.join(" | ")))
+}
+
+#[tauri::command]
+pub async fn web_search(window: WebviewWindow, query: String) -> Result<Vec<WebSearchResult>, String> {
+    require_main(&window)?;
+    let query = query.trim();
+    if query.is_empty() || query.chars().count() > 200 {
+        return Err("WEB_SEARCH_QUERY_INVALID:查询词不能为空且不能超过 200 字".into());
+    }
+    fetch_web_search(query).await
 }
 
 fn require_main(window: &WebviewWindow) -> Result<(), String> {
@@ -802,7 +917,7 @@ pub fn lock_all_vaults(window: WebviewWindow, app: AppHandle) -> Result<(), Stri
 
 #[cfg(test)]
 mod companion_scope_tests {
-    use super::{valid_asset_id, voice_error};
+    use super::{classify_web_search_error, fetch_web_search, is_allowed_bing_url, parse_web_search, strip_html, valid_asset_id, voice_error, xml_value};
 
     #[test]
     fn accepts_only_repository_asset_identifiers() {
@@ -818,5 +933,41 @@ mod companion_scope_tests {
             b"<html><body><h1>Length Required</h1></body></html>",
         );
         assert_eq!(error, "VOICE_HTTP_ERROR:411:Length Required");
+    }
+
+    #[test]
+    fn parses_search_rss_without_preserving_html_markup() {
+        let item = "<item><title>一隅 &amp; 测试</title><link>https://example.com</link><description><![CDATA[<b>摘要</b> 内容]]></description></item>";
+        assert_eq!(xml_value(item, "title"), "一隅 & 测试");
+        assert_eq!(strip_html(&xml_value(item, "description")), "摘要 内容");
+        let results = parse_web_search(&format!("<rss><channel>{item}</channel></rss>"));
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].url, "https://example.com");
+    }
+
+    #[test]
+    fn search_redirects_stay_on_explicit_bing_hosts() {
+        assert!(is_allowed_bing_url(&reqwest::Url::parse("https://www.bing.com/search").unwrap()));
+        assert!(is_allowed_bing_url(&reqwest::Url::parse("https://cn.bing.com/search").unwrap()));
+        assert!(!is_allowed_bing_url(&reqwest::Url::parse("https://example.com/search").unwrap()));
+    }
+
+    #[test]
+    fn search_error_codes_do_not_contain_request_urls() {
+        let result = tauri::async_runtime::block_on(async {
+            reqwest::Client::builder()
+                .timeout(std::time::Duration::ZERO)
+                .build().unwrap()
+                .get("https://www.bing.com/search?q=private")
+                .send().await
+        }).unwrap_err();
+        assert_eq!(classify_web_search_error(&result), "TIMEOUT");
+    }
+
+    #[test]
+    #[ignore = "requires external network"]
+    fn searches_bing_rss_through_the_application_client() {
+        let results = tauri::async_runtime::block_on(fetch_web_search("一隅 软件")).unwrap();
+        assert!(!results.is_empty());
     }
 }

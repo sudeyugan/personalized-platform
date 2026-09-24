@@ -10,6 +10,26 @@ interface EgressGatewayOptions {
   requestReview?: (request: PrivacyReviewRequest) => Promise<boolean>
 }
 
+export async function protectOutboundText(text: string, options: EgressGatewayOptions) {
+  if (!options.trust.outboundProtection) return text
+  const result = new PrivacySession(options.trust.privateDictionary).sanitize(text)
+  const needsReview = Boolean(options.requestReview) && (options.trust.outboundReviewMode === 'strict' || result.findings.length > 0)
+  if (needsReview) {
+    const findingCounts = result.findings.reduce<PrivacyReviewRequest['findingCounts']>((counts, finding) => ({
+      ...counts,
+      [finding.kind]: (counts[finding.kind] ?? 0) + 1,
+    }), {})
+    const allowed = await options.requestReview!({
+      destination: options.destination,
+      purpose: options.purpose,
+      findingCounts,
+      sanitizedPreview: result.text.slice(0, 800),
+    })
+    if (!allowed) throw new Error('已取消发送，内容没有离开本机。')
+  }
+  return result.text
+}
+
 function mapStrings(value: unknown, transform: (text: string) => string): unknown {
   if (typeof value === 'string') return transform(value)
   if (Array.isArray(value)) return value.map((item) => mapStrings(item, transform))

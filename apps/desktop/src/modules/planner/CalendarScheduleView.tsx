@@ -1,5 +1,5 @@
 import { BookOpen, CalendarDays, CalendarPlus, ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react'
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import type { Course, CourseDay, CoursePeriod } from '../../domain/models'
 import { formatLocalDate } from '../../domain/localDate'
 import { useLibraryStore } from '../../state/useLibraryStore'
@@ -32,6 +32,15 @@ export function CalendarScheduleView() {
   const selectedMoods = data.planner.moodEntries.filter((entry) => entry.date === date)
   const storedEntry = data.planner.diaryEntries.find((entry) => entry.date === date)
   const monthDates = calendarDates(month)
+
+  useEffect(() => {
+    const navigation = data.session.agentNavigation
+    if (navigation?.destination !== 'calendar.day' && navigation?.destination !== 'calendar.schedule') return
+    setMode(navigation.destination === 'calendar.schedule' ? 'schedule' : 'calendar')
+    if (navigation.date) chooseDate(navigation.date)
+  // chooseDate only wraps local state setters; navigation id represents a new explicit command.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.session.agentNavigation?.id])
 
   const chooseDate = (value: string) => { setDate(value); const picked = new Date(`${value}T12:00:00`); setMonth(new Date(picked.getFullYear(), picked.getMonth(), 1, 12)) }
   const submitEvent = (event: FormEvent) => { event.preventDefault(); if (!eventTitle.trim()) return; addCalendarEvent({ title: eventTitle, date, time: eventTime || undefined }); setEventTitle(''); setEventTime('') }

@@ -5,11 +5,27 @@ mod services;
 #[cfg(test)]
 mod spikes;
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
-    Emitter, Manager,
+    Emitter, Manager, State,
 };
+
+struct BackgroundWakeRuntime {
+    enabled: AtomicBool,
+}
+
+impl BackgroundWakeRuntime {
+    fn new() -> Self {
+        Self { enabled: AtomicBool::new(false) }
+    }
+}
+
+#[tauri::command]
+fn set_background_wake_runtime(enabled: bool, runtime: State<'_, BackgroundWakeRuntime>) {
+    runtime.enabled.store(enabled, Ordering::SeqCst);
+}
 
 fn install_tray(app: &mut tauri::App) -> tauri::Result<()> {
     let interact = MenuItem::with_id(app, "companion-interactive", "显示伙伴并交谈", true, None::<&str>)?;
@@ -44,9 +60,16 @@ fn install_tray(app: &mut tauri::App) -> tauri::Result<()> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(commands::CompanionAssetScope::default())
         .manage(local_voice::LocalVoiceState::default())
+        .manage(BackgroundWakeRuntime::new())
         .setup(|app| {
             repositories::install_panic_marker(app.handle())?;
             install_tray(app)?;
@@ -84,6 +107,7 @@ pub fn run() {
             commands::delete_secret,
             commands::companion_chat_completion,
             commands::companion_chat_completion_stream,
+            commands::web_search,
             commands::elevenlabs_text_to_speech,
             commands::elevenlabs_speech_to_text,
             commands::elevenlabs_realtime_scribe_token,
@@ -95,6 +119,7 @@ pub fn run() {
             local_voice::local_voice_start,
             local_voice::local_voice_process_pcm,
             local_voice::local_voice_stop,
+            set_background_wake_runtime,
             commands::create_backup,
             commands::ensure_daily_backup,
             commands::list_backups,
@@ -109,27 +134,43 @@ pub fn run() {
             commands::lock_all_vaults,
         ])
         .on_window_event(|window, event| {
-            if should_exit_with_window(window.label())
-                && matches!(event, tauri::WindowEvent::CloseRequested { .. })
-            {
-                window.app_handle().exit(0);
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                let background_enabled = window
+                    .app_handle()
+                    .state::<BackgroundWakeRuntime>()
+                    .enabled
+                    .load(Ordering::SeqCst);
+                if should_hide_with_window(window.label(), background_enabled) {
+                    api.prevent_close();
+                    let _ = window.hide();
+                } else if should_exit_with_window(window.label(), background_enabled) {
+                    window.app_handle().exit(0);
+                }
             }
         })
         .run(tauri::generate_context!())
         .expect("failed to run Yiyu desktop application");
 }
 
-fn should_exit_with_window(label: &str) -> bool {
-    label == "main"
+fn should_hide_with_window(label: &str, background_enabled: bool) -> bool {
+    label == "main" && background_enabled
+}
+
+fn should_exit_with_window(label: &str, background_enabled: bool) -> bool {
+    label == "main" && !background_enabled
 }
 
 #[cfg(test)]
 mod lifecycle_tests {
-    use super::should_exit_with_window;
+    use super::{should_exit_with_window, should_hide_with_window};
 
     #[test]
-    fn closing_main_exits_all_windows_but_closing_companion_does_not() {
-        assert!(should_exit_with_window("main"));
-        assert!(!should_exit_with_window("companion"));
+    fn closing_main_hides_for_background_wake_and_otherwise_exits() {
+        assert!(should_hide_with_window("main", true));
+        assert!(!should_exit_with_window("main", true));
+        assert!(!should_hide_with_window("main", false));
+        assert!(should_exit_with_window("main", false));
+        assert!(!should_hide_with_window("companion", true));
+        assert!(!should_exit_with_window("companion", false));
     }
 }

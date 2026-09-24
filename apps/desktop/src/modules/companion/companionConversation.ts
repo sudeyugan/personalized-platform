@@ -1,9 +1,10 @@
 import type { JSONContent } from '@tiptap/react'
-import type { CompanionVideoState, CourseDay, CoursePeriod, ViewId } from '../../domain/models'
+import type { CompanionVideoState, CourseDay, CoursePeriod, MoodKind, MoodPeriod } from '../../domain/models'
 import { createCompanionProvider } from '../../infrastructure/companionProvider'
+import { searchWeb } from '../../infrastructure/webSearch'
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { applyContextPrivacy, applyHistoryPrivacy, assertExternalAiAllowed } from '../trust/trustPolicy'
-import { createPrivacyProtectedProvider, type PrivacyReviewRequest } from '../privacy'
+import { createPrivacyProtectedProvider, protectOutboundText, type PrivacyReviewRequest } from '../privacy'
 import { AgentPermissionEngine, buildAgentAccess, buildAgentContext, createAgentApplicationServices, createCompanionToolRegistry, runAgent } from './agent'
 import type { AgentPermissionRequest, AgentRuntimeStatus } from './agent/types'
 
@@ -77,6 +78,13 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
       if (isCompleted !== completed) current.toggleTodoForDate(id, date)
       return { updated: true, id, date, completed }
     },
+    setTodoHoliday: (date, holiday) => {
+      requireDate(date, '休假日期')
+      const current = useLibraryStore.getState()
+      const isHoliday = current.data.planner.holidayDates.includes(date)
+      if (isHoliday !== holiday) current.toggleTodoHoliday(date)
+      return { updated: true, date, holiday }
+    },
     createCalendarEvent: (title, date, time) => {
       if (!isoDate.test(date)) throw new Error('日历日期必须使用 YYYY-MM-DD')
       if (time && !clockTime.test(time)) throw new Error('事务时间必须使用 HH:mm')
@@ -107,6 +115,21 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
       requireDate(date, '日记日期')
       useLibraryStore.getState().saveDiaryEntry({ date, title: title.trim(), content: content.trim(), updatedAt: new Date().toISOString() })
       return { saved: true, date, characters: content.trim().length }
+    },
+    saveMood: (date, period, pointsJson, note) => {
+      requireDate(date, '情绪日期')
+      if (!['morning', 'afternoon', 'evening'].includes(period)) throw new Error('情绪时段无效')
+      const allowed = new Set<MoodKind>(['happy', 'excited', 'satisfied', 'hopeful', 'calm', 'relaxed', 'anxious', 'irritated', 'angry', 'sad', 'lonely', 'tired'])
+      let raw: unknown
+      try { raw = JSON.parse(pointsJson) } catch { throw new Error('情绪点必须是有效 JSON') }
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('情绪点必须是对象')
+      const points = Object.fromEntries(Object.entries(raw).map(([kind, count]) => {
+        if (!allowed.has(kind as MoodKind) || typeof count !== 'number' || !Number.isInteger(count) || count < 0 || count > 5) throw new Error('情绪名称或点数无效')
+        return [kind, count]
+      })) as Partial<Record<MoodKind, number>>
+      if (Object.values(points).reduce((sum, count) => sum + (count ?? 0), 0) !== 5) throw new Error('情绪点合计必须为 5')
+      useLibraryStore.getState().saveMoodEntry({ date, period: period as MoodPeriod, points, note })
+      return { saved: true, date, period }
     },
     createWork: (title) => {
       useLibraryStore.getState().createWork()
@@ -197,9 +220,16 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
       if (!saved) throw new Error('这条记忆无法保存；加密作品内容不会写入普通记忆')
       return { saved: true }
     },
-    navigate: (view) => {
-      useLibraryStore.getState().navigate(view as ViewId)
-      return { opened: view }
+    openDestination: (input) => {
+      useLibraryStore.getState().openAgentDestination({
+        destination: input.destination,
+        date: input.date,
+        range: input.range === 'week' || input.range === 'month' ? input.range : undefined,
+        targetId: input.targetId,
+        filter: input.filter,
+        section: input.section,
+      })
+      return { opened: input.destination, ...input }
     },
     controlMusic: (action) => {
       const current = useLibraryStore.getState()
@@ -208,6 +238,12 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
       else current.togglePlayback()
       return { action }
     },
+    searchWeb: async (query) => searchWeb(await protectOutboundText(query, {
+      trust: data.settings.trust,
+      destination: 'Bing Search',
+      purpose: '联网查询',
+      requestReview: options.requestPrivacyReview,
+    })),
   })
   const registry = createCompanionToolRegistry(options.onVisualState)
   const permissions = new AgentPermissionEngine({

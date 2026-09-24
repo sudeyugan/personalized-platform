@@ -63,7 +63,7 @@ async function thumbnailBytes(file: Blob) {
 }
 
 export const assetRepository = {
-  async importImage(file: File, context: { workId?: string; chapterId?: string } = {}): Promise<Asset> {
+  async importImage(file: File, context: { workId?: string; chapterId?: string; purpose?: Asset['purpose'] } = {}): Promise<Asset> {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) throw new Error('仅支持 JPG、PNG 和 WebP 图片')
     if (file.size > 25 * 1024 * 1024) throw new Error('图片必须小于 25 MB')
     const { width, height } = await dimensions(file)
@@ -75,7 +75,7 @@ export const assetRepository = {
       browserAssets.set(id, file)
       receipt = { id, fileName: file.name, mimeType: file.type, size: file.size, sha256: `preview-${id}` }
     }
-    return { ...receipt, width, height, workId: context.workId, chapterIds: context.chapterId ? [context.chapterId] : [], createdAt: new Date().toISOString() }
+    return { ...receipt, width, height, workId: context.workId, chapterIds: context.chapterId ? [context.chapterId] : [], purpose: context.purpose ?? 'creative', createdAt: new Date().toISOString() }
   },
 
   async importCompanionVideo(file: File, onProgress?: (message: string) => void): Promise<Asset> {
@@ -102,7 +102,7 @@ export const assetRepository = {
       browserAssets.set(id, file)
       receipt = { id, fileName: file.name, mimeType: 'video/webm', size: file.size, sha256: `preview-${id}` }
     }
-    return { ...receipt, mimeType: 'video/webm', width, height, chapterIds: [], createdAt: new Date().toISOString() }
+    return { ...receipt, mimeType: 'video/webm', width, height, chapterIds: [], purpose: 'companion', createdAt: new Date().toISOString() }
   },
 
   async readUrl(asset: Pick<Asset, 'id' | 'mimeType'>, thumbnail = false) {

@@ -7,7 +7,7 @@ import { CompanionSettingsSection } from './CompanionSettingsSection'
 export function IntelligenceSettingsHub() {
   const { data } = useLibraryStore()
   const permissions = data.companion.permissions
-  const permissionCount = permissions.workIds.length + permissions.chapterIds.length + Number(permissions.records) + Number(permissions.musicContext)
+  const permissionCount = permissions.workIds.length + permissions.chapterIds.length + Number(permissions.records) + Number(permissions.planner) + Number(permissions.diary) + Number(permissions.mood) + Number(permissions.memories) + Number(permissions.answerBook) + Number(permissions.musicContext)
   const chatProvider = data.companion.provider.providerId === 'deepseek' ? 'DeepSeek' : data.companion.provider.providerId === 'mock' ? '本地 Mock' : '自定义'
   const imageProvider = data.settings.ai.providerId === 'openrouter' ? 'OpenRouter' : data.settings.ai.providerId === 'mock' ? '本地 Mock' : '自定义'
 

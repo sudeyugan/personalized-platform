@@ -14,6 +14,7 @@ import { createCompanionSlice } from './companionSlice'
 import { createPlannerSlice } from './plannerSlice'
 import { createAnswerBookSlice } from './answerBookSlice'
 import { formatLocalDate } from '../domain/localDate'
+import { viewForAgentDestination } from '../modules/companion/agent/featureContract'
 
 const initialData = createSeedLibrary()
 
@@ -83,6 +84,29 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
         ...(activeView === 'diary' ? { activeDiaryDate: formatLocalDate() } : {}),
       },
     }
+    set({ data })
+    void persist(data)
+  },
+
+  openAgentDestination: (request) => {
+    const activeView = viewForAgentDestination(request.destination)
+    if (!activeView) return
+    const current = get().data
+    const intent = { ...request, id: `agent-navigation-${crypto.randomUUID()}` }
+    const nextSession = {
+      ...current.session,
+      activeView,
+      agentNavigation: intent,
+      ...(request.destination === 'diary.day' && request.date ? { activeDiaryDate: request.date } : {}),
+      ...(request.destination === 'writing.chapter' && request.targetId && current.chapters[request.targetId] ? {
+        activeChapterId: request.targetId,
+        openChapterIds: current.session.openChapterIds.includes(request.targetId) ? current.session.openChapterIds : [...current.session.openChapterIds, request.targetId],
+      } : {}),
+      ...(request.targetId && request.destination.startsWith('record.') ? {
+        activeRecord: { type: request.destination === 'record.person' ? 'person' as const : request.destination === 'record.place' ? 'place' as const : 'event' as const, id: request.targetId },
+      } : {}),
+    }
+    const data = { ...current, session: nextSession }
     set({ data })
     void persist(data)
   },

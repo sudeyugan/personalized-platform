@@ -1,9 +1,10 @@
-import { useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { MoodEntry, MoodKind, MoodPeriod, MoodPoints } from '../../domain/models'
 import { formatLocalDate } from '../../domain/localDate'
 import { moodOptions, moodPeriods } from './moodConfig'
 import { MoodBlendBar } from './MoodBlendBar'
 import { moodSummary } from './moodUtils'
+import { useLibraryStore } from '../../state/useLibraryStore'
 
 type ReflectionRange = 'week' | 'month'
 type DetailMode = 'day' | 'range'
@@ -56,11 +57,21 @@ export function MoodStats({ entries, referenceDate, range }: { entries: MoodEntr
 }
 
 function MoodReflection({ entries, referenceDate }: { entries: MoodEntry[]; referenceDate: string }) {
+  const navigation = useLibraryStore((state) => state.data.session.agentNavigation)
+  const detailsRef = useRef<HTMLDetailsElement>(null)
   const [range, setRange] = useState<ReflectionRange>('week')
+  const [anchorDate, setAnchorDate] = useState(referenceDate)
   const [selectedDate, setSelectedDate] = useState(referenceDate)
   const [detailMode, setDetailMode] = useState<DetailMode>('day')
+  useEffect(() => {
+    if (navigation?.destination !== 'mood.reflection') return
+    if (navigation.range === 'week' || navigation.range === 'month') setRange(navigation.range)
+    if (navigation.date) { setAnchorDate(navigation.date); setSelectedDate(navigation.date) }
+    setDetailMode('day')
+    if (detailsRef.current) detailsRef.current.open = true
+  }, [navigation?.id, navigation?.destination, navigation?.range, navigation?.date])
   const stats = useMemo(() => {
-    const dates = datesFor(referenceDate, range)
+    const dates = datesFor(anchorDate, range)
     const dateSet = new Set(dates)
     const selected = entries.filter((entry) => dateSet.has(entry.date))
     const totals = totalsFor(selected)
@@ -78,19 +89,19 @@ function MoodReflection({ entries, referenceDate }: { entries: MoodEntry[]; refe
       period.id,
       selected.filter((entry) => entry.period === period.id).length,
     ])) as Record<MoodPeriod, number>
-    return { dates, selected, totals, totalPoints, composition, byPeriod, byPeriodCount, expected: availableSlots(dates, referenceDate) }
-  }, [entries, range, referenceDate])
+    return { dates, selected, totals, totalPoints, composition, byPeriod, byPeriodCount, expected: availableSlots(dates, anchorDate) }
+  }, [entries, range, anchorDate])
 
   const entryFor = (date: string, period: MoodPeriod) => stats.selected.find((entry) => entry.date === date && entry.period === period)
-  const activeDate = stats.dates.includes(selectedDate) ? selectedDate : referenceDate
+  const activeDate = stats.dates.includes(selectedDate) ? selectedDate : anchorDate
   const activeDateLabel = new Date(`${activeDate}T12:00:00`).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' })
   const chooseDate = (date: string) => { setSelectedDate(date); setDetailMode('day') }
-  const chooseRange = (nextRange: ReflectionRange) => { setRange(nextRange); setSelectedDate(referenceDate); setDetailMode('day') }
+  const chooseRange = (nextRange: ReflectionRange) => { setRange(nextRange); setSelectedDate(anchorDate); setDetailMode('day') }
   const firstWeekday = new Date(`${stats.dates[0]}T12:00:00`).getDay()
   const monthOffset = firstWeekday === 0 ? 7 : firstWeekday
 
   return (
-    <details className="mood-stats">
+    <details className="mood-stats" ref={detailsRef}>
       <summary><span>情绪回望</span><strong>看看情绪如何经过这一段时间</strong></summary>
       <div className="mood-stats-body">
         <header className="mood-reflection-header">

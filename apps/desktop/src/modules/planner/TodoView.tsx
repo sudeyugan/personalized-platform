@@ -1,5 +1,5 @@
 import { CalendarClock, CalendarOff, Check, Circle, ListTodo, Plus, Repeat2, Settings2, Target } from 'lucide-react'
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import type { CourseDay, TodoItem } from '../../domain/models'
 import { formatLocalDate } from '../../domain/localDate'
 import { useLibraryStore } from '../../state/useLibraryStore'
@@ -21,6 +21,12 @@ export function TodoView() {
   const [repeatDays, setRepeatDays] = useState<CourseDay[]>([dayNumber(today)])
   const [filter, setFilter] = useState<Filter>('today')
   const [settingsTodoId, setSettingsTodoId] = useState<string>()
+  useEffect(() => {
+    const navigation = data.session.agentNavigation
+    if (navigation?.destination !== 'todos') return
+    if (navigation.filter === 'today' || navigation.filter === 'all' || navigation.filter === 'done') setFilter(navigation.filter)
+    if (navigation.targetId && data.planner.todos.some((todo) => todo.id === navigation.targetId)) setSettingsTodoId(navigation.targetId)
+  }, [data.session.agentNavigation?.id, data.planner.todos])
   const holidayDates = data.planner.holidayDates ?? []
   const todayIsHoliday = isTodoHoliday(holidayDates, today)
   const completedToday = (todo: TodoItem) => isTodoCompletedOn(todo, today)

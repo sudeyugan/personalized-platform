@@ -8,7 +8,7 @@ type SetStore = (partial: Partial<LibraryStore>) => void
 const commit = (data: LibraryData, set: SetStore) => { set({ data }); void libraryRepository.save(data) }
 const characterSpriteAssetId = (sprite: CharacterSpriteReference) => typeof sprite === 'string' ? sprite : sprite.assetId
 
-export function createAssetsSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, 'importAsset' | 'importCompanionVideo' | 'updateAsset' | 'trashAsset' | 'restoreAsset' | 'permanentlyDeleteAsset' | 'linkAssetToChapter' | 'setChapterImpression' | 'recordAiGeneration'> {
+export function createAssetsSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, 'importAsset' | 'importCompanionVideo' | 'updateAsset' | 'trashAsset' | 'restoreAsset' | 'permanentlyDeleteAsset' | 'cleanupUnusedCompanionAssets' | 'linkAssetToChapter' | 'setChapterImpression' | 'recordAiGeneration'> {
   return {
     importAsset: async (file, context) => {
       const asset = await assetRepository.importImage(file, context)
@@ -39,6 +39,17 @@ export function createAssetsSlice(get: () => LibraryStore, set: SetStore): Pick<
         ? { ...current.companion, appearance: { ...current.companion.appearance, portraitAssetId: undefined }, desktop: { ...current.companion.desktop, visual: { type: 'portrait' as const } } }
         : { ...current.companion, desktop: { ...current.companion.desktop, videoAssets: videos, videoClips: clips, visual: visual.type === 'video' ? clips.idle?.length ? { type: 'video' as const, videos, clips } : { type: 'portrait' as const, assetId: current.companion.appearance.portraitAssetId } : visual } }
       commit({ ...current, assets: current.assets.filter((item) => item.id !== id), chapters: Object.fromEntries(Object.entries(current.chapters).map(([chapterId, chapter]) => [chapterId, chapter.impressionAssetId === id ? { ...chapter, impressionAssetId: undefined } : chapter])), companion }, set)
+    },
+    cleanupUnusedCompanionAssets: async () => {
+      const current = get().data
+      const referenced = referencedAssetIds(current)
+      const unused = current.assets.filter((asset) => asset.purpose === 'companion' && !referenced.has(asset.id))
+      const removed = new Set<string>()
+      for (const asset of unused) {
+        try { await assetRepository.delete(asset); removed.add(asset.id) } catch { /* Keep failed files and metadata for a later retry. */ }
+      }
+      if (removed.size) commit({ ...current, assets: current.assets.filter((asset) => !removed.has(asset.id)) }, set)
+      return removed.size
     },
     linkAssetToChapter: (assetId, chapterId) => { const current = get().data; commit({ ...current, assets: current.assets.map((asset) => asset.id === assetId ? { ...asset, chapterIds: [...new Set([...asset.chapterIds, chapterId])] } : asset) }, set) },
     setChapterImpression: (chapterId, assetId) => { const current = get().data; commit({ ...current, chapters: { ...current.chapters, [chapterId]: { ...current.chapters[chapterId], impressionAssetId: assetId } }, assets: current.assets.map((asset) => asset.id === assetId ? { ...asset, chapterIds: [...new Set([...asset.chapterIds, chapterId])] } : asset) }, set) },
@@ -82,4 +93,4 @@ export function referencedAssetIds(data: LibraryData) {
   return ids
 }
 
-export function orphanAssets(data: LibraryData) { const referenced = referencedAssetIds(data); return data.assets.filter((asset) => !asset.deletedAt && !referenced.has(asset.id)) }
+export function orphanAssets(data: LibraryData) { const referenced = referencedAssetIds(data); return data.assets.filter((asset) => asset.purpose !== 'companion' && !asset.deletedAt && !referenced.has(asset.id)) }

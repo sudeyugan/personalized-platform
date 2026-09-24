@@ -3,6 +3,7 @@ import { CommitStrategy, RealtimeConnection, RealtimeEvents, Scribe } from '@ele
 import { useEffect, useRef, type Dispatch, type RefObject, type SetStateAction } from 'react'
 import { localVoice } from '../../infrastructure/localVoice'
 import type { CompanionDesktopSnapshot } from './companionDesktop'
+import { hasBargeInSignal, isDuplicateUtterance, isLikelyPlaybackEcho, resolveVoiceCommand, type VoiceConversationPhase } from './voiceConversation'
 
 const FOLLOW_UP_WINDOW_MS = 15_000
 const MAX_SESSION_MS = 120_000
@@ -11,17 +12,20 @@ interface CompanionVoiceWakeOptions {
   voice: CompanionDesktopSnapshot['voice']
   agentBusy: RefObject<boolean>
   speechBusy: RefObject<boolean>
+  spokenText: RefObject<string>
   requestToken: () => Promise<string>
   setSpeechNote: Dispatch<SetStateAction<string>>
 }
 
-export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, requestToken, setSpeechNote }: CompanionVoiceWakeOptions) {
+export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText, requestToken, setSpeechNote }: CompanionVoiceWakeOptions) {
   const cloudConnection = useRef<RealtimeConnection | undefined>(undefined)
   const localMonitor = useRef<{ stop: () => void } | undefined>(undefined)
-  const commitTimer = useRef<number | undefined>(undefined)
   const followUpTimer = useRef<number | undefined>(undefined)
   const sessionTimer = useRef<number | undefined>(undefined)
   const armed = useRef(false)
+  const phase = useRef<VoiceConversationPhase>('sleeping')
+  const interruptionPending = useRef(false)
+  const lastUtterance = useRef<{ text: string; at: number } | undefined>(undefined)
 
   useEffect(() => {
     if (!voice.wakeEnabled || voice.sttProviderId !== 'elevenlabs') {
@@ -30,7 +34,8 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, requestTok
       cloudConnection.current?.close()
       cloudConnection.current = undefined
       armed.current = false
-      window.clearTimeout(commitTimer.current)
+      phase.current = 'sleeping'
+      interruptionPending.current = false
       window.clearTimeout(followUpTimer.current)
       window.clearTimeout(sessionTimer.current)
       return
@@ -39,10 +44,21 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, requestTok
     let reconnectTimer: number | undefined
     let closingCloud = false
 
+    const setVoiceActivity = (active: boolean) => {
+      void emitTo('main', 'companion:voice-activity', { active })
+    }
+    const resumeInterruptedSpeech = () => {
+      if (!interruptionPending.current) return
+      interruptionPending.current = false
+      if (speechBusy.current) void emitTo('main', 'companion:speech-pause', { paused: false })
+    }
+
     const endConversation = (hide = false) => {
       window.clearTimeout(followUpTimer.current)
       window.clearTimeout(sessionTimer.current)
       armed.current = false
+      phase.current = 'sleeping'
+      setVoiceActivity(false)
       closingCloud = true
       cloudConnection.current?.close()
       cloudConnection.current = undefined
@@ -79,36 +95,58 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, requestTok
       if (!armed.current) return
       const text = value.trim()
       if (!text) return
-      const normalized = text.replace(/[，。！？,.!?\s]/g, '')
-      if (/^(?:小鱼)?(?:藏起来|隐藏起来|休息吧|退下吧)$/.test(normalized)) {
+      if (isDuplicateUtterance(lastUtterance.current, text)) return
+      lastUtterance.current = { text, at: Date.now() }
+      const command = resolveVoiceCommand(text)
+      if (command === 'hide') {
         void emitTo('main', 'companion:turn-stop', {})
         void emitTo('main', 'companion:speech-stop', {})
         endConversation(true)
         return
       }
-      if (/^(?:小鱼)?(?:先这样|结束对话|不聊了)$/.test(normalized)) {
+      if (command === 'end') {
         void emitTo('main', 'companion:turn-stop', {})
         void emitTo('main', 'companion:speech-stop', {})
         endConversation()
         return
       }
-      if (agentBusy.current || speechBusy.current) return
+      if ((speechBusy.current || interruptionPending.current) && isLikelyPlaybackEcho(text, spokenText.current)) {
+        setVoiceActivity(false)
+        resumeInterruptedSpeech()
+        phase.current = 'speaking'
+        setSpeechNote('还在听，你可以随时打断。')
+        return
+      }
+      const replacing = agentBusy.current || speechBusy.current || interruptionPending.current
+      if (replacing) {
+        phase.current = 'interrupted'
+        void emitTo('main', 'companion:turn-stop', {})
+        void emitTo('main', 'companion:speech-stop', {})
+      }
+      interruptionPending.current = false
+      setVoiceActivity(false)
+      phase.current = 'committing'
       scheduleFollowUp()
-      setSpeechNote('语音聊天中，回答后可以继续说。')
+      setSpeechNote(replacing ? '已打断上一条回答，正在处理新问题。' : '听到了，正在处理。')
       void emitTo('main', 'companion:chat-open-request', {})
-      void emitTo('main', 'companion:chat-send', { message: text, inputMode: 'voice', wake: true })
+      void emitTo('main', 'companion:chat-send', { message: text, inputMode: 'voice', wake: true, replace: true })
     }
     const connectConversation = async () => {
       try {
         const token = await requestToken()
         if (disposed || !armed.current) return
-        let partial = ''
         const connection = Scribe.connect({
           token,
           modelId: 'scribe_v2_realtime',
           languageCode: 'zh',
           secondaryLanguages: ['en'],
-          commitStrategy: CommitStrategy.MANUAL,
+          commitStrategy: CommitStrategy.VAD,
+          vadSilenceThresholdSecs: 0.8,
+          vadThreshold: 0.45,
+          minSpeechDurationMs: 250,
+          minSilenceDurationMs: 650,
+          filterBackgroundAudio: true,
+          noVerbatim: true,
           microphone: {
             echoCancellation: true,
             noiseSuppression: true,
@@ -117,13 +155,25 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, requestTok
           },
         })
         connection.on(RealtimeEvents.PARTIAL_TRANSCRIPT, (event) => {
-          partial = event.text
-          window.clearTimeout(commitTimer.current)
-          commitTimer.current = window.setTimeout(() => { if (partial.trim()) connection.commit() }, 900)
+          if (!event.text.trim()) return
+          phase.current = 'listening'
+          setVoiceActivity(true)
+          if (speechBusy.current && hasBargeInSignal(event.text) && !isLikelyPlaybackEcho(event.text, spokenText.current) && !interruptionPending.current) {
+            interruptionPending.current = true
+            phase.current = 'interrupted'
+            setSpeechNote('听到你在说话，已暂停朗读。')
+            void emitTo('main', 'companion:speech-pause', { paused: true })
+          }
         })
-        connection.on(RealtimeEvents.COMMITTED_TRANSCRIPT, (event) => { partial = ''; handleUtterance(event.text) })
-        connection.on(RealtimeEvents.ERROR, (event) => setSpeechNote(`语音聊天暂不可用：${event.error || '实时转写失败'}`))
+        connection.on(RealtimeEvents.COMMITTED_TRANSCRIPT, (event) => handleUtterance(event.text))
+        connection.on(RealtimeEvents.ERROR, (event) => {
+          setVoiceActivity(false)
+          resumeInterruptedSpeech()
+          setSpeechNote(`语音聊天暂不可用：${event.error || '实时转写失败'}`)
+        })
         connection.on(RealtimeEvents.CLOSE, () => {
+          setVoiceActivity(false)
+          resumeInterruptedSpeech()
           if (cloudConnection.current === connection) cloudConnection.current = undefined
           if (disposed || closingCloud) {
             closingCloud = false
@@ -132,6 +182,7 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, requestTok
           if (armed.current) reconnectTimer = window.setTimeout(() => void connectConversation(), 1500)
         })
         cloudConnection.current = connection
+        phase.current = 'listening'
         setSpeechNote(`${voice.wakeWord}在听，请说出问题。`)
       } catch (error) {
         if (disposed || !armed.current) return
@@ -144,6 +195,7 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, requestTok
       localMonitor.current?.stop()
       localMonitor.current = undefined
       armed.current = true
+      phase.current = 'listening'
       closingCloud = false
       void emitTo('main', 'companion:voice-show-request', {})
       void emitTo('main', 'companion:chat-open-request', {})
@@ -183,7 +235,6 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, requestTok
     return () => {
       disposed = true
       window.clearTimeout(reconnectTimer)
-      window.clearTimeout(commitTimer.current)
       window.clearTimeout(followUpTimer.current)
       window.clearTimeout(sessionTimer.current)
       localMonitor.current?.stop()
@@ -192,6 +243,9 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, requestTok
       cloudConnection.current?.close()
       cloudConnection.current = undefined
       armed.current = false
+      phase.current = 'sleeping'
+      interruptionPending.current = false
+      setVoiceActivity(false)
     }
-  }, [agentBusy, requestToken, setSpeechNote, speechBusy, voice.speakerVerification, voice.sttProviderId, voice.wakeEnabled, voice.wakeSensitivity, voice.wakeWord])
+  }, [agentBusy, requestToken, setSpeechNote, speechBusy, spokenText, voice.speakerVerification, voice.sttProviderId, voice.wakeEnabled, voice.wakeSensitivity, voice.wakeWord])
 }

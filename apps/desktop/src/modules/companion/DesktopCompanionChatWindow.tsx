@@ -31,6 +31,7 @@ export function DesktopCompanionChatWindow() {
   const realtimeConnection = useRef<RealtimeConnection | undefined>(undefined)
   const agentBusy = useRef(false)
   const speechBusy = useRef(false)
+  const spokenText = useRef('')
   const tokenRequests = useRef(new Map<string, { resolve: (token: string) => void; reject: (error: Error) => void }>())
 
   useEffect(() => { agentBusy.current = Boolean(snapshot.agentStatus) }, [snapshot.agentStatus])
@@ -48,7 +49,7 @@ export function DesktopCompanionChatWindow() {
       }, 20_000)
     })
   }, [])
-  useCompanionVoiceWake({ voice: snapshot.voice, agentBusy, speechBusy, requestToken: requestVoiceToken, setSpeechNote })
+  useCompanionVoiceWake({ voice: snapshot.voice, agentBusy, speechBusy, spokenText, requestToken: requestVoiceToken, setSpeechNote })
 
   useEffect(() => {
     let stopSnapshot: (() => void) | undefined
@@ -64,7 +65,7 @@ export function DesktopCompanionChatWindow() {
     let stopSendAccepted: (() => void) | undefined
     let stopTransientMessage: (() => void) | undefined
     let stopTransientClear: (() => void) | undefined
-    void listen<CompanionDesktopSnapshot>('companion:snapshot', (event) => setSnapshot(event.payload)).then((value) => { stopSnapshot = value; void emitTo('main', 'companion:ready') })
+    void listen<CompanionDesktopSnapshot>('companion:snapshot', (event) => { agentBusy.current = Boolean(event.payload.agentStatus); setSnapshot(event.payload) }).then((value) => { stopSnapshot = value; void emitTo('main', 'companion:ready') })
     void listen<{ draft?: string }>('companion:open-chat', (event) => setDraft(event.payload.draft ?? '')).then((value) => { stopOpen = value })
     void listen<{ text: string }>('companion:voice-transcript', (event) => { voiceDraft.current = true; setDraft((value) => [value.trim(), event.payload.text.trim()].filter(Boolean).join(' ')) }).then((value) => { stopTranscript = value })
     void listen<{ message: string }>('companion:voice-error', (event) => setDraft((value) => value || `语音暂不可用：${event.payload.message.replace(/^[A-Z_]+:/, '')}`)).then((value) => { stopVoiceError = value })
@@ -78,7 +79,13 @@ export function DesktopCompanionChatWindow() {
     }).then((value) => { stopToken = value })
     void listen<{ requestId: string; request: AgentPermissionRequest }>('companion:permission-request', (event) => setPermissionRequest(event.payload)).then((value) => { stopPermission = value })
     void listen<{ requestId: string; request: PrivacyReviewRequest }>('companion:privacy-review-request', (event) => setPrivacyReview(event.payload)).then((value) => { stopPrivacy = value })
-    void listen<{ active: boolean; paused?: boolean }>('companion:speech-state', (event) => { setSpeechActive(event.payload.active); setSpeechPaused(Boolean(event.payload.paused)) }).then((value) => { stopSpeechState = value })
+    void listen<{ active: boolean; paused?: boolean; text?: string }>('companion:speech-state', (event) => {
+      speechBusy.current = event.payload.active
+      setSpeechActive(event.payload.active)
+      setSpeechPaused(Boolean(event.payload.paused))
+      if (event.payload.text !== undefined) spokenText.current = event.payload.text
+      else if (!event.payload.active) spokenText.current = ''
+    }).then((value) => { stopSpeechState = value })
     void listen<{ message: string }>('companion:speech-note', (event) => setSpeechNote(event.payload.message)).then((value) => { stopSpeechNote = value })
     void listen<{ requestId: string }>('companion:chat-send-accepted', (event) => {
       const pending = pendingSend.current
@@ -108,6 +115,7 @@ export function DesktopCompanionChatWindow() {
       stopTransientMessage?.()
       stopTransientClear?.()
       realtimeConnection.current?.close()
+      void emitTo('main', 'companion:voice-activity', { active: false })
       window.clearTimeout(sendAckTimer.current)
       tokenRequests.current.forEach((pending) => pending.reject(new Error('VOICE_CANCELLED:语音窗口已关闭')))
       tokenRequests.current.clear()
@@ -160,6 +168,11 @@ export function DesktopCompanionChatWindow() {
       return
     }
     try {
+      if (snapshot.agentStatus || speechActive) {
+        void emitTo('main', 'companion:turn-stop', {})
+        void emitTo('main', 'companion:speech-stop', {})
+        setSpeechNote('已停止上一条回答，现在听你说。')
+      }
       if (snapshot.voice.sttProviderId === 'elevenlabs') {
         const token = await requestVoiceToken()
         const prefix = draft.trim()
@@ -178,13 +191,13 @@ export function DesktopCompanionChatWindow() {
             workletPaths: { scribeAudioProcessor: '/vendor/elevenlabs/scribe-audio-processor.js' },
           },
         })
-        connection.on(RealtimeEvents.PARTIAL_TRANSCRIPT, (event) => updateDraft(event.text))
+        connection.on(RealtimeEvents.PARTIAL_TRANSCRIPT, (event) => { void emitTo('main', 'companion:voice-activity', { active: true }); updateDraft(event.text) })
         connection.on(RealtimeEvents.COMMITTED_TRANSCRIPT, (event) => { committed = [committed, event.text.trim()].filter(Boolean).join(' '); updateDraft() })
         connection.on(RealtimeEvents.ERROR, (event) => {
           setRecording(false)
           setDraft((value) => value || `语音暂不可用：${event.error || '实时转写失败'}`)
         })
-        connection.on(RealtimeEvents.CLOSE, () => { setRecording(false); realtimeConnection.current = undefined })
+        connection.on(RealtimeEvents.CLOSE, () => { void emitTo('main', 'companion:voice-activity', { active: false }); setRecording(false); realtimeConnection.current = undefined })
         realtimeConnection.current = connection
         setRecording(true)
         return
@@ -197,12 +210,14 @@ export function DesktopCompanionChatWindow() {
       recordingStream.current = stream
       nextRecorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data) }
       nextRecorder.onstop = () => {
+        void emitTo('main', 'companion:voice-activity', { active: false })
         setRecording(false)
         stream.getTracks().forEach((track) => track.stop())
         const audio = new Blob(chunks, { type: nextRecorder.mimeType || 'audio/webm' })
         if (audio.size) void audio.arrayBuffer().then((buffer) => emitTo('main', 'companion:voice-transcribe', { audio: [...new Uint8Array(buffer)], mimeType: audio.type }))
       }
       nextRecorder.start()
+      void emitTo('main', 'companion:voice-activity', { active: true })
       setRecording(true)
       window.setTimeout(() => { if (nextRecorder.state === 'recording') nextRecorder.stop() }, 60_000)
     } catch (error) {
@@ -216,7 +231,7 @@ export function DesktopCompanionChatWindow() {
       <div className="desktop-chat-messages">{[...snapshot.messages, ...transientMessages].map((message) => <div className={`desktop-chat-message ${message.role}`} key={message.id}><CompanionRichText text={message.content} /></div>)}{streamedReply && <div className="desktop-chat-message companion streaming"><CompanionRichText text={`${streamedReply}▋`} /></div>}{!snapshot.messages.length && !transientMessages.length && !streamedReply && <p className="empty">想说什么都可以。</p>}{speechNote && <small className="desktop-speech-note">{speechNote}</small>}</div>
       {permissionRequest && <AgentPermissionCard request={permissionRequest.request} onDecision={(allowed) => { void emitTo('main', 'companion:permission-response', { requestId: permissionRequest.requestId, allowed }); setPermissionRequest(undefined) }} />}
       {privacyReview && <PrivacyReviewCard request={privacyReview.request} onDecision={(allowed) => { void emitTo('main', 'companion:privacy-review-response', { requestId: privacyReview.requestId, allowed }); setPrivacyReview(undefined) }} />}
-      <div className="desktop-chat-compose"><button className={recording ? 'recording' : ''} disabled={!snapshot.voice.sttEnabled || snapshot.voice.wakeEnabled || Boolean(snapshot.agentStatus)} title={snapshot.voice.wakeEnabled ? '语音唤醒已接管麦克风，请说“小鱼”' : snapshot.voice.sttEnabled ? recording ? '停止录音并转写' : '按一下开始录音' : '请先在 AI 伙伴设置中配置语音服务'} onClick={() => void toggleRecording()}><Mic size={14} /></button><textarea rows={2} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); send() } }} placeholder="说点什么…" /><button disabled={!draft.trim() || sendPending} title={sendPending ? '正在发送' : snapshot.agentStatus ? '中止当前回答并发送这条消息' : '发送'} onClick={send}><Send size={14} /></button></div>
+      <div className="desktop-chat-compose"><button className={recording ? 'recording' : ''} disabled={!snapshot.voice.sttEnabled || snapshot.voice.wakeEnabled} title={snapshot.voice.wakeEnabled ? '语音唤醒已接管麦克风，请说“小鱼”' : snapshot.voice.sttEnabled ? recording ? '停止录音并转写' : snapshot.agentStatus || speechActive ? '按一下并打断当前回答' : '按一下开始录音' : '请先在 AI 伙伴设置中配置语音服务'} onClick={() => void toggleRecording()}><Mic size={14} /></button><textarea rows={2} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); send() } }} placeholder="说点什么…" /><button disabled={!draft.trim() || sendPending} title={sendPending ? '正在发送' : snapshot.agentStatus ? '中止当前回答并发送这条消息' : '发送'} onClick={send}><Send size={14} /></button></div>
     </section>
   </main>
 }

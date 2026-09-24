@@ -117,6 +117,7 @@ class CustomCompanionModel implements AgentModelProvider {
       request.context.activeWork ? `当前作品：${request.context.activeWork.title}` : '',
       request.context.activeChapter ? `当前章节：${request.context.activeChapter.title}` : '',
       request.context.selection ? `当前选择：${request.context.selection.slice(0, 1200)}` : '',
+      request.context.availableFeatures?.length ? `可介入功能：${request.context.availableFeatures.join('、')}` : '',
     ].filter(Boolean).join('\n')
     const messages = [
       { role: 'system', content: `以下是应用提供的受控上下文摘要，不代表额外授权：\n${context}` },

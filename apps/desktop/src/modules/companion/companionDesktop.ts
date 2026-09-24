@@ -38,7 +38,12 @@ export function companionVisualAssetIds(snapshot: CompanionDesktopSnapshot) {
 }
 
 export function companionDesktopSnapshot(companion: CompanionData, _activeView: string, playing: boolean, assets: Asset[] = [], overrideAction?: CompanionVideoState, agentStatus?: AgentRuntimeStatus, externalAiAllowed = true, desktopModeOverride?: CompanionDesktopMode): CompanionDesktopSnapshot {
-  const action: CompanionVideoState = overrideAction ?? (agentStatus?.phase === 'thinking' || agentStatus?.phase === 'using_tool' ? 'thinking' : agentStatus?.phase === 'responding' ? 'speaking' : playing ? 'listening' : companion.expression === 'thinking' ? 'thinking' : 'idle')
+  const interactionAction: CompanionVideoState = agentStatus?.phase === 'thinking' || agentStatus?.phase === 'using_tool' ? 'thinking' : agentStatus?.phase === 'responding' ? 'speaking' : playing ? 'listening' : companion.expression === 'thinking' ? 'thinking' : 'idle'
+  const action: CompanionVideoState = overrideAction === 'listening' || overrideAction === 'thinking' || overrideAction === 'speaking'
+    ? overrideAction
+    : interactionAction !== 'idle'
+      ? interactionAction
+      : overrideAction ?? 'idle'
   const storedVisual = companion.desktop.visual ?? { type: 'portrait', assetId: companion.appearance.portraitAssetId }
   const visual = storedVisual.type === 'video' ? { ...storedVisual, clips: companion.desktop.videoClips ?? storedVisual.clips } : storedVisual
   const ids = visual.type === 'portrait' && visual.assetId ? new Set([visual.assetId]) : visual.type === 'video' ? new Set(companionVisualAssetIds({ ...emptyCompanionDesktopSnapshot, visual })) : new Set<string>()

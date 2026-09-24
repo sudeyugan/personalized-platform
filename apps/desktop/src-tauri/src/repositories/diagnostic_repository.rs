@@ -43,6 +43,7 @@ impl DiagnosticRepository {
             "platform": { "os": std::env::consts::OS, "arch": std::env::consts::ARCH },
             "storage": { "location": if root == app_base(app)? { "default" } else { "custom" }, "databaseBytes": file_size(&root.join("yiyu.sqlite")), "assets": directory_stats(&root.join("assets")), "vaults": directory_stats(&root.join("vaults")), "recoveryDrafts": directory_stats(&root.join("recovery/drafts")) },
             "library": { "revision": snapshot.as_ref().map_or(0, |item| item.revision), "works": array_count(data, "works"), "chapters": object_count(data, "chapters"), "people": array_count(data, "people"), "places": array_count(data, "places"), "events": array_count(data, "events"), "assets": array_count(data, "assets"), "encryptedWorks": encrypted_count(data) },
+            "network": { "webSearch": web_search_diagnostics(data) },
             "privacy": { "containsDocumentText": false, "containsTitles": false, "containsApiKeys": false, "pathsRedacted": true },
         });
         let file = fs::File::create(&partial).map_err(io_error)?;
@@ -63,6 +64,22 @@ impl DiagnosticRepository {
         fs::rename(partial, &target).map_err(io_error)?;
         Ok(target.to_string_lossy().into_owned())
     }
+}
+
+fn web_search_diagnostics(data: Option<&Value>) -> Vec<Value> {
+    data.and_then(|item| item.pointer("/companion/agentAudit"))
+        .and_then(Value::as_array)
+        .into_iter().flatten().rev()
+        .filter(|entry| entry.get("toolName").and_then(Value::as_str) == Some("web.search"))
+        .take(12)
+        .map(|entry| json!({
+            "timestamp": entry.get("timestamp"),
+            "resultStatus": entry.get("resultStatus"),
+            "durationMs": entry.get("durationMs"),
+            "errorCode": entry.get("errorCode"),
+            "errorDetail": entry.get("errorDetail"),
+        }))
+        .collect()
 }
 
 pub fn install_panic_marker(app: &AppHandle) -> Result<(), String> {

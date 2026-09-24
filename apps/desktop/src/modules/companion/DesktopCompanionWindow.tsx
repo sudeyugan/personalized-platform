@@ -5,23 +5,15 @@ import { availableMonitors, getCurrentWindow, type Monitor } from '@tauri-apps/a
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CompanionVideoState } from '../../domain/models'
 import { companionVisualAssetIds, emptyCompanionDesktopSnapshot, type CompanionDesktopSnapshot } from './companionDesktop'
+import { availableIdleInterludes, chooseDifferentItem, configuredClipsForState, isSustainedVideoState, isTransientVideoState, nextIdleInterludeDelay } from './companionVideoPlayback'
 
 type ReadyVisual = { id: string; kind: 'image' | 'video'; url: string }
 
 function clipsForState(snapshot: CompanionDesktopSnapshot, state: CompanionVideoState) {
-  if (snapshot.visual.type !== 'video') return []
-  const clips = snapshot.visual.clips?.[state]?.filter(Boolean) ?? []
+  const clips = configuredClipsForState(snapshot.visual, state)
   if (clips.length) return clips
-  const legacy = snapshot.visual.videos[state]
-  if (legacy) return [legacy]
   if (state === 'idle') return []
   return clipsForState(snapshot, 'idle')
-}
-
-function chooseDifferentClip(clips: string[], previous?: string) {
-  if (clips.length < 2) return clips[0]
-  const candidates = clips.filter((id) => id !== previous)
-  return candidates[Math.floor(Math.random() * candidates.length)]
 }
 
 function nearestMonitor(monitors: Monitor[], x: number, y: number) {
@@ -88,6 +80,8 @@ export function DesktopCompanionWindow() {
   const [readyVisual, setReadyVisual] = useState<ReadyVisual>()
   const [outgoingVisual, setOutgoingVisual] = useState<ReadyVisual>()
   const [selectedVideoId, setSelectedVideoId] = useState<string>()
+  const [idleInterlude, setIdleInterlude] = useState<CompanionVideoState>()
+  const previousIdleInterlude = useRef<CompanionVideoState | undefined>(undefined)
   const visualTransitionTimer = useRef<number | undefined>(undefined)
   const pointerStart = useRef<{ x: number; y: number } | undefined>(undefined)
   const pointerId = useRef<number | undefined>(undefined)
@@ -120,11 +114,27 @@ export function DesktopCompanionWindow() {
     return () => { stopMoved?.(); globalThis.clearTimeout(correctionTimer) }
   }, [])
   const portraitUrl = snapshot.visual.type === 'portrait' && snapshot.visual.assetId ? urls[snapshot.visual.assetId] : undefined
-  const videoCandidates = useMemo(() => clipsForState(snapshot, snapshot.action), [snapshot])
+  const displayedAction = idleInterlude ?? snapshot.action
+  const videoCandidates = useMemo(() => clipsForState(snapshot, displayedAction), [displayedAction, snapshot])
   useEffect(() => {
     if (snapshot.visual.type !== 'video') { setSelectedVideoId(undefined); return }
-    setSelectedVideoId((current) => videoCandidates.includes(current ?? '') ? current : chooseDifferentClip(videoCandidates, current))
-  }, [snapshot.action, snapshot.visual, videoCandidates])
+    setSelectedVideoId((current) => videoCandidates.includes(current ?? '') ? current : chooseDifferentItem(videoCandidates, current))
+  }, [displayedAction, snapshot.visual, videoCandidates])
+  useEffect(() => {
+    if (snapshot.action !== 'idle') setIdleInterlude(undefined)
+  }, [snapshot.action])
+  useEffect(() => {
+    if (snapshot.visual.type !== 'video' || snapshot.action !== 'idle' || idleInterlude) return
+    const available = availableIdleInterludes(snapshot.visual)
+    if (!available.length) return
+    const timer = window.setTimeout(() => {
+      const next = chooseDifferentItem(available, previousIdleInterlude.current)
+      if (!next) return
+      previousIdleInterlude.current = next
+      setIdleInterlude(next)
+    }, nextIdleInterludeDelay())
+    return () => window.clearTimeout(timer)
+  }, [idleInterlude, snapshot.action, snapshot.visual])
   const videoId = snapshot.visual.type === 'video' ? selectedVideoId : undefined
   const videoUrl = videoId ? urls[videoId] : undefined
   const desiredVisual: ReadyVisual | undefined = videoId && videoUrl
@@ -157,10 +167,16 @@ export function DesktopCompanionWindow() {
     void emitTo('main', 'companion:visual-error', { assetId })
   }
   const advanceIdle = () => {
-    if (snapshot.action !== 'idle' || videoCandidates.length < 2) return
-    setSelectedVideoId((current) => chooseDifferentClip(videoCandidates, current))
+    if (readyVisual?.id !== selectedVideoId) return
+    if (isTransientVideoState(displayedAction)) {
+      if (idleInterlude === displayedAction) setIdleInterlude(undefined)
+      else void emitTo('main', 'companion:transient-ended', { state: displayedAction })
+      return
+    }
+    if (displayedAction !== 'idle' || videoCandidates.length < 2) return
+    setSelectedVideoId((current) => chooseDifferentItem(videoCandidates, current))
   }
-  const loopVideo = snapshot.action !== 'idle' || videoCandidates.length < 2
+  const loopVideo = isSustainedVideoState(displayedAction) && (displayedAction !== 'idle' || videoCandidates.length < 2)
   const visual = <>
     {outgoingVisual && outgoingVisual.id !== readyVisual?.id && (outgoingVisual.kind === 'video'
       ? <video className="desktop-media outgoing" key={outgoingVisual.id} src={outgoingVisual.url} autoPlay loop muted playsInline draggable={false} />

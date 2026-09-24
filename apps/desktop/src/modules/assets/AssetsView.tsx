@@ -13,9 +13,9 @@ export function AssetsView() {
   const [message, setMessage] = useState('可选择、拖放或粘贴 JPG、PNG、WebP，导入后不再依赖原文件。')
   const referenced = useMemo(() => referencedAssetIds(data), [data])
   const orphans = useMemo(() => orphanAssets(data), [data])
-  const visible = (showOrphans ? orphans : data.assets.filter((asset) => !asset.deletedAt))
-  const selected = data.assets.find((asset) => asset.id === selectedId && !asset.deletedAt)
-  const deleted = data.assets.filter((asset) => asset.deletedAt)
+  const visible = (showOrphans ? orphans : data.assets.filter((asset) => asset.purpose !== 'companion' && !asset.deletedAt))
+  const selected = data.assets.find((asset) => asset.id === selectedId && asset.purpose !== 'companion' && !asset.deletedAt)
+  const deleted = data.assets.filter((asset) => asset.purpose !== 'companion' && asset.deletedAt)
 
   const addFiles = async (files: File[]) => {
     for (const file of files) {

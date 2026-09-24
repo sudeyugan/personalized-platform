@@ -1,6 +1,7 @@
 import type { LibraryData } from '../../../domain/models'
 import type { AgentDataAccess } from './applicationServices'
 import type { AgentContextSnapshot } from './types'
+import { agentFeatureIds } from './featureContract'
 
 export interface AgentAccessSnapshot extends AgentDataAccess {
   activeWorkAllowed: boolean
@@ -19,7 +20,22 @@ export function buildAgentAccess(data: LibraryData, temporaryWorkIds: string[]):
   Object.values(data.chapters).forEach((chapter) => {
     if (!chapter.deletedAt && workIds.has(chapter.workId) && (grantedWorks.has(chapter.workId) || grantedChapters.has(chapter.id))) chapterIds.add(chapter.id)
   })
-  return { workIds, chapterIds, records: data.companion.permissions.records, activeWorkAllowed: workIds.has(data.session.activeWorkId) }
+  return {
+    workIds,
+    chapterIds,
+    records: data.companion.permissions.records,
+    todos: data.companion.permissions.todos,
+    calendar: data.companion.permissions.calendar,
+    courses: data.companion.permissions.courses,
+    dailyQuestions: data.companion.permissions.dailyQuestions,
+    diary: data.companion.permissions.diary,
+    mood: data.companion.permissions.mood,
+    memories: data.companion.permissions.memories,
+    answerBook: data.companion.permissions.answerBook,
+    music: data.companion.permissions.musicContext,
+    internet: data.companion.permissions.internet,
+    activeWorkAllowed: workIds.has(data.session.activeWorkId),
+  }
 }
 
 function beijingTime(now: Date): AgentContextSnapshot['localTime'] {
@@ -48,5 +64,12 @@ export function buildAgentContext(data: LibraryData, access: AgentAccessSnapshot
     activeWork: work ? { id: work.id, title: work.title } : undefined,
     activeChapter: chapter ? { id: chapter.id, title: chapter.title } : undefined,
     selection: selection?.trim() || undefined,
+    availableFeatures: agentFeatureIds,
+    navigation: data.session.agentNavigation ? {
+      destination: data.session.agentNavigation.destination,
+      date: data.session.agentNavigation.date,
+      range: data.session.agentNavigation.range,
+      targetId: data.session.agentNavigation.targetId,
+    } : undefined,
   }
 }

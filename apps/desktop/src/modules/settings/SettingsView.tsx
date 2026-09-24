@@ -1,5 +1,5 @@
 import { BookMarked, Check, Database, LockKeyhole, Music2, Palette, Puzzle, Sparkles } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { navigationItems } from '../../app/moduleManifest'
 import type { ThemeId } from '../../domain/models'
 import { useLibraryStore } from '../../state/useLibraryStore'
@@ -31,6 +31,15 @@ export function SettingsView() {
     return settingsTabs.some((item) => item.id === stored) ? stored as SettingsTab : 'appearance'
   })
   const chooseTab = (tab: SettingsTab) => { setActiveTab(tab); localStorage.setItem('yiyu.settings.activeTab', tab) }
+  useEffect(() => {
+    const navigation = data.session.agentNavigation
+    if (navigation?.destination !== 'settings') return
+    const aliases: Record<string, SettingsTab> = { appearance: 'appearance', ai: 'intelligence', intelligence: 'intelligence', data: 'data', privacy: 'privacy', security: 'privacy' }
+    const tab = navigation.section && aliases[navigation.section]
+    if (tab) chooseTab(tab)
+  // chooseTab only updates local UI state and the remembered settings tab.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.session.agentNavigation?.id])
   const activeMeta = settingsTabs.find((item) => item.id === activeTab)!
 
   return (
