@@ -1,4 +1,5 @@
 mod commands;
+mod computer;
 mod local_voice;
 mod repositories;
 mod services;
@@ -32,9 +33,10 @@ fn install_tray(app: &mut tauri::App) -> tauri::Result<()> {
     let interact = MenuItem::with_id(app, "companion-interactive", "显示伙伴并交谈", true, None::<&str>)?;
     let quiet = MenuItem::with_id(app, "companion-quiet", "安静显示（鼠标穿透）", true, None::<&str>)?;
     let hide = MenuItem::with_id(app, "companion-hide", "隐藏伙伴", true, None::<&str>)?;
+    let stop = MenuItem::with_id(app, "computer-stop", "立即停止小鱼操作", true, None::<&str>)?;
     let open = MenuItem::with_id(app, "open-main", "打开一隅", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出一隅", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&interact, &quiet, &hide, &open, &quit])?;
+    let menu = Menu::with_items(app, &[&interact, &quiet, &hide, &stop, &open, &quit])?;
     let mut tray = TrayIconBuilder::with_id("yiyu-main")
         .menu(&menu)
         .tooltip("一隅")
@@ -43,6 +45,10 @@ fn install_tray(app: &mut tauri::App) -> tauri::Result<()> {
             "companion-interactive" => { let _ = app.emit_to("main", "companion:tray-action", "interactive"); }
             "companion-quiet" => { let _ = app.emit_to("main", "companion:tray-action", "quiet"); }
             "companion-hide" => { let _ = app.emit_to("main", "companion:tray-action", "hide"); }
+            "computer-stop" => {
+                let stopped = computer::emergency_stop(&app.state::<computer::ComputerRuntime>());
+                let _ = app.emit_to("main", "computer:emergency-stop", stopped);
+            }
             "open-main" => {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.show();
@@ -68,9 +74,11 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_notification::init())
         .manage(commands::CompanionAssetScope::default())
         .manage(local_voice::LocalVoiceState::default())
         .manage(BackgroundWakeRuntime::new())
+        .manage(computer::ComputerRuntime::default())
         .setup(|app| {
             repositories::install_panic_marker(app.handle())?;
             install_tray(app)?;
@@ -121,6 +129,10 @@ pub fn run() {
             local_voice::local_voice_process_pcm,
             local_voice::local_voice_stop,
             set_background_wake_runtime,
+            computer::computer_execute,
+            computer::computer_status,
+            computer::computer_emergency_stop,
+            computer::computer_detect_ffmpeg,
             commands::create_backup,
             commands::ensure_daily_backup,
             commands::list_backups,
@@ -141,7 +153,8 @@ pub fn run() {
                     .state::<BackgroundWakeRuntime>()
                     .enabled
                     .load(Ordering::SeqCst);
-                if should_hide_with_window(window.label(), background_enabled) {
+                let computer_active = window.app_handle().state::<computer::ComputerRuntime>().is_active();
+                if should_hide_with_window(window.label(), background_enabled || computer_active) {
                     api.prevent_close();
                     let _ = window.hide();
                 } else if should_exit_with_window(window.label(), background_enabled) {

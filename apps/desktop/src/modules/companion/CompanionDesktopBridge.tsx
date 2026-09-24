@@ -12,10 +12,12 @@ import { isTransientVideoState } from './companionVideoPlayback'
 import type { AgentRuntimeStatus } from './agent'
 import { createSpeechToTextProvider, createTextToSpeechProvider } from '../../infrastructure/companionVoiceProvider'
 import { syncBackgroundRuntime } from '../../infrastructure/backgroundRuntime'
+import { createComputerService } from '../../infrastructure/computerService'
 import { toSpokenText } from './speechText'
 import type { AgentPermissionRequest } from './agent/types'
 import { assertExternalAiAllowed } from '../trust/trustPolicy'
 import { PrivacySession, type PrivacyReviewRequest } from '../privacy'
+import { usePlannerNotifications } from './usePlannerNotifications'
 
 const isTauri = () => '__TAURI_INTERNALS__' in window
 const chatWindowWidth = 350
@@ -83,6 +85,7 @@ async function positionCompanionChat(portrait: TauriWindow, chat: TauriWindow) {
 
 export function CompanionDesktopBridge() {
   const { data, playback, setCompanionDesktop, setCompanionPersonality, clearCompanionMessages } = useLibraryStore()
+  usePlannerNotifications(data)
   const learnedTrack = useRef<string | undefined>(undefined)
   const sending = useRef(false)
   const spokenAudio = useRef<HTMLAudioElement | undefined>(undefined)
@@ -101,10 +104,10 @@ export function CompanionDesktopBridge() {
   const [agentStatus, setAgentStatus] = useState<AgentRuntimeStatus>()
   const snapshot = useMemo(() => companionDesktopSnapshot(data.companion, data.session.activeView, playback.playing, data.assets, visualState, agentStatus, data.settings.trust.externalAiProcessing, desktopModeOverride), [data.companion, data.session.activeView, playback.playing, data.assets, visualState, agentStatus, data.settings.trust.externalAiProcessing, desktopModeOverride])
   useEffect(() => {
-    void syncBackgroundRuntime(data.companion.voice.wakeEnabled).catch((error) => {
+    void syncBackgroundRuntime(data.companion.voice.wakeEnabled || data.companion.computer.backgroundReminders).catch((error) => {
       console.warn('Unable to synchronize background voice wake:', error)
     })
-  }, [data.companion.voice.wakeEnabled])
+  }, [data.companion.voice.wakeEnabled, data.companion.computer.backgroundReminders])
   const snapshotRef = useRef(snapshot)
   snapshotRef.current = snapshot
   const publish = useCallback(async (nextSnapshot = snapshotRef.current) => {
@@ -473,6 +476,31 @@ export function CompanionDesktopBridge() {
     })
     return () => { disposed = true; void unregister(shortcut).catch(() => undefined) }
   }, [data.companion.desktop.quietShortcut, data.companion.desktop.toggleShortcut])
+  useEffect(() => {
+    if (!isTauri() || !data.companion.computer.enabled) return
+    const shortcut = data.companion.computer.emergencyShortcut
+    if (!shortcut) return
+    if ([data.companion.desktop.toggleShortcut, data.companion.desktop.quietShortcut].includes(shortcut)) {
+      window.localStorage.setItem('yiyu:computer-shortcut-status', '紧急停止快捷键与伙伴快捷键冲突。')
+      return
+    }
+    let disposed = false
+    void unregister(shortcut).catch(() => undefined).then(() => {
+      if (disposed) return
+      return register(shortcut, (event) => {
+        if (event.state !== 'Pressed') return
+        const current = useLibraryStore.getState().data.companion.computer
+        void createComputerService(current).stopAll().then(() => {
+          window.localStorage.setItem('yiyu:computer-shortcut-status', '已执行紧急停止。')
+        })
+      })
+    }).then(() => {
+      if (!disposed) window.localStorage.setItem('yiyu:computer-shortcut-status', '紧急停止快捷键已启用。')
+    }).catch((error) => {
+      if (!disposed) window.localStorage.setItem('yiyu:computer-shortcut-status', error instanceof Error ? error.message : '紧急停止快捷键注册失败。')
+    })
+    return () => { disposed = true; void unregister(shortcut).catch(() => undefined) }
+  }, [data.companion.computer.enabled, data.companion.computer.emergencyShortcut, data.companion.desktop.quietShortcut, data.companion.desktop.toggleShortcut])
   useEffect(() => {
     const trackId = data.session.currentTrackId
     if (!trackId || !playback.playing || learnedTrack.current === trackId || !data.companion.growth.enabled || !data.companion.permissions.musicContext) return

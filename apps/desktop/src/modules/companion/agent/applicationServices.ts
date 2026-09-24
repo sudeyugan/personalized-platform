@@ -58,9 +58,10 @@ export interface AgentApplicationServices {
   saveMemory?(content: string): unknown
   openDestination?(input: { destination: string; date?: string; range?: string; targetId?: string; filter?: string; section?: string }): unknown
   controlMusic?(action: string): unknown
+  computer?: { execute(request: { action: string; params?: Record<string, unknown> }, confirmed: boolean): Promise<unknown> }
 }
 
-export type AgentWriteServices = Pick<AgentApplicationServices, 'createTodo' | 'updateTodo' | 'setTodoCompleted' | 'setTodoHoliday' | 'createCalendarEvent' | 'updateCalendarEvent' | 'appendDiary' | 'writeDiary' | 'saveMood' | 'createWork' | 'renameCurrentWork' | 'createChapter' | 'renameChapter' | 'appendChapter' | 'createRecord' | 'updateRecord' | 'createCourse' | 'updateCourse' | 'saveMemory' | 'openDestination' | 'controlMusic' | 'searchWeb'>
+export type AgentWriteServices = Pick<AgentApplicationServices, 'createTodo' | 'updateTodo' | 'setTodoCompleted' | 'setTodoHoliday' | 'createCalendarEvent' | 'updateCalendarEvent' | 'appendDiary' | 'writeDiary' | 'saveMood' | 'createWork' | 'renameCurrentWork' | 'createChapter' | 'renameChapter' | 'appendChapter' | 'createRecord' | 'updateRecord' | 'createCourse' | 'updateCourse' | 'saveMemory' | 'openDestination' | 'controlMusic' | 'searchWeb' | 'computer'>
 
 function excerpt(text: string, query: string) {
   const index = text.toLocaleLowerCase().indexOf(query.toLocaleLowerCase())

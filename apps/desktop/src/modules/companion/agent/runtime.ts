@@ -3,7 +3,7 @@ import { AgentPermissionEngine, permissionDeniedResult } from './permission'
 import { AgentToolRegistry } from './toolRegistry'
 import type { AgentAuditRecord, AgentContextSnapshot, AgentErrorCode, AgentMessage, AgentModelProvider, AgentPermissionRequest, AgentRuntimeStatus, AgentSession, AgentToolCall, AgentToolResult } from './types'
 
-export const DEFAULT_MAX_TOOL_STEPS = 4
+export const DEFAULT_MAX_TOOL_STEPS = 12
 
 function modelErrorMessage(error: unknown) {
   if (error instanceof Error && error.message.trim()) return error.message
@@ -127,7 +127,7 @@ export async function runAgent(input: RunAgentInput) {
     const denialReason = decision.requiresConfirmation
       ? input.requestPermission ? '用户取消了这次写入操作' : '当前界面无法显示写入确认'
       : decision.reason
-    const result = permitted ? await withCancellation(input.registry.execute(call, input.services), input.signal) : permissionDeniedResult(denialReason)
+    const result = permitted ? await withCancellation(input.registry.execute(call, input.services, { confirmed }), input.signal) : permissionDeniedResult(denialReason)
     const durationMs = Math.max(0, Math.round(performance.now() - started))
     const auditRecord: AgentAuditRecord = {
       id: `agent-audit-${crypto.randomUUID()}`,
@@ -139,7 +139,10 @@ export async function runAgent(input: RunAgentInput) {
       resultStatus: result.success ? 'success' : 'error',
       durationMs,
       errorCode: result.error?.code,
-      errorDetail: call.name === 'web.search' ? result.error?.message.slice(0, 400) : undefined,
+      errorDetail: (call.name === 'web.search' || Boolean(tool?.definition.computer)) ? result.error?.message.slice(0, 400) : undefined,
+      target: tool?.definition.computer?.targetArgument && call.arguments && typeof call.arguments === 'object' ? String((call.arguments as Record<string, unknown>)[tool.definition.computer.targetArgument] ?? '').slice(0, 260) : undefined,
+      confirmed,
+      permissionReason: decision.reason,
     }
     audit.push(auditRecord)
     input.onAudit?.(auditRecord)

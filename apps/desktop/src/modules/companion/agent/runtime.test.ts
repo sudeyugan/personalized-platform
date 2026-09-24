@@ -98,6 +98,40 @@ describe('agent tool registry', () => {
     expect(permissions.check(tool, { query: '北京天气' }).allowed).toBe(true)
   })
 
+  it('keeps computer tools behind the master switch, scoped grants and destructive confirmation', () => {
+    const current = fixture()
+    const registry = createCompanionToolRegistry()
+    const screen = registry.lookup('screen.capture')!.definition
+    const readFile = registry.lookup('file.read_text')!.definition
+    const deleteFile = registry.lookup('file.delete')!.definition
+    const disabled = new AgentPermissionEngine({
+      policy: { autoAllow: ['read'] },
+      resourcePermissions: current.data.companion.permissions,
+      computer: current.data.companion.computer,
+      access: current.access,
+    })
+    expect(disabled.check(screen, { source: 'desktop' }).allowed).toBe(false)
+
+    current.data.companion.computer.enabled = true
+    current.data.companion.computer.grants.push({
+      id: 'grant-1',
+      capability: 'file_read',
+      targetKind: 'directory',
+      target: 'D:/coding',
+      mode: 'allow',
+      createdAt: new Date().toISOString(),
+    })
+    const enabled = new AgentPermissionEngine({
+      policy: { autoAllow: ['read'] },
+      resourcePermissions: current.data.companion.permissions,
+      computer: current.data.companion.computer,
+      access: current.access,
+    })
+    expect(enabled.check(screen, { source: 'desktop' }).allowed).toBe(true)
+    expect(enabled.check(readFile, { path: 'D:/coding/yiyu/README.md' }).allowed).toBe(true)
+    expect(enabled.check(readFile, { path: 'D:/private/note.txt' }).requiresConfirmation).toBe(true)
+    expect(enabled.check(deleteFile, { path: 'D:/coding/old.txt' })).toMatchObject({ allowed: false, requiresConfirmation: true })
+  })
   it('keeps visual-state selection inside the typed low-risk tool boundary', async () => {
     const current = fixture()
     let selected = 'idle'

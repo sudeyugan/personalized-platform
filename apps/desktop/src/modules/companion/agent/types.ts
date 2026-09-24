@@ -1,3 +1,5 @@
+import type { ComputerCapability } from '../../../domain/models'
+
 export type AgentCapability = 'read' | 'presentation' | 'create' | 'modify' | 'delete' | 'external' | 'system'
 export type AgentRiskLevel = 'read_only' | 'low' | 'medium' | 'high' | 'critical'
 export type AgentToolScope = 'none' | 'active_work' | 'chapters' | 'records' | 'todos' | 'calendar' | 'courses' | 'daily_question' | 'diary' | 'mood' | 'memory' | 'answer_book' | 'music' | 'web'
@@ -19,11 +21,31 @@ export interface AgentContextSnapshot {
   navigation?: { destination: string; date?: string; range?: string; targetId?: string }
 }
 
-export interface AgentJsonSchema {
-  type: 'object'
-  properties: Record<string, { type: 'string'; description?: string; minLength?: number; enum?: string[] }>
+export interface AgentJsonSchemaProperty {
+  type: 'string' | 'number' | 'boolean' | 'array' | 'object'
+  description?: string
+  minLength?: number
+  minimum?: number
+  maximum?: number
+  enum?: Array<string | number | boolean>
+  items?: AgentJsonSchemaProperty
+  properties?: Record<string, AgentJsonSchemaProperty>
   required?: string[]
   additionalProperties?: boolean
+}
+
+export interface AgentJsonSchema {
+  type: 'object'
+  properties: Record<string, AgentJsonSchemaProperty>
+  required?: string[]
+  additionalProperties?: boolean
+}
+
+export interface AgentComputerRequirement {
+  capability: ComputerCapability
+  targetArgument?: string
+  destructive?: boolean
+  visibleIndicator?: boolean
 }
 
 export interface AgentToolDefinition {
@@ -33,6 +55,11 @@ export interface AgentToolDefinition {
   capability: AgentCapability
   risk: AgentRiskLevel
   scope: AgentToolScope
+  computer?: AgentComputerRequirement
+}
+
+export interface AgentToolExecutionContext {
+  confirmed: boolean
 }
 
 export interface AgentToolCall {

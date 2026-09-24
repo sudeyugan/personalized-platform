@@ -6,6 +6,16 @@ export function describeAgentPermission(request: AgentPermissionRequest) {
   const args = request.call.arguments && typeof request.call.arguments === 'object' && !Array.isArray(request.call.arguments)
     ? request.call.arguments as Record<string, unknown>
     : {}
+  if (request.tool.computer) {
+    const targetKey = request.tool.computer.targetArgument
+    const subject = targetKey ? value(args[targetKey]) : request.tool.description
+    const highImpact = request.tool.computer.destructive || request.tool.risk === 'high'
+    return {
+      title: highImpact ? '确认高影响电脑操作？' : '允许这次电脑操作？',
+      subject,
+      detail: request.tool.description + ' · ' + request.call.name,
+    }
+  }
   switch (request.call.name) {
     case 'todo.create': return { title: '创建待办？', subject: value(args.title), detail: value(args.dueDate) || '今天' }
     case 'todo.update': return { title: '修改待办？', subject: value(args.title) || value(args.id), detail: [value(args.dueDate), value(args.priority), value(args.note)].filter(Boolean).join(' · ') || '修改现有信息' }

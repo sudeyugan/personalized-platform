@@ -141,6 +141,26 @@ export interface CompanionPermission {
   writeActions: boolean
   writePolicy: 'always_ask' | 'balanced'
 }
+export type ComputerCapability = 'applications' | 'windows' | 'screen_capture' | 'screen_record' | 'input' | 'clipboard_read' | 'clipboard_write' | 'file_read' | 'file_write' | 'file_delete' | 'process_run' | 'process_stop' | 'shell' | 'notifications'
+export type ComputerPermissionMode = 'deny' | 'ask' | 'allow'
+export interface ComputerGrant {
+  id: string
+  capability: ComputerCapability
+  targetKind: 'global' | 'application' | 'directory' | 'program' | 'display'
+  target: string
+  mode: ComputerPermissionMode
+  createdAt: string
+}
+export interface CompanionComputerSettings {
+  enabled: boolean
+  profile: 'standard' | 'trusted_workstation' | 'custom'
+  ffmpegPath: string
+  recordingDirectory: string
+  emergencyShortcut: string
+  backgroundReminders: boolean
+  reminderLeadMinutes: number
+  grants: ComputerGrant[]
+}
 export interface CompanionMessage { id: string; role: 'user' | 'companion'; content: string; createdAt: string; contextSummary?: string }
 export interface CompanionMemory { id: string; content: string; source: 'manual' | 'conversation'; sourceLabel: string; createdAt: string; updatedAt: string; confidence: number; authorized: boolean; sourceWorkId?: string }
 export interface CompanionPersonality { warmth: number; curiosity: number; initiative: number }
@@ -163,6 +183,9 @@ export interface CompanionAgentAuditEntry {
   durationMs: number
   errorCode?: 'ToolNotFound' | 'InvalidArguments' | 'PermissionDenied' | 'ExecutionFailed' | 'Timeout' | 'AgentStepLimit' | 'AgentCancelled' | 'ModelError'
   errorDetail?: string
+  target?: string
+  confirmed?: boolean
+  permissionReason?: string
 }
 export interface CharacterSlot {
   x: number
@@ -211,6 +234,7 @@ export interface CompanionData {
     longReplySpeech: 'summary' | 'full'
   }
   permissions: CompanionPermission
+  computer: CompanionComputerSettings
   messages: CompanionMessage[]
   memories: CompanionMemory[]
   agentAudit: CompanionAgentAuditEntry[]

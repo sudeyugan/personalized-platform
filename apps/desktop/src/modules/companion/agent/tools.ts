@@ -1,6 +1,7 @@
 import type { AgentApplicationServices } from './applicationServices'
 import type { CompanionVideoState } from '../../../domain/models'
 import { AgentToolRegistry } from './toolRegistry'
+import { createComputerTools } from './computerTools'
 import { agentDestinations, agentFeatureContracts, assertAgentFeatureContract } from './featureContract'
 
 const emptySchema = { type: 'object' as const, properties: {}, additionalProperties: false }
@@ -162,6 +163,7 @@ export function createCompanionToolRegistry(onVisualState?: (state: CompanionVid
     },
     execute: (args) => { onVisualState(String(args.state) as CompanionVideoState); return { state: args.state } },
   })
+  registry.registerAll(createComputerTools())
   assertAgentFeatureContract(registry)
   return registry
 }

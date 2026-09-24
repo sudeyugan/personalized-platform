@@ -2,6 +2,7 @@ import type { JSONContent } from '@tiptap/react'
 import type { CompanionVideoState, CourseDay, CoursePeriod, MoodKind, MoodPeriod } from '../../domain/models'
 import { createCompanionProvider } from '../../infrastructure/companionProvider'
 import { searchWeb } from '../../infrastructure/webSearch'
+import { createComputerService } from '../../infrastructure/computerService'
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { applyContextPrivacy, applyHistoryPrivacy, assertExternalAiAllowed } from '../trust/trustPolicy'
 import { createPrivacyProtectedProvider, protectOutboundText, type PrivacyReviewRequest } from '../privacy'
@@ -238,6 +239,7 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
       else current.togglePlayback()
       return { action }
     },
+    computer: createComputerService(data.companion.computer),
     searchWeb: async (query) => searchWeb(await protectOutboundText(query, {
       trust: data.settings.trust,
       destination: data.settings.webSearch.providerId === 'tencent' ? '腾讯云联网搜索' : data.settings.webSearch.providerId === 'bocha' ? '博查联网搜索' : 'Bing Search',
@@ -249,6 +251,7 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
   const permissions = new AgentPermissionEngine({
     policy: { autoAllow: ['read', 'presentation'] },
     resourcePermissions: data.companion.permissions,
+    computer: data.companion.computer,
     access,
   })
   const contextSummary = [context.activeWork?.title, context.activeChapter?.title].filter(Boolean).join('、') || '未授权作品或章节'
