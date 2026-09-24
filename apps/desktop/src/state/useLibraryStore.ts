@@ -45,6 +45,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     try {
       const [stored, health, drafts] = await Promise.all([libraryRepository.load(), libraryRepository.health(), libraryRepository.loadDrafts()])
       let data = stored?.schemaVersion === 1 ? normalizeLibrary(stored) : createSeedLibrary()
+      if (data.session.agentNavigation) data = { ...data, session: { ...data.session, agentNavigation: undefined } }
       const [context, queue] = resolvePlaybackContext(data)
       const localDate = formatLocalDate()
       await persist(data)
@@ -81,6 +82,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       session: {
         ...session,
         activeView,
+        agentNavigation: undefined,
         ...(activeView === 'diary' ? { activeDiaryDate: formatLocalDate() } : {}),
       },
     }

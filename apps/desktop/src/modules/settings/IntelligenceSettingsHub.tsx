@@ -14,7 +14,7 @@ export function IntelligenceSettingsHub() {
   return <section className="settings-section ai-companion-single">
     <div className="settings-title"><Sparkles /><div><h2>AI 伙伴</h2><p>常用显示设置直接调整，模型、权限与记忆按需展开。</p></div></div>
 
-    <details className="ai-settings-fold" name="ai-companion-settings" open>
+    <details className="ai-settings-fold" name="ai-companion-settings">
       <summary><span><strong>形象与显示</strong><small>立绘、桌面开关与快捷键</small></span><b>{data.companion.desktop.visible ? '显示中' : '已隐藏'}</b></summary>
       <div className="ai-settings-fold-body"><CompanionGrowthSection /></div>
     </details>
