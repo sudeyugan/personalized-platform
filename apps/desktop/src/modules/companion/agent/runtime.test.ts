@@ -177,6 +177,39 @@ describe('agent runtime', () => {
     expect(provider.requests[0].messages.at(-1)).toMatchObject({ role: 'tool', toolName: 'system.open' })
     expect(result.audit[0]).toMatchObject({ toolName: 'system.open', resultStatus: 'success' })
   })
+  it('corrects a model that talks instead of using a tool for an explicit action', async () => {
+    const current = fixture()
+    current.data.companion.permissions.writeActions = true
+    current.data.companion.permissions.todos = true
+    current.data.companion.permissions.writePolicy = 'balanced'
+    let created = ''
+    current.services.createTodo = (title) => { created = title; return { created: true } }
+    const provider = new ScriptedProvider([
+      { type: 'text', text: '你可以去待办页面手动创建。' },
+      { type: 'tool_call', call: { id: 'retry-write-1', name: 'todo.create', arguments: { title: '今晚散步' } } },
+      { type: 'text', text: '已经创建“今晚散步”。' },
+    ])
+    const result = await runAgent({ message: '帮我创建一个今晚散步的待办', history: [], provider, registry: createCompanionToolRegistry(), ...current })
+    expect(created).toBe('今晚散步')
+    expect(provider.requests).toHaveLength(3)
+    expect(provider.requests[1].messages.some((message) => message.role === 'system' && message.content.includes('上一响应没有调用工具'))).toBe(true)
+    expect(result.audit[0]).toMatchObject({ toolName: 'todo.create', resultStatus: 'success' })
+  })
+
+  it('retries an explicit action only once and then returns a clarification', async () => {
+    const current = fixture()
+    const deltas: string[] = []
+    const provider = new ScriptedProvider([
+      { type: 'text', text: '我不能直接操作。' },
+      { type: 'text', text: '你希望修改哪一条待办？' },
+    ])
+    const result = await runAgent({
+      message: '帮我修改待办', history: [], provider, registry: createCompanionToolRegistry(), onTextDelta: (delta) => deltas.push(delta), ...current,
+    })
+    expect(provider.requests).toHaveLength(2)
+    expect(result.text).toBe('你希望修改哪一条待办？')
+    expect(deltas).toEqual(['你希望修改哪一条待办？'])
+  })
   it('runs model to tool to result to model and records append-only events', async () => {
     const current = fixture()
     const provider = new ScriptedProvider([

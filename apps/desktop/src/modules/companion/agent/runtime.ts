@@ -1,7 +1,7 @@
 import type { AgentApplicationServices } from './applicationServices'
 import { AgentPermissionEngine, permissionDeniedResult } from './permission'
 import { AgentToolRegistry } from './toolRegistry'
-import { resolveDirectAction } from './directActions'
+import { detectActionIntent } from './directActions'
 import type { AgentAuditRecord, AgentContextSnapshot, AgentErrorCode, AgentMessage, AgentModelProvider, AgentPermissionRequest, AgentRuntimeStatus, AgentSession, AgentToolCall, AgentToolResult } from './types'
 
 export const DEFAULT_MAX_TOOL_STEPS = 12
@@ -83,7 +83,10 @@ export async function runAgent(input: RunAgentInput) {
   ]
   let toolSteps = 0
   const toolDefinitions = input.registry.definitions()
-  let directAction = resolveDirectAction(input.message, toolDefinitions)
+  const actionIntent = detectActionIntent(input.message, toolDefinitions)
+  let directAction = actionIntent.directCall
+  let actionRetryUsed = false
+  let toolAttempted = false
   const maxToolSteps = input.maxToolSteps ?? DEFAULT_MAX_TOOL_STEPS
 
   while (true) {
@@ -95,9 +98,10 @@ export async function runAgent(input: RunAgentInput) {
       directAction = undefined
     } else {
       try {
+        const bufferActionResponse = actionIntent.expectsTool && !toolAttempted
         response = await withCancellation(input.provider.generate(
           { messages, context: input.context, tools: toolDefinitions },
-          { onTextDelta: input.onTextDelta, signal: input.signal },
+          { onTextDelta: bufferActionResponse ? undefined : input.onTextDelta, signal: input.signal },
         ), input.signal)
       } catch (error) {
         if (error instanceof AgentRuntimeError && error.code === 'AgentCancelled') throw error
@@ -108,7 +112,16 @@ export async function runAgent(input: RunAgentInput) {
     }
     if (response.type === 'text') {
       throwIfCancelled(input.signal)
+      if (actionIntent.expectsTool && !toolAttempted && !actionRetryUsed) {
+        actionRetryUsed = true
+        messages.push({
+          role: 'system',
+          content: '用户刚才明确要求执行动作，但上一响应没有调用工具。不要只描述做法、声称无法执行或假装已经完成：如果现有 Tool 能完成，现在必须调用；如果缺少必要参数，请只询问该参数；只有确实没有对应 Tool 时才明确说明能力缺口。',
+        })
+        continue
+      }
       input.onStatus?.({ phase: 'responding' })
+      if (actionIntent.expectsTool && !toolAttempted && actionRetryUsed) input.onTextDelta?.(response.text)
       session.events.push({ type: 'assistant', content: response.text, timestamp: new Date().toISOString() })
       return { text: response.text, session, audit }
     }
@@ -118,6 +131,7 @@ export async function runAgent(input: RunAgentInput) {
       throw new AgentRuntimeError('AgentStepLimit', message)
     }
     toolSteps += 1
+    toolAttempted = true
     const call = response.call
     throwIfCancelled(input.signal)
     const started = performance.now()
