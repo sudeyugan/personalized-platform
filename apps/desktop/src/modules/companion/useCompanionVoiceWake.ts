@@ -3,9 +3,10 @@ import { CommitStrategy, RealtimeConnection, RealtimeEvents, Scribe } from '@ele
 import { useEffect, useRef, type Dispatch, type RefObject, type SetStateAction } from 'react'
 import { localVoice } from '../../infrastructure/localVoice'
 import type { CompanionDesktopSnapshot } from './companionDesktop'
-import { hasBargeInSignal, isDuplicateUtterance, isLikelyPlaybackEcho, resolveVoiceCommand, type VoiceConversationPhase } from './voiceConversation'
+import { followUpWindowMs, hasBargeInSignal, isDuplicateUtterance, isLikelyPlaybackEcho, isMeaningfulVoiceUtterance, resolveVoiceCommand, type VoiceConversationPhase } from './voiceConversation'
 
-const FOLLOW_UP_WINDOW_MS = 15_000
+const INITIAL_LISTENING_WINDOW_MS = 15_000
+const BARGE_IN_CONFIRM_MS = 500
 const MAX_SESSION_MS = 120_000
 
 interface CompanionVoiceWakeOptions {
@@ -25,6 +26,7 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
   const armed = useRef(false)
   const phase = useRef<VoiceConversationPhase>('sleeping')
   const interruptionPending = useRef(false)
+  const bargeInStartedAt = useRef<number | undefined>(undefined)
   const lastUtterance = useRef<{ text: string; at: number } | undefined>(undefined)
 
   useEffect(() => {
@@ -36,6 +38,7 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
       armed.current = false
       phase.current = 'sleeping'
       interruptionPending.current = false
+      bargeInStartedAt.current = undefined
       window.clearTimeout(followUpTimer.current)
       window.clearTimeout(sessionTimer.current)
       return
@@ -48,6 +51,7 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
       void emitTo('main', 'companion:voice-activity', { active })
     }
     const resumeInterruptedSpeech = () => {
+      bargeInStartedAt.current = undefined
       if (!interruptionPending.current) return
       interruptionPending.current = false
       if (speechBusy.current) void emitTo('main', 'companion:speech-pause', { paused: false })
@@ -58,6 +62,8 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
       window.clearTimeout(sessionTimer.current)
       armed.current = false
       phase.current = 'sleeping'
+      interruptionPending.current = false
+      bargeInStartedAt.current = undefined
       setVoiceActivity(false)
       closingCloud = true
       cloudConnection.current?.close()
@@ -67,21 +73,52 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
       setSpeechNote(hide ? '伙伴已经隐藏，再叫醒我就好。' : `对话已结束，说“${voice.wakeWord}”可以再次唤醒。`)
       void startLocalListening()
     }
-    const scheduleFollowUp = () => {
+    const playFollowUpCue = () => {
+      try {
+        const context = new AudioContext()
+        const oscillator = context.createOscillator()
+        const gain = context.createGain()
+        oscillator.frequency.value = 620
+        gain.gain.setValueAtTime(0.018, context.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.08)
+        oscillator.connect(gain)
+        gain.connect(context.destination)
+        oscillator.onended = () => { void context.close() }
+        oscillator.start()
+        oscillator.stop(context.currentTime + 0.08)
+      } catch {
+        // The visual listening note is enough when Windows blocks WebAudio.
+      }
+    }
+    const scheduleConversationWindow = (afterTurn = false) => {
       window.clearTimeout(followUpTimer.current)
+      let observedBusy = false
+      let graceChecks = 0
       const waitUntilIdle = () => {
         if (disposed || !armed.current) return
         if (agentBusy.current || speechBusy.current) {
-          followUpTimer.current = window.setTimeout(waitUntilIdle, 500)
+          observedBusy = true
+          followUpTimer.current = window.setTimeout(waitUntilIdle, 350)
           return
         }
-        setSpeechNote('还在听，可以继续说。')
+        if (afterTurn && !observedBusy && graceChecks < 5) {
+          graceChecks += 1
+          followUpTimer.current = window.setTimeout(waitUntilIdle, 250)
+          return
+        }
+        if (afterTurn && voice.conversationMode === 'single') {
+          endConversation()
+          return
+        }
+        const windowMs = afterTurn ? followUpWindowMs(voice.conversationMode) : INITIAL_LISTENING_WINDOW_MS
+        if (afterTurn) playFollowUpCue()
+        setSpeechNote(afterTurn ? '还在听，' + Math.round(windowMs / 1000) + ' 秒内可以继续说。' : voice.wakeWord + '在听，请说出问题。')
         followUpTimer.current = window.setTimeout(() => {
           if (agentBusy.current || speechBusy.current) waitUntilIdle()
           else endConversation()
-        }, FOLLOW_UP_WINDOW_MS)
+        }, windowMs)
       }
-      followUpTimer.current = window.setTimeout(waitUntilIdle, 500)
+      followUpTimer.current = window.setTimeout(waitUntilIdle, afterTurn ? 250 : 500)
     }
     const enforceSessionLimit = () => {
       if (disposed || !armed.current) return
@@ -95,8 +132,7 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
       if (!armed.current) return
       const text = value.trim()
       if (!text) return
-      if (isDuplicateUtterance(lastUtterance.current, text)) return
-      lastUtterance.current = { text, at: Date.now() }
+      bargeInStartedAt.current = undefined
       const command = resolveVoiceCommand(text)
       if (command === 'hide') {
         void emitTo('main', 'companion:turn-stop', {})
@@ -110,6 +146,19 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
         endConversation()
         return
       }
+      if (!isMeaningfulVoiceUtterance(text)) {
+        setVoiceActivity(false)
+        resumeInterruptedSpeech()
+        phase.current = speechBusy.current ? 'speaking' : 'listening'
+        setSpeechNote('没有把这段短声音当作问题，仍在等待。')
+        return
+      }
+      if (isDuplicateUtterance(lastUtterance.current, text)) {
+        setVoiceActivity(false)
+        resumeInterruptedSpeech()
+        return
+      }
+      lastUtterance.current = { text, at: Date.now() }
       if ((speechBusy.current || interruptionPending.current) && isLikelyPlaybackEcho(text, spokenText.current)) {
         setVoiceActivity(false)
         resumeInterruptedSpeech()
@@ -124,9 +173,10 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
         void emitTo('main', 'companion:speech-stop', {})
       }
       interruptionPending.current = false
+      bargeInStartedAt.current = undefined
       setVoiceActivity(false)
       phase.current = 'committing'
-      scheduleFollowUp()
+      scheduleConversationWindow(true)
       setSpeechNote(replacing ? '已打断上一条回答，正在处理新问题。' : '听到了，正在处理。')
       void emitTo('main', 'companion:chat-open-request', {})
       void emitTo('main', 'companion:chat-send', { message: text, inputMode: 'voice', wake: true, replace: true })
@@ -142,9 +192,9 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
           secondaryLanguages: ['en'],
           commitStrategy: CommitStrategy.VAD,
           vadSilenceThresholdSecs: 0.8,
-          vadThreshold: 0.45,
-          minSpeechDurationMs: 250,
-          minSilenceDurationMs: 650,
+          vadThreshold: 0.55,
+          minSpeechDurationMs: 450,
+          minSilenceDurationMs: 700,
           filterBackgroundAudio: true,
           noVerbatim: true,
           microphone: {
@@ -155,15 +205,22 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
           },
         })
         connection.on(RealtimeEvents.PARTIAL_TRANSCRIPT, (event) => {
-          if (!event.text.trim()) return
+          const partial = event.text.trim()
+          if (!partial) return
           phase.current = 'listening'
           setVoiceActivity(true)
-          if (speechBusy.current && hasBargeInSignal(event.text) && !isLikelyPlaybackEcho(event.text, spokenText.current) && !interruptionPending.current) {
-            interruptionPending.current = true
-            phase.current = 'interrupted'
-            setSpeechNote('听到你在说话，已暂停朗读。')
-            void emitTo('main', 'companion:speech-pause', { paused: true })
+          if (!speechBusy.current || isLikelyPlaybackEcho(partial, spokenText.current)) {
+            bargeInStartedAt.current = undefined
+            return
           }
+          if (!hasBargeInSignal(partial)) return
+          const now = Date.now()
+          bargeInStartedAt.current ??= now
+          if (now - bargeInStartedAt.current < BARGE_IN_CONFIRM_MS || interruptionPending.current) return
+          interruptionPending.current = true
+          phase.current = 'interrupted'
+          setSpeechNote('确认你在继续说，已暂停朗读。')
+          void emitTo('main', 'companion:speech-pause', { paused: true })
         })
         connection.on(RealtimeEvents.COMMITTED_TRANSCRIPT, (event) => handleUtterance(event.text))
         connection.on(RealtimeEvents.ERROR, (event) => {
@@ -200,7 +257,7 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
       void emitTo('main', 'companion:voice-show-request', {})
       void emitTo('main', 'companion:chat-open-request', {})
       setSpeechNote(`${voice.wakeWord}听到了，请继续说问题。`)
-      scheduleFollowUp()
+      scheduleConversationWindow()
       window.clearTimeout(sessionTimer.current)
       sessionTimer.current = window.setTimeout(enforceSessionLimit, MAX_SESSION_MS)
       void connectConversation()
@@ -245,7 +302,8 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
       armed.current = false
       phase.current = 'sleeping'
       interruptionPending.current = false
+      bargeInStartedAt.current = undefined
       setVoiceActivity(false)
     }
-  }, [agentBusy, requestToken, setSpeechNote, speechBusy, spokenText, voice.speakerVerification, voice.sttProviderId, voice.wakeEnabled, voice.wakeSensitivity, voice.wakeWord])
+  }, [agentBusy, requestToken, setSpeechNote, speechBusy, spokenText, voice.conversationMode, voice.speakerVerification, voice.sttProviderId, voice.wakeEnabled, voice.wakeSensitivity, voice.wakeWord])
 }

@@ -1,9 +1,11 @@
-export type VoiceConversationPhase = 'sleeping' | 'listening' | 'committing' | 'thinking' | 'speaking' | 'interrupted'
+import type { CompanionData } from '../../domain/models'
 
+export type VoiceConversationPhase = 'sleeping' | 'listening' | 'committing' | 'thinking' | 'speaking' | 'interrupted'
 export type VoiceCommand = 'end' | 'hide'
+export type VoiceConversationMode = CompanionData['voice']['conversationMode']
 
 export function normalizeVoiceText(value: string) {
-  return value.toLocaleLowerCase().replace(/[，。！？,.!?；;：:\s]/g, '')
+  return value.toLocaleLowerCase().replace(/[，。！？、…,.!?；;：:~～\s]/g, '')
 }
 
 export function resolveVoiceCommand(value: string): VoiceCommand | undefined {
@@ -11,6 +13,17 @@ export function resolveVoiceCommand(value: string): VoiceCommand | undefined {
   if (/^(?:小鱼)?(?:藏起来|隐藏起来|休息吧|退下吧)$/.test(normalized)) return 'hide'
   if (/^(?:小鱼)?(?:先这样|结束对话|不聊了)$/.test(normalized)) return 'end'
   return undefined
+}
+
+export function followUpWindowMs(mode: VoiceConversationMode) {
+  if (mode === 'single') return 0
+  return mode === 'continuous' ? 15_000 : 8_000
+}
+
+export function isMeaningfulVoiceUtterance(value: string) {
+  const normalized = normalizeVoiceText(value)
+  if (normalized.length < 2) return false
+  return !/^(?:嗯+|啊+|哦+|唉+|诶+|呃+|额+|唔+|哼+|哈+|那个+|这个+|就是+)$/.test(normalized)
 }
 
 function bigrams(value: string) {
@@ -30,7 +43,7 @@ export function isLikelyPlaybackEcho(transcript: string, spokenText: string) {
 }
 
 export function hasBargeInSignal(partial: string) {
-  return normalizeVoiceText(partial).length >= 2
+  return normalizeVoiceText(partial).length >= 3 && isMeaningfulVoiceUtterance(partial)
 }
 
 export function isDuplicateUtterance(previous: { text: string; at: number } | undefined, text: string, now = Date.now()) {

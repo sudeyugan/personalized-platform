@@ -228,6 +228,7 @@ export interface CompanionData {
     wakeEnabled: boolean
     wakeWord: string
     wakeSensitivity: 'low' | 'standard' | 'high'
+    conversationMode: 'single' | 'short' | 'continuous'
     speakerVerification: boolean
     modelDownloadSource: 'china' | 'auto' | 'global'
     replyLength: 'short' | 'standard'

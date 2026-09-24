@@ -7,6 +7,7 @@ describe('library compatibility normalization', () => {
     const legacy = createSeedLibrary()
     delete (legacy.companion.voice as Partial<LibraryData['companion']['voice']>).wakeWord
     delete (legacy.companion.voice as Partial<LibraryData['companion']['voice']>).wakeSensitivity
+    delete (legacy.companion.voice as Partial<LibraryData['companion']['voice']>).conversationMode
     delete (legacy.companion.voice as Partial<LibraryData['companion']['voice']>).speakerVerification
     delete (legacy.companion.voice as Partial<LibraryData['companion']['voice']>).modelDownloadSource
     delete (legacy.companion.desktop as Partial<LibraryData['companion']['desktop']>).mode
@@ -15,6 +16,7 @@ describe('library compatibility normalization', () => {
 
     expect(upgraded.companion.voice.wakeWord).toBe('小鱼')
     expect(upgraded.companion.voice.wakeSensitivity).toBe('standard')
+    expect(upgraded.companion.voice.conversationMode).toBe('short')
     expect(upgraded.companion.voice.speakerVerification).toBe(true)
     expect(upgraded.companion.voice.modelDownloadSource).toBe('china')
     expect(upgraded.companion.desktop.mode).toBe('quiet')

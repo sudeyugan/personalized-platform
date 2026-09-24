@@ -133,6 +133,7 @@ export function CompanionVoiceSettings() {
           <p>{localMessage}</p>
         </section>
         <div className="setting-row"><div><strong>语音唤醒「{voice.wakeWord || '未设置'}」</strong><span>开启后关闭主窗口仍在托盘本地监听；只有托盘“退出一隅”才会完全停止</span></div><button aria-pressed={voice.wakeEnabled} className={voice.wakeEnabled ? 'switch on' : 'switch'} onClick={toggleWake}><i /></button></div>
+        <label className="setting-row"><div><strong>唤醒后的交谈方式</strong><span>短连续会在回答后保留约 8 秒追问，兼顾自然与防误录</span></div><select value={voice.conversationMode} onChange={(event) => setCompanionVoice({ conversationMode: event.target.value as typeof voice.conversationMode })}><option value="single">单轮（每次重新唤醒）</option><option value="short">短连续（推荐）</option><option value="continuous">持续对话（约 15 秒）</option></select></label>
         <label className="setting-row"><div><strong>语音回答长度</strong><span>只影响从麦克风发起的问题</span></div><select value={voice.replyLength} onChange={(event) => setCompanionVoice({ replyLength: event.target.value as 'short' | 'standard' })}><option value="short">精简（3–5 句）</option><option value="standard">标准（通常不超过 8 句）</option></select></label>
         <label className="setting-row"><div><strong>长回答朗读</strong><span>文字始终完整显示；可只朗读前段</span></div><select value={voice.longReplySpeech} onChange={(event) => setCompanionVoice({ longReplySpeech: event.target.value as 'summary' | 'full' })}><option value="summary">只读前段</option><option value="full">完整朗读</option></select></label>
       </>}
