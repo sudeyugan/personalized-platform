@@ -2,7 +2,7 @@ import { emitTo } from '@tauri-apps/api/event'
 import { ArrowRight, BookOpenText, Feather, MessageCircle, PenLine, Plus, Quote, RefreshCw } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { formatLocalDate } from '../../domain/localDate'
-import { beijingDate, generateDailyQuestion, isBeijingMorningReady } from '../../infrastructure/dailyQuestionProvider'
+import { beijingDate, generateDailyQuestion, isBeijingMorningReady, isLowQualityDailyQuestion } from '../../infrastructure/dailyQuestionProvider'
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { HomeMoodCard } from '../mood/HomeMoodCard'
 import { useLiveDate } from './homeDate'
@@ -21,10 +21,11 @@ export function HomeView() {
   const generating = useRef(false)
   const questionDate = beijingDate()
   const dailyQuestion = data.planner.dailyQuestions.find((item) => item.date === questionDate)
+  const replaceLowQualityQuestion = dailyQuestion ? isLowQualityDailyQuestion(dailyQuestion.question) : false
 
   useEffect(() => {
     const ensureQuestion = async () => {
-      if (!isBeijingMorningReady() || dailyQuestion || generating.current) return
+      if (!isBeijingMorningReady() || (dailyQuestion && !replaceLowQualityQuestion) || generating.current) return
       generating.current = true
       setQuestionBusy(true)
       setQuestionError('')
@@ -35,7 +36,7 @@ export function HomeView() {
     void ensureQuestion()
     const timer = window.setInterval(() => void ensureQuestion(), 60_000)
     return () => window.clearInterval(timer)
-  }, [dailyQuestion, data.companion, data.planner.dailyQuestions, data.settings.trust, questionDate, retry, saveDailyQuestion])
+  }, [dailyQuestion, data.companion, data.planner.dailyQuestions, data.settings.trust, questionDate, replaceLowQualityQuestion, retry, saveDailyQuestion])
 
   const talkAboutQuestion = async () => {
     if (!dailyQuestion) return
@@ -71,8 +72,8 @@ export function HomeView() {
       </section>
 
       <section className={`morning-question-card ${dailyQuestion?.tone === 'sharp' ? 'sharp' : ''}`}>
-        <header><div className="morning-question-title"><span className="morning-question-mark"><Quote size={17} /></span><div><p className="eyebrow">朝问</p><h2>留一个问题，与今天同行</h2></div></div><time>{questionDate.slice(5).replace('-', ' / ')} · 08:00</time></header>
-        {dailyQuestion ? <div className="morning-question-content"><div className="morning-question-copy"><h3>{dailyQuestion.question}</h3><p>{dailyQuestion.background}</p></div><aside><span>再往深处想一步</span><blockquote>{dailyQuestion.followUp}</blockquote></aside><div className="morning-question-actions"><button className="primary-button" onClick={() => startDailyQuestionDiary(dailyQuestion)}><PenLine size={15} />写下想法</button><button className="ghost-button" onClick={() => void talkAboutQuestion()}><MessageCircle size={15} />和伙伴谈谈</button></div></div>
+        <header><div className="morning-question-title"><p className="eyebrow">朝问 <span>每日一页</span></p><h2>留一个问题，与今天同行</h2></div><div className="morning-question-meta">{dailyQuestion?.topic && <span>{dailyQuestion.topic}</span>}<time>{questionDate.slice(5).replace('-', ' / ')} · 08:00</time></div></header>
+        {dailyQuestion ? <div className="morning-question-content"><article className="morning-question-copy"><h3>{dailyQuestion.question}</h3><p>{dailyQuestion.background}</p><div className="morning-question-follow-up"><span>再往深处</span><blockquote>{dailyQuestion.followUp}</blockquote></div></article><div className="morning-question-actions"><button className="primary-button" onClick={() => startDailyQuestionDiary(dailyQuestion)}><PenLine size={15} />写下想法</button><button className="ghost-button" onClick={() => void talkAboutQuestion()}><MessageCircle size={15} />和伙伴谈谈</button></div></div>
           : <div className="morning-question-pending"><p>{questionBusy ? '正在为今天留下一个值得慢慢想的问题…' : isBeijingMorningReady() ? questionError || '今天的问题暂时没有抵达。' : '清晨八点，新的问题会来到这里。'}</p>{questionError && <button className="ghost-button" onClick={() => setRetry((value) => value + 1)}><RefreshCw size={14} />再试一次</button>}</div>}
       </section>
       </> : <section className="empty-state"><BookOpenText size={38} /><h2>写作模块已停用</h2><p>已有作品仍安全保留，可在设置中随时重新启用。</p><button className="primary-button" onClick={() => navigate('settings')}>前往设置</button></section>}
