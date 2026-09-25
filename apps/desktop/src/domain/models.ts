@@ -297,7 +297,7 @@ export interface Course {
   note: string
 }
 export interface DiaryEntry { date: string; title: string; content: string; updatedAt: string }
-export type MoodKind = 'happy' | 'excited' | 'satisfied' | 'hopeful' | 'calm' | 'relaxed' | 'anxious' | 'irritated' | 'angry' | 'sad' | 'lonely' | 'tired'
+export type MoodKind = 'happy' | 'satisfied' | 'hopeful' | 'relaxed' | 'calm' | 'empty' | 'anxious' | 'irritated' | 'angry' | 'sad' | 'lonely' | 'tired'
 export type MoodPeriod = 'morning' | 'afternoon' | 'evening'
 export type MoodPoints = Partial<Record<MoodKind, number>>
 export interface MoodEntry {

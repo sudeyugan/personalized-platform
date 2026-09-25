@@ -82,6 +82,21 @@ describe('library compatibility normalization', () => {
     expect(upgraded.settings.trust.privateDictionary).toEqual([])
   })
 
+  it('moves the retired excited mood into empty without dropping its points', () => {
+    const legacy = createSeedLibrary()
+    legacy.planner.moodEntries = [{
+      id: 'legacy-excited',
+      date: '2026-09-24',
+      period: 'evening',
+      points: { excited: 5 },
+      createdAt: '2026-09-24T12:00:00.000Z',
+      updatedAt: '2026-09-24T12:00:00.000Z',
+    }] as unknown as LibraryData['planner']['moodEntries']
+
+    const upgraded = normalizeLibrary(legacy)
+
+    expect(upgraded.planner.moodEntries[0]?.points).toEqual({ empty: 5 })
+  })
   it('normalizes a large library within the one-second data preparation budget', () => {
     const library = createSeedLibrary()
     const base = library.chapters['chapter-welcome']

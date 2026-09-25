@@ -45,8 +45,9 @@ export const importedScheduleCourses: Course[] = [
   { id: 'course-import-fri-2-compiler', title: '汇编与编译原理', day: 5, period: 2, teacher: '王朝坤', location: '舜德/经管西楼418', weeks: '全周', note: '必修' },
 ]
 
-const moodKinds: MoodKind[] = ['happy', 'excited', 'satisfied', 'hopeful', 'calm', 'relaxed', 'anxious', 'irritated', 'angry', 'sad', 'lonely', 'tired']
+const moodKinds: MoodKind[] = ['happy', 'satisfied', 'hopeful', 'relaxed', 'calm', 'empty', 'anxious', 'irritated', 'angry', 'sad', 'lonely', 'tired']
 const isMoodKind = (value: unknown): value is MoodKind => typeof value === 'string' && moodKinds.includes(value as MoodKind)
+const normalizeMoodKind = (value: unknown): MoodKind | undefined => value === 'excited' ? 'empty' : isMoodKind(value) ? value : undefined
 const isMoodPeriod = (value: unknown): value is MoodPeriod => value === 'morning' || value === 'afternoon' || value === 'evening'
 const periodFromTime = (value: unknown): MoodPeriod => {
   const hour = typeof value === 'string' ? new Date(value).getHours() : 12
@@ -64,10 +65,12 @@ const normalizeMoodEntries = (value: unknown): MoodEntry[] => {
     const points: MoodPoints = {}
     if (stored.points && typeof stored.points === 'object') {
       Object.entries(stored.points as Record<string, unknown>).forEach(([kind, count]) => {
-        if (isMoodKind(kind) && typeof count === 'number' && count > 0) points[kind] = Math.min(5, Math.round(count))
+        const normalizedKind = normalizeMoodKind(kind)
+        if (normalizedKind && typeof count === 'number' && count > 0) points[normalizedKind] = Math.min(5, (points[normalizedKind] ?? 0) + Math.round(count))
       })
-    } else if (isMoodKind(stored.mood)) {
-      points[stored.mood] = 5
+    } else {
+      const normalizedKind = normalizeMoodKind(stored.mood)
+      if (normalizedKind) points[normalizedKind] = 5
     }
     if (Object.values(points).reduce((sum, count) => sum + (count ?? 0), 0) !== 5) return
     const updatedAt = typeof stored.updatedAt === 'string' ? stored.updatedAt : createdAt

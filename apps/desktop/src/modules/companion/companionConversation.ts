@@ -120,7 +120,7 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
     saveMood: (date, period, pointsJson, note) => {
       requireDate(date, '情绪日期')
       if (!['morning', 'afternoon', 'evening'].includes(period)) throw new Error('情绪时段无效')
-      const allowed = new Set<MoodKind>(['happy', 'excited', 'satisfied', 'hopeful', 'calm', 'relaxed', 'anxious', 'irritated', 'angry', 'sad', 'lonely', 'tired'])
+      const allowed = new Set<MoodKind>(['happy', 'satisfied', 'hopeful', 'relaxed', 'calm', 'empty', 'anxious', 'irritated', 'angry', 'sad', 'lonely', 'tired'])
       let raw: unknown
       try { raw = JSON.parse(pointsJson) } catch { throw new Error('情绪点必须是有效 JSON') }
       if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('情绪点必须是对象')
