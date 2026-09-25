@@ -223,6 +223,30 @@ describe('agent runtime', () => {
     expect(result.audit[0]).toMatchObject({ permissionDecision: 'allowed', resultStatus: 'success', toolName: 'character.search' })
   })
 
+  it('resets provisional streamed text when the same model step becomes a tool call', async () => {
+    const current = fixture()
+    const events: string[] = []
+    let step = 0
+    const provider: AgentModelProvider = {
+      id: 'streaming-tool-fixture',
+      async testConnection() { return 'ok' },
+      async generate(_request, options) {
+        step += 1
+        if (step === 1) {
+          options?.onTextDelta?.('我先凭印象回答。')
+          return { type: 'tool_call', call: { id: 'call-stream-1', name: 'character.search', arguments: { query: '外婆' } } }
+        }
+        options?.onTextDelta?.('查到你确实写过外婆。')
+        return { type: 'text', text: '查到你确实写过外婆。' }
+      },
+    }
+    const result = await runAgent({
+      message: '我写过外婆吗？', history: [], provider, registry: createCompanionToolRegistry(),
+      onTextDelta: (delta) => events.push(`delta:${delta}`), onTextReset: () => events.push('reset'), ...current,
+    })
+    expect(result.text).toBe('查到你确实写过外婆。')
+    expect(events).toEqual(['delta:我先凭印象回答。', 'reset', 'delta:查到你确实写过外婆。'])
+  })
   it('returns permission denial to the model without running the tool', async () => {
     const current = fixture(false)
     const provider = new ScriptedProvider([

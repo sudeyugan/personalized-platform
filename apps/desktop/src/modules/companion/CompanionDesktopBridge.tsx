@@ -307,8 +307,9 @@ export function CompanionDesktopBridge() {
         onStatus: (status) => { if (activeTurn.current === turn) setAgentStatus(status) },
         onTextDelta: (delta) => {
           void emitTo('companion-chat', 'companion:stream-text', { text: delta, append: true })
-          speechBuffer += delta
-          flushSpeech()
+        },
+        onTextReset: () => {
+          void emitTo('companion-chat', 'companion:stream-text', { text: '' })
         },
         onVisualState: (state) => {
           if (activeTurn.current !== turn) return
@@ -346,6 +347,7 @@ export function CompanionDesktopBridge() {
         if (!trust.retainConversationHistory) {
           void emitTo('companion-chat', 'companion:transient-message', { role: 'companion', content: responseText })
         }
+        speechBuffer = responseText
         flushSpeech(true)
         void emitTo('companion-chat', 'companion:stream-text', { text: '' })
         if (!speechProvider) return

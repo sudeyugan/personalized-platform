@@ -31,6 +31,7 @@ export interface RunAgentInput {
   maxToolSteps?: number
   onStatus?: (status: AgentRuntimeStatus) => void
   onTextDelta?: (delta: string) => void
+  onTextReset?: () => void
   onAudit?: (record: AgentAuditRecord) => void
   requestPermission?: (request: AgentPermissionRequest) => Promise<boolean>
   responseMode?: 'text' | 'voice'
@@ -93,6 +94,7 @@ export async function runAgent(input: RunAgentInput) {
     throwIfCancelled(input.signal)
     input.onStatus?.({ phase: 'thinking' })
     let response
+    let streamedThisStep = false
     if (directAction) {
       response = { type: 'tool_call' as const, call: directAction }
       directAction = undefined
@@ -101,7 +103,13 @@ export async function runAgent(input: RunAgentInput) {
         const bufferActionResponse = actionIntent.expectsTool && !toolAttempted
         response = await withCancellation(input.provider.generate(
           { messages, context: input.context, tools: toolDefinitions },
-          { onTextDelta: bufferActionResponse ? undefined : input.onTextDelta, signal: input.signal },
+          {
+            onTextDelta: bufferActionResponse ? undefined : (delta) => {
+              streamedThisStep = true
+              input.onTextDelta?.(delta)
+            },
+            signal: input.signal,
+          },
         ), input.signal)
       } catch (error) {
         if (error instanceof AgentRuntimeError && error.code === 'AgentCancelled') throw error
@@ -125,6 +133,7 @@ export async function runAgent(input: RunAgentInput) {
       session.events.push({ type: 'assistant', content: response.text, timestamp: new Date().toISOString() })
       return { text: response.text, session, audit }
     }
+    if (streamedThisStep) input.onTextReset?.()
     if (toolSteps >= maxToolSteps) {
       const message = `Agent 已达到最多 ${maxToolSteps} 次工具调用，已安全停止。`
       input.onStatus?.({ phase: 'error', message })

@@ -12,6 +12,7 @@ import type { AgentPermissionRequest, AgentRuntimeStatus } from './agent/types'
 export interface CompanionTurnOptions {
   onStatus?: (status?: AgentRuntimeStatus) => void
   onTextDelta?: (delta: string) => void
+  onTextReset?: () => void
   onVisualState?: (state: CompanionVideoState) => void
   requestPermission?: (request: AgentPermissionRequest) => Promise<boolean>
   requestPrivacyReview?: (request: PrivacyReviewRequest) => Promise<boolean>
@@ -297,6 +298,10 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
           forwardStatus({ phase: 'responding' })
         }
         options.onTextDelta?.(delta)
+      },
+      onTextReset: () => {
+        streamingResponse = false
+        options.onTextReset?.()
       },
       onAudit: (entry) => useLibraryStore.getState().addCompanionAudit([entry]),
       requestPermission: options.requestPermission,

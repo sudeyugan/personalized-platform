@@ -59,6 +59,7 @@ export function CompanionPanel() {
         signal: turn.controller.signal,
         onStatus: (status) => { if (activeTurn.current?.id === turn.id) setAgentStatus(status) },
         onTextDelta: (delta) => { if (activeTurn.current?.id === turn.id) setStreamedReply((value) => value + delta) },
+        onTextReset: () => { if (activeTurn.current?.id === turn.id) setStreamedReply('') },
         requestPermission: (request) => new Promise((resolve) => setPermissionRequest({ request, resolve })),
         requestPrivacyReview: (request) => new Promise((resolve) => setPrivacyReview({ request, resolve })),
       })
