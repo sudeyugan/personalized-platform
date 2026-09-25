@@ -558,9 +558,9 @@
 - 日期：2026-09-25
 - 状态：已确认并实施
 - 背景：用户已经按统一画布准备庆祝、关切、招呼、待机、倾听、环顾、点头、害羞、困倦、回应、伸懒腰和打哈欠十二类 WebM；旧词表包含轻松、意外、难过、不满和独立 thinking，既与现有素材不一致，也会让负面表情无语义地随机穿插。
-- 决定：正式 `CompanionVideoState` 采用上述十二类。模型思考和 Tool 执行映射为 `looking`，不再单独要求 thinking 素材；纯待机自动穿插仅允许 `looking / stretching`，关切、害羞、庆祝、招呼、点头、打哈欠和困倦必须由对话语义、场景规则或受控 Tool 触发。旧 thinking/happy/surprised/sad/annoyed/agreeing 素材在读取时迁移到 looking/celebrating/looking/concerned/concerned/nodding。
+- 决定：正式 `CompanionVideoState` 采用上述十二类。模型思考和 Tool 执行不强制播放动画，短暂处理期间保持 `idle`；日间纯待机每隔约 20–45 秒从 `looking / stretching` 中穿插一段，夜间再极低频加入 `yawning / sleepy`，动作后重新等待且不连续串播。庆祝、关切、害羞、招呼和点头由对话语义或受控 Tool 触发；显示伙伴时的 `greeting` 设两小时冷却。旧 happy/sad/annoyed/agreeing 分别迁移到 celebrating/concerned/concerned/nodding，旧 thinking/surprised 文件保留但不再误绑定到 looking。
 - 备选方案：继续保留所有旧槽并额外增加 looking/nodding/yawning；完全让模型随机选择动作；为 thinking 再制作一段重复素材。
-- 选择理由：有限且真实拥有素材的词表更容易维护；复用 looking 能表达等待和观察，减少无价值素材制作；自动状态和语义动作分离可避免桌面伙伴在无上下文时突然担忧或庆祝。
+- 选择理由：有限且真实拥有素材的词表更容易维护；`looking` 表达的是静息时环顾而非极短的模型等待，避免请求阶段无意义闪切；约 75%–85% 的时间保留 `idle`，同时让每类已准备素材都有受控触发路径，并避免无上下文地担忧或庆祝。
 - 影响：设置页、Agent Tool、桌面状态标签、资料迁移和帮助文档使用同一十二类语义。未来扩展动作时必须同时声明所属层、循环策略、自动触发来源和回退状态。
-- 用户确认：用户明确给出十二类已准备动作，要求先修改支持类别，并继续规划合理播放方式。
+- 用户确认：用户明确给出十二类已准备动作，随后确认取消 thinking 动画、让 looking 用于静息穿插，并要求素材平时更常出现但不过于频繁，`idle` 仍是桌面主状态。
 - 关联：DEC-026、DEC-034、R-024、R-028

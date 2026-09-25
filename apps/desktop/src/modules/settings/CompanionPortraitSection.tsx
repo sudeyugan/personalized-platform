@@ -8,7 +8,6 @@ import { AssetImage } from '../assets/AssetImage'
 const interactionStates: { id: CompanionVideoState; label: string; hint: string }[] = [
   { id: 'idle', label: '待机', hint: '必需 · 默认状态与多片段轮换' },
   { id: 'listening', label: '倾听', hint: '可选 · 用户说话或音乐播放时' },
-  { id: 'looking', label: '环顾', hint: '可选 · 模型处理中或待机自然穿插' },
   { id: 'speaking', label: '说话 / 回应', hint: '可选 · 回复生成或 TTS 播放时' },
 ]
 const expressionStates: { id: CompanionVideoState; label: string; hint: string }[] = [
@@ -18,6 +17,7 @@ const expressionStates: { id: CompanionVideoState; label: string; hint: string }
 ]
 const poseStates: { id: CompanionVideoState; label: string; hint: string }[] = [
   { id: 'greeting', label: '打招呼', hint: '可选 · 显示伙伴或开始交谈时' },
+  { id: 'looking', label: '环顾', hint: '可选 · 待机时偶尔看向周围' },
   { id: 'nodding', label: '点头', hint: '可选 · 表示理解或认可' },
   { id: 'stretching', label: '伸懒腰 / 拉伸', hint: '可选 · 待机时偶尔穿插' },
   { id: 'yawning', label: '打哈欠', hint: '可选 · 夜间或疲倦语境' },

@@ -8,7 +8,7 @@ import type { CompanionDesktopMode, CompanionVideoState } from '../../domain/mod
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { companionDesktopSnapshot, companionVisualAssetIds } from './companionDesktop'
 import { sendCompanionTurn } from './companionConversation'
-import { isTransientVideoState } from './companionVideoPlayback'
+import { configuredClipsForState, isTransientVideoState } from './companionVideoPlayback'
 import type { AgentRuntimeStatus } from './agent'
 import { createSpeechToTextProvider, createTextToSpeechProvider } from '../../infrastructure/companionVoiceProvider'
 import { syncBackgroundRuntime } from '../../infrastructure/backgroundRuntime'
@@ -90,6 +90,8 @@ export function CompanionDesktopBridge() {
   const sending = useRef(false)
   const spokenAudio = useRef<HTMLAudioElement | undefined>(undefined)
   const resetStateTimer = useRef<number | undefined>(undefined)
+  const wasDesktopVisible = useRef(false)
+  const lastGreetingAt = useRef(0)
   const chatVisible = useRef(false)
   const chatTogglePending = useRef(false)
   const quietShortcutRestoreMode = useRef<Exclude<CompanionDesktopMode, 'quiet'>>('interactive')
@@ -239,6 +241,8 @@ export function CompanionDesktopBridge() {
         cancelActiveTurn()
       }
       sending.current = true
+      window.clearTimeout(resetStateTimer.current)
+      setVisualState(undefined)
       const turn = new AbortController()
       activeTurn.current = turn
       if (event.payload.requestId) {
@@ -397,12 +401,20 @@ export function CompanionDesktopBridge() {
   }, [clearCompanionMessages, publish, setCompanionDesktop])
   useEffect(() => {
     if (!isTauri()) return
+    const visible = data.companion.desktop.visible
+    const becameVisible = visible && !wasDesktopVisible.current
+    wasDesktopVisible.current = visible
+    if (becameVisible && Date.now() - lastGreetingAt.current >= 2 * 60 * 60 * 1000 && configuredClipsForState(snapshotRef.current.visual, 'greeting').length > 0) {
+      lastGreetingAt.current = Date.now()
+      window.clearTimeout(resetStateTimer.current)
+      setVisualState('greeting')
+    }
     void getAllWindows().then(async (windows) => {
       const desktop = windows.find((item) => item.label === 'companion')
       const chat = windows.find((item) => item.label === 'companion-chat')
       if (!desktop) return
       await publish()
-      if (data.companion.desktop.visible) await desktop.show(); else {
+      if (visible) await desktop.show(); else {
         setDesktopModeOverride(undefined)
         chatVisible.current = false
         await Promise.all([desktop.hide(), chat?.hide()])

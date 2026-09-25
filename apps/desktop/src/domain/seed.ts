@@ -47,9 +47,7 @@ export const importedScheduleCourses: Course[] = [
 
 const companionVideoStateSet = new Set<string>(companionVideoStates)
 const legacyCompanionVideoStates: Record<string, CompanionVideoState> = {
-  thinking: 'looking',
   happy: 'celebrating',
-  surprised: 'looking',
   sad: 'concerned',
   annoyed: 'concerned',
   agreeing: 'nodding',

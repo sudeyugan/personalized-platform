@@ -74,8 +74,8 @@ describe('library compatibility normalization', () => {
 
     const upgraded = normalizeLibrary(legacy)
 
-    expect(upgraded.companion.desktop.videoClips).toEqual({ idle: ['idle-1'], celebrating: ['happy-1'], looking: ['thinking-1'], nodding: ['agreeing-1'] })
-    expect(upgraded.companion.desktop.visual).toMatchObject({ type: 'video', videos: { idle: 'idle-1', celebrating: 'happy-1', looking: 'thinking-1', nodding: 'agreeing-1' } })
+    expect(upgraded.companion.desktop.videoClips).toEqual({ idle: ['idle-1'], celebrating: ['happy-1'], nodding: ['agreeing-1'] })
+    expect(upgraded.companion.desktop.visual).toMatchObject({ type: 'video', videos: { idle: 'idle-1', celebrating: 'happy-1', nodding: 'agreeing-1' } })
     expect(upgraded.settings.trust.externalAiProcessing).toBe(true)
     expect(upgraded.settings.trust.outboundProtection).toBe(true)
     expect(upgraded.settings.trust.outboundReviewMode).toBe('balanced')

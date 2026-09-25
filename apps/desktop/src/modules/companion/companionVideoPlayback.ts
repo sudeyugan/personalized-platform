@@ -1,8 +1,8 @@
 import type { CompanionVideoState, CompanionVisual } from '../../domain/models'
 
-export const interactionVideoStates = ['idle', 'listening', 'looking', 'speaking'] as const satisfies readonly CompanionVideoState[]
+export const interactionVideoStates = ['idle', 'listening', 'speaking'] as const satisfies readonly CompanionVideoState[]
 export const sceneVideoStates = ['sleepy'] as const satisfies readonly CompanionVideoState[]
-export const transientVideoStates = ['celebrating', 'concerned', 'greeting', 'nodding', 'shy', 'stretching', 'yawning'] as const satisfies readonly CompanionVideoState[]
+export const transientVideoStates = ['celebrating', 'concerned', 'greeting', 'looking', 'nodding', 'shy', 'stretching', 'yawning'] as const satisfies readonly CompanionVideoState[]
 export const idleInterludeVideoStates = ['looking', 'stretching'] as const satisfies readonly CompanionVideoState[]
 
 const transientStateSet = new Set<CompanionVideoState>(transientVideoStates)
@@ -24,8 +24,13 @@ export function configuredClipsForState(visual: CompanionVisual, state: Companio
   return legacy ? [legacy] : []
 }
 
-export function availableIdleInterludes(visual: CompanionVisual) {
-  return idleInterludeVideoStates.filter((state) => configuredClipsForState(visual, state).length > 0)
+export function availableIdleInterludes(visual: CompanionVisual, now = new Date(), random = Math.random) {
+  const states: CompanionVideoState[] = [...idleInterludeVideoStates]
+  const hour = now.getHours()
+  const isNight = hour >= 22 || hour < 6
+  if (isNight && random() < 0.12) states.push('yawning')
+  if (hour < 5 && random() < 0.03) states.push('sleepy')
+  return states.filter((state) => configuredClipsForState(visual, state).length > 0)
 }
 
 export function chooseDifferentItem<T>(items: readonly T[], previous?: T, random = Math.random) {
@@ -35,5 +40,5 @@ export function chooseDifferentItem<T>(items: readonly T[], previous?: T, random
 }
 
 export function nextIdleInterludeDelay(random = Math.random) {
-  return 25_000 + Math.floor(random() * 30_001)
+  return Math.min(45_000, 20_000 + Math.floor(random() * 25_001))
 }
