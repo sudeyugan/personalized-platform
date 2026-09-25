@@ -6,24 +6,21 @@ import { useLibraryStore } from '../../state/useLibraryStore'
 import { AssetImage } from '../assets/AssetImage'
 
 const interactionStates: { id: CompanionVideoState; label: string; hint: string }[] = [
-  { id: 'idle', label: '基础待机', hint: '必需 · 平时循环播放' },
-  { id: 'listening', label: '正在倾听', hint: '可选 · 录音或输入时' },
-  { id: 'thinking', label: '正在思考', hint: '可选 · 模型或 Tool 工作时' },
-  { id: 'speaking', label: '正在回应', hint: '可选 · 回复或 TTS 播放时' },
+  { id: 'idle', label: '待机', hint: '必需 · 默认状态与多片段轮换' },
+  { id: 'listening', label: '倾听', hint: '可选 · 用户说话或音乐播放时' },
+  { id: 'looking', label: '环顾', hint: '可选 · 模型处理中或待机自然穿插' },
+  { id: 'speaking', label: '说话 / 回应', hint: '可选 · 回复生成或 TTS 播放时' },
 ]
 const expressionStates: { id: CompanionVideoState; label: string; hint: string }[] = [
-  { id: 'happy', label: '轻松积极', hint: '可选 · 一次性反应，可在待机中穿插' },
-  { id: 'concerned', label: '认真关切', hint: '可选 · 一次性反应，可在待机中穿插' },
-  { id: 'surprised', label: '稍感意外', hint: '可选 · 一次性反应，可在待机中穿插' },
+  { id: 'celebrating', label: '庆祝', hint: '可选 · 达成目标或收到好消息时' },
+  { id: 'concerned', label: '担忧 / 关切', hint: '可选 · 安慰、风险或困难话题' },
   { id: 'shy', label: '害羞', hint: '可选 · 克制的害羞反应' },
-  { id: 'sad', label: '难过', hint: '可选 · 低落或安慰场景' },
-  { id: 'annoyed', label: '不满', hint: '可选 · 轻微不悦反应' },
 ]
 const poseStates: { id: CompanionVideoState; label: string; hint: string }[] = [
-  { id: 'greeting', label: '招手问候', hint: '可选 · 开始交谈时' },
-  { id: 'agreeing', label: '点头同意', hint: '可选 · 表示理解或认可' },
-  { id: 'celebrating', label: '庆祝', hint: '可选 · 达成目标时' },
-  { id: 'stretching', label: '伸懒腰', hint: '可选 · 待机时偶尔穿插' },
+  { id: 'greeting', label: '打招呼', hint: '可选 · 显示伙伴或开始交谈时' },
+  { id: 'nodding', label: '点头', hint: '可选 · 表示理解或认可' },
+  { id: 'stretching', label: '伸懒腰 / 拉伸', hint: '可选 · 待机时偶尔穿插' },
+  { id: 'yawning', label: '打哈欠', hint: '可选 · 夜间或疲倦语境' },
   { id: 'sleepy', label: '困倦', hint: '可选 · 深夜或休息场景，不参与随机穿插' },
 ]
 const videoStates = [...interactionStates, ...expressionStates, ...poseStates]

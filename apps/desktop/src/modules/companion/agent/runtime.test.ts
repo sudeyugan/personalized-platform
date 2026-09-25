@@ -137,8 +137,8 @@ describe('agent tool registry', () => {
     let selected = 'idle'
     const registry = createCompanionToolRegistry((state) => { selected = state })
     expect(registry.lookup('companion.set_state')?.definition).toMatchObject({ capability: 'presentation', risk: 'low' })
-    await expect(registry.execute({ id: 'state-1', name: 'companion.set_state', arguments: { state: 'happy' } }, current.services)).resolves.toMatchObject({ success: true })
-    expect(selected).toBe('happy')
+    await expect(registry.execute({ id: 'state-1', name: 'companion.set_state', arguments: { state: 'nodding' } }, current.services)).resolves.toMatchObject({ success: true })
+    expect(selected).toBe('nodding')
     await expect(registry.execute({ id: 'state-2', name: 'companion.set_state', arguments: { state: 'unknown' } }, current.services)).resolves.toMatchObject({ success: false, error: { code: 'InvalidArguments' } })
   })
 })

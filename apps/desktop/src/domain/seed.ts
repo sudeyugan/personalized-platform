@@ -1,5 +1,5 @@
 import type { JSONContent } from '@tiptap/react'
-import type { Course, CourseDay, LibraryData, MoodEntry, MoodKind, MoodPeriod, MoodPoints, TodoItem } from './models'
+import { companionVideoStates, type CompanionVideoLibrary, type CompanionVideoState, type Course, type CourseDay, type LibraryData, type MoodEntry, type MoodKind, type MoodPeriod, type MoodPoints, type TodoItem } from './models'
 import { countChineseWords } from './wordCount'
 
 const introContent: JSONContent = {
@@ -45,6 +45,16 @@ export const importedScheduleCourses: Course[] = [
   { id: 'course-import-fri-2-compiler', title: '汇编与编译原理', day: 5, period: 2, teacher: '王朝坤', location: '舜德/经管西楼418', weeks: '全周', note: '必修' },
 ]
 
+const companionVideoStateSet = new Set<string>(companionVideoStates)
+const legacyCompanionVideoStates: Record<string, CompanionVideoState> = {
+  thinking: 'looking',
+  happy: 'celebrating',
+  surprised: 'looking',
+  sad: 'concerned',
+  annoyed: 'concerned',
+  agreeing: 'nodding',
+}
+const normalizeCompanionVideoState = (value: string): CompanionVideoState | undefined => legacyCompanionVideoStates[value] ?? (companionVideoStateSet.has(value) ? value as CompanionVideoState : undefined)
 const moodKinds: MoodKind[] = ['happy', 'satisfied', 'hopeful', 'relaxed', 'calm', 'empty', 'anxious', 'irritated', 'angry', 'sad', 'lonely', 'tired']
 const isMoodKind = (value: unknown): value is MoodKind => typeof value === 'string' && moodKinds.includes(value as MoodKind)
 const normalizeMoodKind = (value: unknown): MoodKind | undefined => value === 'excited' ? 'empty' : isMoodKind(value) ? value : undefined
@@ -200,12 +210,19 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
   ]
   const storedVideoAssets = data.companion?.desktop?.videoAssets ?? (data.companion?.desktop?.visual?.type === 'video' ? data.companion.desktop.visual.videos : {})
   const storedVideoClips = data.companion?.desktop?.videoClips ?? (data.companion?.desktop?.visual?.type === 'video' ? data.companion.desktop.visual.clips : undefined)
-  const videoClips = Object.fromEntries([...new Set([...Object.keys(storedVideoAssets), ...Object.keys(storedVideoClips ?? {})])].map((state) => {
-    const clips = storedVideoClips?.[state as keyof typeof storedVideoClips]?.filter(Boolean) ?? []
-    const legacy = storedVideoAssets[state as keyof typeof storedVideoAssets]
-    return [state, [...new Set(legacy && !clips.includes(legacy) ? [legacy, ...clips] : clips)]]
-  }).filter(([, clips]) => (clips as string[]).length))
-  const primaryVideos = Object.fromEntries(Object.entries(videoClips).map(([state, clips]) => [state, (clips as string[])[0]]))
+  const storedAssetMap = storedVideoAssets as Record<string, string | undefined>
+  const storedClipMap = storedVideoClips as Record<string, string[] | undefined> | undefined
+  const normalizedClipMap = new Map<CompanionVideoState, string[]>()
+  ;[...new Set([...Object.keys(storedAssetMap), ...Object.keys(storedClipMap ?? {})])].forEach((storedState) => {
+    const state = normalizeCompanionVideoState(storedState)
+    if (!state) return
+    const clips = storedClipMap?.[storedState]?.filter(Boolean) ?? []
+    const legacy = storedAssetMap[storedState]
+    const previous = normalizedClipMap.get(state) ?? []
+    normalizedClipMap.set(state, [...new Set([...previous, ...(legacy && !clips.includes(legacy) ? [legacy] : []), ...clips])])
+  })
+  const videoClips = Object.fromEntries(normalizedClipMap) as CompanionVideoLibrary
+  const primaryVideos = Object.fromEntries(Object.entries(videoClips).map(([state, clips]) => [state, clips?.[0]]).filter((entry): entry is [string, string] => Boolean(entry[1]))) as Partial<Record<CompanionVideoState, string>>
   const storedVisual = data.companion?.desktop?.visual ?? { type: 'portrait' as const, assetId: data.companion?.appearance?.portraitAssetId }
   const normalizedVisual = storedVisual.type === 'video' ? { type: 'video' as const, videos: primaryVideos, clips: videoClips } : storedVisual
   const storedPermissions = data.companion?.permissions

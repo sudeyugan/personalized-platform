@@ -1,8 +1,9 @@
 import type { CompanionVideoState, CompanionVisual } from '../../domain/models'
 
-export const interactionVideoStates = ['idle', 'listening', 'thinking', 'speaking'] as const satisfies readonly CompanionVideoState[]
+export const interactionVideoStates = ['idle', 'listening', 'looking', 'speaking'] as const satisfies readonly CompanionVideoState[]
 export const sceneVideoStates = ['sleepy'] as const satisfies readonly CompanionVideoState[]
-export const transientVideoStates = ['happy', 'concerned', 'surprised', 'shy', 'sad', 'annoyed', 'greeting', 'agreeing', 'celebrating', 'stretching'] as const satisfies readonly CompanionVideoState[]
+export const transientVideoStates = ['celebrating', 'concerned', 'greeting', 'nodding', 'shy', 'stretching', 'yawning'] as const satisfies readonly CompanionVideoState[]
+export const idleInterludeVideoStates = ['looking', 'stretching'] as const satisfies readonly CompanionVideoState[]
 
 const transientStateSet = new Set<CompanionVideoState>(transientVideoStates)
 const sustainedStateSet = new Set<CompanionVideoState>([...interactionVideoStates, ...sceneVideoStates])
@@ -24,7 +25,7 @@ export function configuredClipsForState(visual: CompanionVisual, state: Companio
 }
 
 export function availableIdleInterludes(visual: CompanionVisual) {
-  return transientVideoStates.filter((state) => configuredClipsForState(visual, state).length > 0)
+  return idleInterludeVideoStates.filter((state) => configuredClipsForState(visual, state).length > 0)
 }
 
 export function chooseDifferentItem<T>(items: readonly T[], previous?: T, random = Math.random) {

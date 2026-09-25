@@ -158,7 +158,7 @@ export function createCompanionToolRegistry(onVisualState?: (state: CompanionVid
     definition: {
       name: 'companion.set_state',
       description: '为这次回应选择一个克制的伙伴视觉状态；仅在确有助于表达语气时调用一次',
-      inputSchema: { type: 'object', properties: { state: { type: 'string', enum: ['idle', 'happy', 'concerned', 'surprised', 'shy', 'sad', 'annoyed', 'greeting', 'agreeing', 'celebrating', 'stretching', 'sleepy'], description: '伙伴表情或姿势状态' } }, required: ['state'], additionalProperties: false },
+      inputSchema: { type: 'object', properties: { state: { type: 'string', enum: ['idle', 'celebrating', 'concerned', 'greeting', 'looking', 'nodding', 'shy', 'sleepy', 'stretching', 'yawning'], description: '伙伴表情或姿势状态' } }, required: ['state'], additionalProperties: false },
       capability: 'presentation', risk: 'low', scope: 'none',
     },
     execute: (args) => { onVisualState(String(args.state) as CompanionVideoState); return { state: args.state } },

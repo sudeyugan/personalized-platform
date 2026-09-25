@@ -168,15 +168,18 @@ export function DesktopCompanionWindow() {
   }
   const advanceIdle = () => {
     if (readyVisual?.id !== selectedVideoId) return
+    if (idleInterlude === displayedAction) {
+      setIdleInterlude(undefined)
+      return
+    }
     if (isTransientVideoState(displayedAction)) {
-      if (idleInterlude === displayedAction) setIdleInterlude(undefined)
-      else void emitTo('main', 'companion:transient-ended', { state: displayedAction })
+      void emitTo('main', 'companion:transient-ended', { state: displayedAction })
       return
     }
     if (displayedAction !== 'idle' || videoCandidates.length < 2) return
     setSelectedVideoId((current) => chooseDifferentItem(videoCandidates, current))
   }
-  const loopVideo = isSustainedVideoState(displayedAction) && (displayedAction !== 'idle' || videoCandidates.length < 2)
+  const loopVideo = !idleInterlude && isSustainedVideoState(displayedAction) && (displayedAction !== 'idle' || videoCandidates.length < 2)
   const visual = <>
     {outgoingVisual && outgoingVisual.id !== readyVisual?.id && (outgoingVisual.kind === 'video'
       ? <video className="desktop-media outgoing" key={outgoingVisual.id} src={outgoingVisual.url} autoPlay loop muted playsInline draggable={false} />
