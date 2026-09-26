@@ -13,11 +13,6 @@ export function backgroundSceneForView(view: ViewId): ContentBackgroundScene {
   return 'default'
 }
 
-export function contentBackgroundCss(image: string) {
-  const veil = 'color-mix(in srgb, var(--bg) 78%, transparent)'
-  return `linear-gradient(${veil}, ${veil}), url(${JSON.stringify(image)})`
-}
-
 export function resolveContentBackground(settings: LibraryData['settings'], view: ViewId) {
   const scene = backgroundSceneForView(view)
   const images = settings.backgrounds?.images ?? {}
