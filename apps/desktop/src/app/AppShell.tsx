@@ -1,5 +1,5 @@
 import { BookHeart, BookOpenText, ChevronDown, ChevronLeft, ChevronRight, CloudOff, FileText, PanelRight, Search, X } from 'lucide-react'
-import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { navigationItems } from './moduleManifest'
 import { resolveContentBackground } from './backgrounds'
 import { useLibraryStore } from '../state/useLibraryStore'
@@ -42,7 +42,6 @@ export function AppShell() {
   const writingViewActive = navigationItems.some((item) => item.group === 'writing' && item.id === activeView)
   const contentBackground = resolveContentBackground(data.settings, activeView)
   const sidebarBackground = data.settings.backgrounds.images.sidebar
-  const sidebarStyle = sidebarBackground ? { '--sidebar-art': `url(${sidebarBackground})` } as CSSProperties : undefined
 
   const toggleWritingNavigation = () => {
     setWritingNavigationOpen((current) => {
@@ -69,7 +68,8 @@ export function AppShell() {
 
   return (
     <div className={data.session.focusMode ? 'app-frame focus-mode' : 'app-frame'}>
-      <aside className={`primary-sidebar sidebar-background-${data.settings.backgrounds.sidebarMode}${sidebarBackground ? ' has-sidebar-background' : ''}`} style={sidebarStyle}>
+      <aside className={`primary-sidebar sidebar-background-${data.settings.backgrounds.sidebarMode}${sidebarBackground ? ' has-sidebar-background' : ''}`}>
+        {sidebarBackground && <div aria-hidden="true" className="sidebar-background-art"><img alt="" src={sidebarBackground} /></div>}
         <div className="brand-lockup">
           <div className="brand-mark small">隅</div>
           <div><strong>一隅</strong><span>安放你的故事</span></div>
