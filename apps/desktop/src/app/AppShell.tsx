@@ -1,7 +1,7 @@
 import { BookHeart, BookOpenText, ChevronDown, ChevronLeft, ChevronRight, CloudOff, FileText, PanelRight, Search, X } from 'lucide-react'
 import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react'
 import { navigationItems } from './moduleManifest'
-import { resolveContentBackground } from './backgrounds'
+import { contentBackgroundCss, resolveContentBackground } from './backgrounds'
 import { useLibraryStore } from '../state/useLibraryStore'
 import { libraryRepository, type SearchHit } from '../infrastructure/libraryRepository'
 import { PlaybackDock } from '../modules/music/PlaybackDock'
@@ -108,7 +108,7 @@ export function AppShell() {
       </aside>
 
       <section className="workspace">
-        {contentBackground.image && <div className="workspace-background" key={`${contentBackground.scene}-${contentBackground.image.length}-${contentBackground.image.slice(-12)}`} style={{ backgroundImage: `linear-gradient(color-mix(in srgb, var(--app-bg) 86%, transparent), color-mix(in srgb, var(--app-bg) 86%, transparent)), url(${contentBackground.image})` }} />}
+        {contentBackground.image && <div className="workspace-background" key={`${contentBackground.scene}-${contentBackground.image.length}-${contentBackground.image.slice(-12)}`} style={{ backgroundImage: contentBackgroundCss(contentBackground.image) }} />}
         <header className="window-toolbar">
           <div className="history-buttons"><button aria-label="后退"><ChevronLeft size={17} /></button><button aria-label="前进"><ChevronRight size={17} /></button></div>
           <div className="toolbar-spacer" />
