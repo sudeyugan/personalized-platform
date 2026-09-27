@@ -29,7 +29,7 @@
 
 ## M10 实现记录
 
-1. 模型通过 `ModelProvider` 返回文本或 Tool Call；Runtime 最多执行 4 步，Tool 统一经过 schema、capability/risk、资料 scope 与加密临时许可。
+1. 模型通过 `ModelProvider` 返回文本或 Tool Call；Runtime 最多执行 8 步，Tool 统一经过 schema、capability/risk、资料 scope 与加密临时许可。
 2. 读取 Tool 覆盖当前作品、章节、人物、地点与时间线；写入 Tool 覆盖待办、日历事务、日记、作品、章节、人物/地点/时间线资料、课表和伙伴记忆，另有受限页面切换与音乐控制。所有 Tool 只调用受控 Application Service，不向模型暴露 Store、Repository、SQLite、文件或 Shell。
 3. 桌面视觉支持透明 PNG/WebP 和按语义状态组织的 9:16 透明 WebM 动作库；同一状态可添加多段素材，待机片段在自然结束后轮换，旧单段数据继续兼容。窗口无可见边框，默认 `Ctrl+Alt+Y` 全局显示/隐藏，单击立绘展开聊天，拖动移动，双击打开主窗口。
 4. 设置统一命名为“AI 伙伴”，取消三个切换入口，合并为单页折叠设置；DeepSeek 对话和 OpenRouter GPT Image 使用不同的 Windows 安全密钥槽。

@@ -5,6 +5,7 @@ mod diagnostic_repository;
 mod library_migrations;
 mod library_projections;
 mod library_repository;
+mod library_validation;
 mod recovery_repository;
 mod secret_repository;
 mod storage_root;
@@ -16,6 +17,7 @@ pub use audio_repository::{AudioReceipt, AudioRepository};
 pub use backup_repository::{BackupPreview, BackupReceipt, BackupRepository};
 pub use diagnostic_repository::{DiagnosticRepository, install_panic_marker};
 pub use library_repository::{LibraryRepository, LibrarySnapshot, SaveReceipt, SearchHit};
+pub use library_validation::validate_library;
 pub use recovery_repository::{RecoveryDraft, RecoveryRepository};
 pub use secret_repository::SecretRepository;
 pub use storage_root::{

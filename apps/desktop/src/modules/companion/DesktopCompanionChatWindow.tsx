@@ -52,6 +52,7 @@ export function DesktopCompanionChatWindow() {
   useCompanionVoiceWake({ voice: snapshot.voice, agentBusy, speechBusy, spokenText, requestToken: requestVoiceToken, setSpeechNote })
 
   useEffect(() => {
+    const pendingTokenRequests = tokenRequests.current
     let stopSnapshot: (() => void) | undefined
     let stopOpen: (() => void) | undefined
     let stopTranscript: (() => void) | undefined
@@ -117,8 +118,8 @@ export function DesktopCompanionChatWindow() {
       realtimeConnection.current?.close()
       void emitTo('main', 'companion:voice-activity', { active: false })
       window.clearTimeout(sendAckTimer.current)
-      tokenRequests.current.forEach((pending) => pending.reject(new Error('VOICE_CANCELLED:语音窗口已关闭')))
-      tokenRequests.current.clear()
+      pendingTokenRequests.forEach((pending) => pending.reject(new Error('VOICE_CANCELLED:语音窗口已关闭')))
+      pendingTokenRequests.clear()
       recordingStream.current?.getTracks().forEach((track) => track.stop())
     }
   }, [])

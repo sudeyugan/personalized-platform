@@ -1,5 +1,5 @@
 import { CalendarClock, CalendarOff, Check, Circle, ListTodo, Plus, Repeat2, Settings2, Target } from 'lucide-react'
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import type { CourseDay, TodoItem } from '../../domain/models'
 import { formatLocalDate } from '../../domain/localDate'
 import { useLibraryStore } from '../../state/useLibraryStore'
@@ -21,12 +21,13 @@ export function TodoView() {
   const [repeatDays, setRepeatDays] = useState<CourseDay[]>([dayNumber(today)])
   const [filter, setFilter] = useState<Filter>('today')
   const [settingsTodoId, setSettingsTodoId] = useState<string>()
+  const agentNavigation = data.session.agentNavigation
   useEffect(() => {
-    const navigation = data.session.agentNavigation
+    const navigation = agentNavigation
     if (navigation?.destination !== 'todos') return
     if (navigation.filter === 'today' || navigation.filter === 'all' || navigation.filter === 'done') setFilter(navigation.filter)
     if (navigation.targetId && data.planner.todos.some((todo) => todo.id === navigation.targetId)) setSettingsTodoId(navigation.targetId)
-  }, [data.session.agentNavigation?.id, data.planner.todos])
+  }, [agentNavigation, data.planner.todos])
   const holidayDates = data.planner.holidayDates ?? []
   const todayIsHoliday = isTodoHoliday(holidayDates, today)
   const completedToday = (todo: TodoItem) => isTodoCompletedOn(todo, today)
@@ -36,7 +37,7 @@ export function TodoView() {
     addTodo({ title, repeat, dueDate: repeat === 'none' ? dueDate : undefined, repeatDays: repeat === 'weekly' ? (repeatDays.length ? repeatDays : [dayNumber(today)]) : undefined, quotaPeriod: repeat === 'quota' ? 'week' : undefined, quotaTarget: repeat === 'quota' ? 3 : undefined })
     setTitle('')
   }
-  const todos = useMemo(() => data.planner.todos.filter((item) => filter === 'all' || (filter === 'done' ? relevantToday(item) && completedToday(item) : relevantToday(item) && (!completedToday(item) || item.repeat === 'quota'))).sort((a, b) => Number(completedToday(a)) - Number(completedToday(b)) || (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999')), [data.planner.todos, data.planner.holidayDates, filter, today])
+  const todos = data.planner.todos.filter((item) => filter === 'all' || (filter === 'done' ? relevantToday(item) && completedToday(item) : relevantToday(item) && (!completedToday(item) || item.repeat === 'quota'))).sort((a, b) => Number(completedToday(a)) - Number(completedToday(b)) || (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999'))
   const openCount = data.planner.todos.filter((item) => relevantToday(item) && !completedToday(item)).length
   const settingsTodo = data.planner.todos.find((todo) => todo.id === settingsTodoId)
   const changeRepeat = (todo: TodoItem, next: RepeatMode) => updateTodo(todo.id, { repeat: next, dueDate: next === 'none' ? todo.dueDate ?? today : undefined, repeatDays: next === 'weekly' ? (todo.repeatDays?.length ? todo.repeatDays : [dayNumber(today)]) : undefined, quotaPeriod: next === 'quota' ? todo.quotaPeriod ?? 'week' : undefined, quotaTarget: next === 'quota' ? todo.quotaTarget ?? 3 : undefined, quotaCompletions: next === 'quota' ? todo.quotaCompletions ?? [] : [], completed: false, completedDates: [] })

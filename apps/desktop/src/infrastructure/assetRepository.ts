@@ -31,7 +31,7 @@ async function videoDimensions(file: Blob) {
         window.clearTimeout(timeout)
         video.onloadedmetadata = null
         video.onerror = null
-        error ? reject(error) : resolve()
+        if (error) reject(error); else resolve()
       }
       const timeout = window.setTimeout(() => finish(new Error('读取 WebM 信息超时，请确认视频使用 WebView2 支持的 VP8/VP9 编码')), 12_000)
       video.onloadedmetadata = () => finish()

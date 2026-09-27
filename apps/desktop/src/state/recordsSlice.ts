@@ -1,11 +1,11 @@
 import type { EntityRef, EntityType, LibraryData, Person, Place, RecordType, TimelineEvent } from '../domain/models'
-import { libraryRepository } from '../infrastructure/libraryRepository'
 import type { LibraryStore } from './libraryStoreTypes'
+import { commitLibraryData, type LibraryStoreSetter } from './persistence'
 
-type SetStore = (partial: Partial<LibraryStore>) => void
+type SetStore = LibraryStoreSetter
 const keyFor = (type: RecordType) => type === 'person' ? 'people' : type === 'place' ? 'places' : 'events'
 const makeId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
-const commit = (data: LibraryData, set: SetStore) => { set({ data }); void libraryRepository.save(data) }
+const commit = commitLibraryData
 
 export function createRecordsSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, 'addPerson' | 'addPlace' | 'addEvent' | 'createRecordFromText' | 'updatePerson' | 'updatePlace' | 'updateEvent' | 'trashRecord' | 'restoreRecord' | 'permanentlyDeleteRecord' | 'setChapterLink' | 'setRecordLink' | 'openRecord' | 'pinRecord' | 'addPersonRelation' | 'deletePersonRelation' | 'moveEvent'> {
   const update = (key: 'people' | 'places' | 'events', id: string, changes: object) => commit({ ...get().data, [key]: get().data[key].map((record) => record.id === id ? { ...record, ...changes } : record) } as LibraryData, set)

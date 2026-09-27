@@ -4,7 +4,7 @@ import { AgentToolRegistry } from './toolRegistry'
 import { detectActionIntent } from './directActions'
 import type { AgentAuditRecord, AgentContextSnapshot, AgentErrorCode, AgentMessage, AgentModelProvider, AgentPermissionRequest, AgentRuntimeStatus, AgentSession, AgentToolCall, AgentToolResult } from './types'
 
-export const DEFAULT_MAX_TOOL_STEPS = 12
+export const DEFAULT_MAX_TOOL_STEPS = 8
 
 function modelErrorMessage(error: unknown) {
   if (error instanceof Error && error.message.trim()) return error.message

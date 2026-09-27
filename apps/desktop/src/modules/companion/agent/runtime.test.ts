@@ -3,7 +3,7 @@ import { createSeedLibrary } from '../../../domain/seed'
 import { createAgentApplicationServices } from './applicationServices'
 import { buildAgentAccess, buildAgentContext } from './context'
 import { AgentPermissionEngine } from './permission'
-import { AgentRuntimeError, runAgent } from './runtime'
+import { AgentRuntimeError, DEFAULT_MAX_TOOL_STEPS, runAgent } from './runtime'
 import { AgentToolRegistry } from './toolRegistry'
 import { createCompanionToolRegistry } from './tools'
 import type { AgentModelProvider, AgentModelRequest, AgentModelResponse } from './types'
@@ -144,6 +144,7 @@ describe('agent tool registry', () => {
 })
 
 describe('agent runtime', () => {
+  it('caps the default agent loop at eight tool calls', () => { expect(DEFAULT_MAX_TOOL_STEPS).toBe(8) })
   it('returns direct model text without invoking a tool', async () => {
     const current = fixture()
     const provider = new ScriptedProvider([{ type: 'text', text: '我在这里。' }])

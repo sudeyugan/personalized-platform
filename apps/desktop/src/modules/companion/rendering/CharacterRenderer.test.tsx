@@ -2,7 +2,8 @@ import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import type { CompanionCharacterPackage } from '../../../domain/models'
 import { initialCharacterState } from '../character/CharacterState'
-import { CharacterRenderer, resolveSpritePlacement } from './CharacterRenderer'
+import { CharacterRenderer } from './CharacterRenderer'
+import { resolveSpritePlacement } from './spritePlacement'
 
 const legacy: CompanionCharacterPackage = {
   version: 1,

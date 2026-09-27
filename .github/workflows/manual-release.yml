@@ -38,7 +38,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Intentionally does not run tests, lint, typecheck, or documentation gates.
+      - name: Run full quality gates
+        run: pnpm verify:full
+
+      - name: Validate documentation
+        run: pnpm docs:check
       - name: Build Tauri release
         run: pnpm release:build
 

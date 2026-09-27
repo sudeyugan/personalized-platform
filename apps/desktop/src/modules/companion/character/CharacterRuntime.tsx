@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react'
-import { characterRenderers } from '../rendering/CharacterRenderer'
+import { CharacterRenderer } from '../rendering/CharacterRenderer'
 import type { CharacterPackage } from './CharacterConfig'
 import { CharacterController } from './CharacterController'
 import type { CharacterState } from './CharacterState'
@@ -21,7 +21,7 @@ export const CharacterRuntime = forwardRef<CharacterRuntimeHandle, { character: 
   useEffect(() => { if (expression) controller.setExpression(expression) }, [controller, expression])
   useEffect(() => { if (talking) controller.startTalking(); else controller.stopTalking() }, [controller, talking])
   useImperativeHandle(ref, () => ({ setExpression: (name) => controller.setExpression(name), playMotion: (name) => controller.playMotion(name), startTalking: () => controller.startTalking(), stopTalking: () => controller.stopTalking(), sleep: () => controller.sleep(), wake: () => controller.wake() }), [controller])
-  const Renderer = characterRenderers[character.renderer?.type ?? 'sprite']
+  const Renderer = CharacterRenderer
   return <Renderer character={character} state={state} urls={urls} label={label} debugSlots={debugSlots} />
 })
 

@@ -1,9 +1,9 @@
 import type { CompanionPersonality, LibraryData } from '../domain/models'
-import { libraryRepository } from '../infrastructure/libraryRepository'
 import type { LibraryStore } from './libraryStoreTypes'
+import { commitLibraryData, type LibraryStoreSetter } from './persistence'
 
-type SetStore = (partial: Partial<LibraryStore>) => void
-const commit = (data: LibraryData, set: SetStore) => { set({ data }); void libraryRepository.save(data) }
+type SetStore = LibraryStoreSetter
+const commit = commitLibraryData
 const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)))
 
 export function buildCompanionContext(data: LibraryData, temporaryWorkIds: string[]) {

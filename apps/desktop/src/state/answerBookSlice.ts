@@ -1,13 +1,12 @@
 import type { AnswerBookFavorite, LibraryData } from '../domain/models'
-import { libraryRepository } from '../infrastructure/libraryRepository'
 import type { LibraryStore } from './libraryStoreTypes'
+import { commitLibraryData, type LibraryStoreSetter } from './persistence'
 
-type SetStore = (partial: Partial<LibraryStore>) => void
+type SetStore = LibraryStoreSetter
 type AnswerBookActions = 'addAnswerBookFavorite' | 'deleteAnswerBookFavorite'
 
 const commit = (data: LibraryData, set: SetStore) => {
-  set({ data })
-  void libraryRepository.save(data)
+  commitLibraryData(data, set)
 }
 
 export function createAnswerBookSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, AnswerBookActions> {

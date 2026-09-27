@@ -1,7 +1,8 @@
-import { useEffect, useState, type CSSProperties, type ComponentType, type SyntheticEvent } from 'react'
+import { useEffect, useState, type CSSProperties, type SyntheticEvent } from 'react'
 import type { CharacterSpriteReference } from '../../../domain/models'
 import { spriteAssetId, type CharacterPackage } from '../character/CharacterConfig'
 import type { CharacterState } from '../character/CharacterState'
+import { resolveSpritePlacement } from './spritePlacement'
 
 export interface CharacterRendererProps {
   character: CharacterPackage
@@ -9,29 +10,6 @@ export interface CharacterRendererProps {
   urls: Record<string, string>
   label: string
   debugSlots?: boolean
-}
-
-export interface SpritePlacement {
-  x: number
-  y: number
-  width?: number
-  height?: number
-  positioned: boolean
-  missingSlot?: string
-}
-
-export function resolveSpritePlacement(character: CharacterPackage, sprite: CharacterSpriteReference): SpritePlacement {
-  if (typeof sprite === 'string') return { x: 0, y: 0, positioned: false }
-  if (!sprite.slot) return { x: 0, y: 0, positioned: false }
-  const slot = sprite.slot ? character.slots?.[sprite.slot] : undefined
-  return {
-    x: slot ? slot.x + (sprite.offset?.x ?? 0) : 0,
-    y: slot ? slot.y + (sprite.offset?.y ?? 0) : 0,
-    width: slot?.width,
-    height: slot?.height,
-    positioned: true,
-    missingSlot: sprite.slot && !slot ? sprite.slot : undefined,
-  }
 }
 
 const percent = (value: number, total: number) => `${(value / total) * 100}%`
@@ -104,8 +82,4 @@ export function CharacterRenderer({ character, state, urls, label, debugSlots = 
     </>}
     {debugSlots && import.meta.env.DEV ? <CharacterSlotDebug character={character} /> : null}
   </div>
-}
-
-export const characterRenderers: Record<'sprite', ComponentType<CharacterRendererProps>> = {
-  sprite: CharacterRenderer,
 }

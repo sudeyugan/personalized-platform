@@ -1,4 +1,4 @@
-import { BookHeart, BookOpenText, ChevronDown, ChevronLeft, ChevronRight, CloudOff, FileText, PanelRight, Search, X } from 'lucide-react'
+import { BookHeart, BookOpenText, ChevronDown, ChevronRight, CloudOff, FileText, PanelRight, Search, X } from 'lucide-react'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { navigationItems } from './moduleManifest'
 import { resolveContentBackground } from './backgrounds'
@@ -20,7 +20,7 @@ const HelpView = lazy(() => import('../modules/help/HelpView').then((module) => 
 const SettingsView = lazy(() => import('../modules/settings/SettingsView').then((module) => ({ default: module.SettingsView })))
 
 export function AppShell() {
-  const { data, health, navigate, closeChapter, selectChapter, toggleRightPanel } = useLibraryStore()
+  const { data, health, saveStatus, navigate, closeChapter, selectChapter, toggleRightPanel } = useLibraryStore()
   const { activeView, activeChapterId, openChapterIds } = data.session
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -75,7 +75,7 @@ export function AppShell() {
           <div><strong>一隅</strong><span>安放你的故事</span></div>
         </div>
 
-        <button className="search-trigger" onClick={() => setSearchOpen(true)} type="button"><Search size={16} /><span>搜索一切</span><kbd>Ctrl K</kbd></button>
+        <button className="search-trigger" onClick={() => setSearchOpen(true)} type="button"><Search size={16} /><span>搜索章节</span><kbd>Ctrl K</kbd></button>
 
         <nav className="main-navigation" aria-label="主导航">
           {(['main', 'writing', 'system'] as const).map((group) => (
@@ -110,7 +110,7 @@ export function AppShell() {
       <section className="workspace">
         {contentBackground.image && <div aria-hidden="true" className="workspace-background" key={`${contentBackground.scene}-${contentBackground.image.length}-${contentBackground.image.slice(-12)}`}><img alt="" src={contentBackground.image} /></div>}
         <header className="window-toolbar">
-          <div className="history-buttons"><button aria-label="后退"><ChevronLeft size={17} /></button><button aria-label="前进"><ChevronRight size={17} /></button></div>
+          {saveStatus === 'error' ? <div className="offline-chip save-error" role="alert">保存失败，请重试后再关闭应用</div> : null}
           <div className="toolbar-spacer" />
           <div className="offline-chip"><CloudOff size={14} /> 本地优先</div>
           <button className={data.settings.showRightPanel ? 'icon-button active' : 'icon-button'} aria-label="切换右侧栏" onClick={toggleRightPanel}><PanelRight size={18} /></button>

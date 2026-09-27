@@ -1,11 +1,11 @@
 import type { JSONContent } from '@tiptap/react'
 import type { AiGeneration, CharacterSpriteReference, LibraryData } from '../domain/models'
 import { assetRepository } from '../infrastructure/assetRepository'
-import { libraryRepository } from '../infrastructure/libraryRepository'
 import type { LibraryStore } from './libraryStoreTypes'
+import { commitLibraryData, type LibraryStoreSetter } from './persistence'
 
-type SetStore = (partial: Partial<LibraryStore>) => void
-const commit = (data: LibraryData, set: SetStore) => { set({ data }); void libraryRepository.save(data) }
+type SetStore = LibraryStoreSetter
+const commit = commitLibraryData
 const characterSpriteAssetId = (sprite: CharacterSpriteReference) => typeof sprite === 'string' ? sprite : sprite.assetId
 
 export function createAssetsSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, 'importAsset' | 'importCompanionVideo' | 'updateAsset' | 'trashAsset' | 'restoreAsset' | 'permanentlyDeleteAsset' | 'cleanupUnusedCompanionAssets' | 'linkAssetToChapter' | 'setChapterImpression' | 'recordAiGeneration'> {

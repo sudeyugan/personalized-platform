@@ -1,16 +1,17 @@
 # Project State
 
 <!-- generated:project-status:start -->
-最后更新：2026-09-22  
+最后更新：2026-09-27  
 当前版本：`2.0.0`  
 当前阶段：M10 AI 伙伴 Agent 与立绘基础  
 阶段状态：进行中  
 下一阶段：后续方向待用户确认  
-自动门禁：未通过  
+自动门禁：已通过  
 人工验收：待验收
 <!-- generated:project-status:end -->
 
 ## 状态摘要
+- 2026-09-27：完成程序与代码高优先级审查加固。Agent 默认 Tool 调用上限由 12 收紧为 8；统一异步持久化状态并向用户暴露保存失败；备份恢复增加资料结构校验、压缩包/条目/解压体积边界、流式校验和目录交换失败回滚；清理重复 Bing RSS 死代码、修复过期 UI 测试与 CI 触发/发布前门禁，并按需拆分桌面伙伴入口。Windows `verify:full` 通过：前端 129/129、Rust 39/39、TypeScript、lint 0 warning 与生产构建均通过；主入口压缩前体积由约 962 KB 降至 294 KB。Windows Release/NSIS 构建通过，桌面直接运行版已更新；Release/桌面 SHA-256 为 `80AECF8D8051B207E9DB79E433A33AFD7566003A2C6750006BE704A9A1795D71`，安装包 SHA-256 为 `76FBC31ED5D8AA12B915F2F1D5C55EE5A037D711D6F85C4EFA503AD321DC78DA`。残余优化项为按需加载的桌面伙伴聊天独立包约 549 KB，以及少数大型模块的后续职责拆分；人工自然体验仍待用户验收。
 - 2026-09-27：开发环境完成迁移到 WSL。源码与 Linux Git 的权威位置为 `/home/su/projects/personalized-platform`；WSL 用户级安装 Node `24.19.0`、pnpm `11.20.0` 与 ripgrep `15.1.0`，依赖按冻结锁文件恢复。新增 `scripts/windows-project.sh`：前端开发与 `verify:ui` 原生运行在 WSL，Windows Tauri/完整门禁/NSIS 每次先镜像到 `D:\\coding\\personalized-platform-windows-build`，排除 `.git`、依赖、缓存、`.env` 与 `.inputs` 后使用现有 Windows Node/Rust/MSVC 构建。`verify:ui` 通过，lint 仅 14 条既有 warning；Windows Release/NSIS 两次通过，最终桌面直接运行版已自动更新。Release/桌面 SHA-256 为 `D2087128FDCF3E278726C6C307C2286611FDAA99E809FBBDFD268F98EBD515F0`，安装包 SHA-256 为 `7CBB1A85A17349DF70A5309A49777DCC45C947A12286E5A791203CC4ACA92D2E`。本次只改变开发流程和可重建缓存，不改变产品版本、功能范围或安全边界。
 - 2026-09-26：自定义背景实机修正完成。内容背景已由 WebView2 复合 `background-image` 改为真实 `<img>` 图层；后续反馈发现侧边栏仍走 CSS 变量 URL，现也统一为直接图片元素，并修正通用子元素层级规则，确保图片绝对定位在导航内容下方。“底部装饰 / 柔和铺满”语义保持不变。TypeScript、背景映射/回退定向测试 2/2 与 Windows Release/NSIS 通过；桌面直接运行版已更新。Release/桌面 SHA-256 为 `11B18274E4FF300581F0FDD90E60D4A1C980DAD1BE83F04B0CB626BBF8DC0B6B`，安装包 SHA-256 为 `DBC25ECC44FF8962EB0C81F6B2BD25320CB06572ACA7DD0CF2BDA9FD726C7EA0`。
 - 2026-09-25：修复流式 Agent 在 Tool Call 前后重复朗读。模型步骤的 delta 现在是可撤销界面预览；若该步最终成为 Tool Call，Runtime 会发出 reset 清除临时文字，工具结果整合后的最终回答再正常显示。TTS 不再消费未确认 delta，只对 Agent 最终文本按句合成和连续播放，因此只朗读最终版本一次。TypeScript 与 Agent 定向测试 22/22 通过，新增“草稿流 → Tool Call → 最终回答”回归用例；Windows Release/NSIS 通过，桌面直接运行版已更新。Release/桌面 SHA-256 为 `36DBC1BD6484A46956D7F974F852CC0A39D60BB47B290031EBAA381C475349B0`，安装包 SHA-256 为 `4B5AEF4A38AAEAB7CA32AD0F636C8651B7A76649B87D7284B5AA0B6D298D972D`。

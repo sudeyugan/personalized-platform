@@ -1,10 +1,10 @@
 import type { CalendarEvent, Course, DiaryEntry, LibraryData, TodoItem } from '../domain/models'
-import { libraryRepository } from '../infrastructure/libraryRepository'
 import type { LibraryStore } from './libraryStoreTypes'
+import { commitLibraryData, type LibraryStoreSetter } from './persistence'
 
-type SetStore = (partial: Partial<LibraryStore>) => void
+type SetStore = LibraryStoreSetter
 const makeId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
-const commit = (data: LibraryData, set: SetStore) => { set({ data }); void libraryRepository.save(data) }
+const commit = commitLibraryData
 
 type PlannerActions = 'saveDiaryEntry' | 'openDiary' | 'saveDailyQuestion' | 'startDailyQuestionDiary' | 'saveMoodEntry' | 'deleteMoodEntry' | 'addCourse' | 'updateCourse' | 'deleteCourse' | 'addCalendarEvent' | 'updateCalendarEvent' | 'deleteCalendarEvent' | 'addTodo' | 'updateTodo' | 'toggleTodoForDate' | 'toggleTodoHoliday' | 'recordTodoCompletion' | 'removeTodoCompletion' | 'deleteTodo'
 

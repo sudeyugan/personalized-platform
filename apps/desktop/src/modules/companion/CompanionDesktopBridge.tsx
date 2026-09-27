@@ -399,6 +399,7 @@ export function CompanionDesktopBridge() {
         .then((token) => emitTo('companion-chat', 'companion:voice-token-response', { requestId: event.payload.requestId, token }))
         .catch((error) => emitTo('companion-chat', 'companion:voice-token-response', { requestId: event.payload.requestId, error: error instanceof Error ? error.message : String(error) }))
     }).then((stop) => { stopVoiceToken = stop })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- unmount must clean the latest in-flight resources stored in refs.
     return () => { stopHide?.(); stopOpen?.(); stopReady?.(); stopTransient?.(); stopToggleChat?.(); stopOpenChat?.(); stopMoved?.(); stopChat?.(); stopNewChat?.(); stopVoice?.(); stopVoiceActivity?.(); stopVoiceToken?.(); stopPermission?.(); stopPrivacy?.(); stopSpeech?.(); stopSpeechPause?.(); stopTurn?.(); stopVoiceShow?.(); stopVoiceEnd?.(); stopVoiceHide?.(); stopTray?.(); activeTurn.current?.abort(); permissionRequests.current.forEach((resolve) => resolve(false)); permissionRequests.current.clear(); privacyRequests.current.forEach((resolve) => resolve(false)); privacyRequests.current.clear(); speechGeneration.current += 1; const audio = spokenAudio.current; audio?.pause(); audio?.dispatchEvent(new Event('ended')); window.clearTimeout(resetStateTimer.current) }
   }, [clearCompanionMessages, publish, setCompanionDesktop])
   useEffect(() => {

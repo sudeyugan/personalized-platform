@@ -11,7 +11,12 @@ use sha2::{Digest, Sha256};
 use tauri::AppHandle;
 use zip::{CompressionMethod, ZipArchive, ZipWriter, write::SimpleFileOptions};
 
-use super::{LibraryRepository, storage_root};
+use super::{LibraryRepository, storage_root, validate_library};
+
+const MAX_ARCHIVE_BYTES: usize = 2 * 1024 * 1024 * 1024;
+const MAX_ARCHIVE_ENTRIES: usize = 10_000;
+const MAX_EXPANDED_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+const MAX_ENTRY_BYTES: u64 = 512 * 1024 * 1024;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -209,6 +214,17 @@ impl BackupRepository {
         if !valid {
             return Err("BACKUP_CHECKSUM:备份校验失败，未修改当前资料库".into());
         }
+        let mut archive = ZipArchive::new(Cursor::new(bytes)).map_err(zip_error)?;
+        let mut library_raw = Vec::new();
+        archive
+            .by_name("library.json")
+            .map_err(zip_error)?
+            .read_to_end(&mut library_raw)
+            .map_err(io_error)?;
+        let restored: Value = serde_json::from_slice(&library_raw)
+            .map_err(|error| format!("BACKUP_LIBRARY:资料库内容损坏：{error}"))?;
+        validate_library(&restored).map_err(|error| format!("BACKUP_LIBRARY:{error}"))?;
+
         let old = library.load()?.ok_or("RESTORE_EMPTY:当前资料库不可用")?;
         let safety_stamp = format!(
             "pre-restore-{}",
@@ -223,13 +239,6 @@ impl BackupRepository {
             fs::remove_dir_all(&staging).map_err(io_error)?;
         }
         fs::create_dir_all(&staging).map_err(io_error)?;
-        let mut archive = ZipArchive::new(Cursor::new(bytes)).map_err(zip_error)?;
-        let mut library_raw = Vec::new();
-        archive
-            .by_name("library.json")
-            .map_err(zip_error)?
-            .read_to_end(&mut library_raw)
-            .map_err(io_error)?;
         for index in 0..archive.len() {
             let mut entry = archive.by_index(index).map_err(zip_error)?;
             let name = entry.name().replace('\\', "/");
@@ -250,9 +259,8 @@ impl BackupRepository {
             let mut output = fs::File::create(target).map_err(io_error)?;
             std::io::copy(&mut entry, &mut output).map_err(io_error)?;
         }
-        let restored: Value = serde_json::from_slice(&library_raw)
-            .map_err(|error| format!("BACKUP_LIBRARY:资料库内容损坏：{error}"))?;
-        let receipt = library.save(&restored, old.revision)?;
+
+        let mut swaps = Vec::new();
         for directory in ["assets", "vaults", "audio"] {
             let target = self.app_data.join(directory);
             let incoming = staging.join(directory);
@@ -265,19 +273,49 @@ impl BackupRepository {
             }
             if incoming.exists() {
                 if let Err(error) = fs::rename(&incoming, &target) {
-                    let _ = library.save(&old.data, receipt.committed_revision);
                     if old_path.exists() {
                         let _ = fs::rename(&old_path, &target);
                     }
+                    rollback_swaps(&swaps);
+                    let _ = fs::remove_dir_all(&staging);
                     return Err(io_error(error));
                 }
             }
-            if old_path.exists() {
-                fs::remove_dir_all(old_path).map_err(io_error)?;
+            swaps.push(DirectorySwap {
+                target,
+                had_original: old_path.exists(),
+                old_path,
+            });
+        }
+        if let Err(error) = library.save(&restored, old.revision) {
+            rollback_swaps(&swaps);
+            let _ = fs::remove_dir_all(&staging);
+            return Err(error);
+        }
+        for swap in swaps {
+            if swap.old_path.exists() {
+                let _ = fs::remove_dir_all(swap.old_path);
             }
         }
-        fs::remove_dir_all(staging).map_err(io_error)?;
+        let _ = fs::remove_dir_all(staging);
         Ok(())
+    }
+}
+
+struct DirectorySwap {
+    target: PathBuf,
+    old_path: PathBuf,
+    had_original: bool,
+}
+
+fn rollback_swaps(swaps: &[DirectorySwap]) {
+    for swap in swaps.iter().rev() {
+        if swap.target.exists() {
+            let _ = fs::remove_dir_all(&swap.target);
+        }
+        if swap.had_original && swap.old_path.exists() {
+            let _ = fs::rename(&swap.old_path, &swap.target);
+        }
     }
 }
 
@@ -322,15 +360,27 @@ fn add_entry(
     Ok(())
 }
 fn inspect(bytes: &[u8]) -> Result<(Value, bool), String> {
-    if bytes.len() > 2 * 1024 * 1024 * 1024 {
+    if bytes.len() > MAX_ARCHIVE_BYTES {
         return Err("BACKUP_SIZE:备份包过大".into());
     }
     let mut archive = ZipArchive::new(Cursor::new(bytes)).map_err(zip_error)?;
+    if archive.len() > MAX_ARCHIVE_ENTRIES {
+        return Err("BACKUP_ENTRIES:备份文件数量过多".into());
+    }
     let mut archive_entries = HashSet::new();
+    let mut expanded_bytes = 0_u64;
     for index in 0..archive.len() {
         let entry = archive.by_index(index).map_err(zip_error)?;
         if entry.enclosed_name().is_none() {
             return Err("BACKUP_PATH:备份包含不安全路径".into());
+        }
+        if entry.size() > MAX_ENTRY_BYTES {
+            return Err("BACKUP_ENTRY_SIZE:备份内单个文件过大".into());
+        }
+        expanded_bytes = expanded_bytes.checked_add(entry.size())
+            .ok_or("BACKUP_EXPANDED_SIZE:备份解压大小溢出")?;
+        if expanded_bytes > MAX_EXPANDED_BYTES {
+            return Err("BACKUP_EXPANDED_SIZE:备份解压后过大".into());
         }
         if !entry.is_dir() {
             if !archive_entries.insert(entry.name().replace('\\', "/")) {
@@ -348,6 +398,9 @@ fn inspect(bytes: &[u8]) -> Result<(Value, bool), String> {
         serde_json::from_str(&manifest_raw).map_err(|error| format!("BACKUP_MANIFEST:{error}"))?;
     if manifest.get("format").and_then(Value::as_str) != Some("yiyu-backup") {
         return Err("BACKUP_FORMAT:不是一隅备份包".into());
+    }
+    if manifest.get("formatVersion").and_then(Value::as_u64) != Some(1) {
+        return Err("BACKUP_VERSION:不支持的备份格式版本".into());
     }
     let mut checksum_raw = String::new();
     archive
@@ -371,12 +424,11 @@ fn inspect(bytes: &[u8]) -> Result<(Value, bool), String> {
             valid = false;
             continue;
         }
-        let mut data = Vec::new();
-        let read = match archive.by_name(name) {
-            Ok(mut entry) => entry.read_to_end(&mut data).is_ok(),
-            Err(_) => false,
+        let actual = match archive.by_name(name) {
+            Ok(mut entry) => hash_reader(&mut entry).ok(),
+            Err(_) => None,
         };
-        if !read || format!("{:X}", Sha256::digest(&data)) != expected {
+        if actual.as_deref() != Some(expected) {
             valid = false;
         }
     }
@@ -392,6 +444,20 @@ fn inspect(bytes: &[u8]) -> Result<(Value, bool), String> {
     }
     Ok((manifest, valid))
 }
+
+fn hash_reader(reader: &mut impl Read) -> Result<String, String> {
+    let mut hasher = Sha256::new();
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let read = reader.read(&mut buffer).map_err(io_error)?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+    Ok(format!("{:X}", hasher.finalize()))
+}
+
 fn safe_timestamp(value: &str) -> bool {
     (10..=64).contains(&value.len())
         && value.chars().all(|character| {
@@ -467,7 +533,7 @@ mod tests {
             writer.start_file("library.json", options).unwrap();
             writer.write_all(br#"{"works":[]}"#).unwrap();
             writer.start_file("manifest.json", options).unwrap();
-            writer.write_all(br#"{"format":"yiyu-backup"}"#).unwrap();
+            writer.write_all(br#"{"format":"yiyu-backup","formatVersion":1}"#).unwrap();
             writer.start_file("checksums.sha256", options).unwrap();
             writer.finish().unwrap();
         }
@@ -483,6 +549,7 @@ mod tests {
         let app_data = directory.path().join("app");
         let library = LibraryRepository::at(app_data.clone());
         let original = json!({
+            "schemaVersion": 1,
             "works": [{"id":"work-1","title":"原始作品","chapterIds":["chapter-1"]}],
             "chapters": {"chapter-1":{"id":"chapter-1","workId":"work-1","title":"第一章","plainText":"备份正文","content":{"type":"doc","content":[]},"versions":[]}},
             "volumes": [], "people": [], "places": [], "events": [], "entityLinks": [],
@@ -506,7 +573,7 @@ mod tests {
         assert_eq!(preview.works, 1);
         assert_eq!(preview.chapters, 1);
 
-        let changed = json!({"works": [], "chapters": {}, "volumes": [], "people": [], "places": [], "events": [], "entityLinks": [], "assets": [], "aiGenerations": [], "settings": {}, "session": {}});
+        let changed = json!({"schemaVersion": 1, "works": [], "chapters": {}, "volumes": [], "people": [], "places": [], "events": [], "entityLinks": [], "assets": [], "aiGenerations": [], "settings": {}, "session": {}});
         library.save(&changed, 1).unwrap();
         repository.restore(&library, &bytes).unwrap();
         assert_eq!(
