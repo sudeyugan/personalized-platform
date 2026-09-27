@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CompanionVideoState } from '../../domain/models'
 import { companionVisualAssetIds, emptyCompanionDesktopSnapshot, type CompanionDesktopSnapshot } from './companionDesktop'
 import { availableIdleInterludes, chooseDifferentItem, configuredClipsForState, isSustainedVideoState, isTransientVideoState, nextIdleInterludeDelay } from './companionVideoPlayback'
+import { companionVideoPlacementStyle } from './companionVideoPlacement'
 
 type ReadyVisual = { id: string; kind: 'image' | 'video'; url: string }
 
@@ -83,6 +84,7 @@ export function DesktopCompanionWindow() {
   const [idleInterlude, setIdleInterlude] = useState<CompanionVideoState>()
   const previousIdleInterlude = useRef<CompanionVideoState | undefined>(undefined)
   const visualTransitionTimer = useRef<number | undefined>(undefined)
+  const pendingReadyId = useRef<string | undefined>(undefined)
   const pointerStart = useRef<{ x: number; y: number } | undefined>(undefined)
   const pointerId = useRef<number | undefined>(undefined)
   const dragged = useRef(false)
@@ -160,9 +162,20 @@ export function DesktopCompanionWindow() {
     window.clearTimeout(visualTransitionTimer.current)
     setOutgoingVisual(readyVisual)
     setReadyVisual(next)
-    visualTransitionTimer.current = window.setTimeout(() => setOutgoingVisual(undefined), 180)
+    pendingReadyId.current = undefined
+    visualTransitionTimer.current = window.setTimeout(() => setOutgoingVisual(undefined), 260)
     void emitTo('main', 'companion:visual-ready', { assetId: next.id })
   }
+  const presentVideo = (video: HTMLVideoElement, next: ReadyVisual) => {
+    if (pendingReadyId.current === next.id) return
+    pendingReadyId.current = next.id
+    const commitPresentedFrame = () => window.requestAnimationFrame(() => {
+      if (pendingReadyId.current === next.id) markReady(next)
+    })
+    if ('requestVideoFrameCallback' in video) video.requestVideoFrameCallback(() => commitPresentedFrame())
+    else window.requestAnimationFrame(() => window.requestAnimationFrame(commitPresentedFrame))
+  }
+  const videoStyle = (assetId: string) => companionVideoPlacementStyle(snapshot.videoPlacements[assetId])
   const reportLoadError = (assetId: string) => {
     void emitTo('main', 'companion:visual-error', { assetId })
   }
@@ -182,14 +195,14 @@ export function DesktopCompanionWindow() {
   const loopVideo = !idleInterlude && isSustainedVideoState(displayedAction) && (displayedAction !== 'idle' || videoCandidates.length < 2)
   const visual = <>
     {outgoingVisual && outgoingVisual.id !== readyVisual?.id && (outgoingVisual.kind === 'video'
-      ? <video className="desktop-media outgoing" key={outgoingVisual.id} src={outgoingVisual.url} autoPlay loop muted playsInline draggable={false} />
-      : <img className="desktop-media outgoing" key={outgoingVisual.id} src={outgoingVisual.url} alt="" draggable={false} />)}
+      ? <video className="desktop-media outgoing" key={outgoingVisual.id} style={videoStyle(outgoingVisual.id)} src={outgoingVisual.url} autoPlay loop muted playsInline draggable={false} />
+      : <img className="desktop-media outgoing" key={outgoingVisual.id} style={videoStyle(outgoingVisual.id)} src={outgoingVisual.url} alt="" draggable={false} />)}
     {readyVisual && (readyVisual.kind === 'video'
-      ? <video className="desktop-media ready" key={readyVisual.id} src={readyVisual.url} autoPlay loop={loopVideo} muted playsInline draggable={false} onEnded={advanceIdle} />
-      : <img className="desktop-media ready" key={readyVisual.id} src={readyVisual.url} alt="" draggable={false} />)}
+      ? <video className="desktop-media ready" key={readyVisual.id} style={videoStyle(readyVisual.id)} src={readyVisual.url} autoPlay loop={loopVideo} muted playsInline draggable={false} onEnded={advanceIdle} />
+      : <img className="desktop-media ready" key={readyVisual.id} style={videoStyle(readyVisual.id)} src={readyVisual.url} alt="" draggable={false} />)}
     {isChangingVisual && desiredVisual && (desiredVisual.kind === 'video'
-      ? <video className="desktop-media pending" key={desiredVisual.id} src={desiredVisual.url} autoPlay loop={loopVideo} muted playsInline preload="auto" draggable={false} onPlaying={() => markReady(desiredVisual)} onError={() => reportLoadError(desiredVisual.id)} />
-      : <img className="desktop-media pending" key={desiredVisual.id} src={desiredVisual.url} alt="" draggable={false} onLoad={() => markReady(desiredVisual)} onError={() => reportLoadError(desiredVisual.id)} />)}
+      ? <video className="desktop-media pending" key={desiredVisual.id} style={videoStyle(desiredVisual.id)} src={desiredVisual.url} autoPlay loop={loopVideo} muted playsInline preload="auto" draggable={false} onPlaying={(event) => presentVideo(event.currentTarget, desiredVisual)} onError={() => reportLoadError(desiredVisual.id)} />
+      : <img className="desktop-media pending" key={desiredVisual.id} style={videoStyle(desiredVisual.id)} src={desiredVisual.url} alt="" draggable={false} onLoad={() => markReady(desiredVisual)} onError={() => reportLoadError(desiredVisual.id)} />)}
     {!readyVisual && receivedSnapshot && !hasConfiguredVisual && <div className={`desktop-character hair-${snapshot.appearance.hair} outfit-${snapshot.appearance.outfit} expression-${snapshot.expression}`}><span className="character-hair" /><span className="character-face">隅</span><span className="character-outfit" /></div>}
   </>
   const beginPointer = (event: React.PointerEvent) => {
@@ -219,7 +232,7 @@ export function DesktopCompanionWindow() {
     pointerId.current = undefined
     dragged.current = false
   }
-  return <main className={`desktop-companion mode-${snapshot.desktopMode} action-${snapshot.action}`}>
+  return <main className={`desktop-companion mode-${snapshot.desktopMode} action-${snapshot.action} visual-${snapshot.visual.type}`}>
     <div className="desktop-visual">{visual}<div className="desktop-interaction-layer" role="button" tabIndex={0} onPointerDown={beginPointer} onPointerMove={movePointer} onPointerUp={endPointer} onPointerCancel={cancelPointer} onDoubleClick={() => void emitTo('main', 'companion:open-main')} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') void emitTo('main', 'companion:chat-toggle') }} aria-label={`${snapshot.name}，${snapshot.actionLabel}`} /></div>
   </main>
 }

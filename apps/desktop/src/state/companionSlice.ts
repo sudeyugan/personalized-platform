@@ -1,4 +1,5 @@
 import type { CompanionPersonality, LibraryData } from '../domain/models'
+import { normalizeCompanionVideoPlacement } from '../modules/companion/companionVideoPlacement'
 import type { LibraryStore } from './libraryStoreTypes'
 import { commitLibraryData, type LibraryStoreSetter } from './persistence'
 
@@ -28,7 +29,7 @@ export function buildCompanionContext(data: LibraryData, temporaryWorkIds: strin
   return { text: parts.join('\n'), summary: parts.length ? parts.map((part) => part.split('：')[0]).join('、') : '未授权任何上下文' }
 }
 
-export function createCompanionSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, 'setCompanionProfile' | 'setCompanionAppearance' | 'setCompanionDesktop' | 'setCompanionDesktopMode' | 'setCompanionShortcut' | 'setCompanionQuietShortcut' | 'setCompanionPortrait' | 'setCompanionVideo' | 'addCompanionVideo' | 'removeCompanionVideo' | 'setCompanionProvider' | 'setCompanionVoice' | 'setCompanionPermissions' | 'setCompanionComputer' | 'grantTemporaryCompanionWork' | 'addCompanionMessage' | 'addCompanionAudit' | 'clearCompanionMessages' | 'addCompanionMemory' | 'updateCompanionMemory' | 'deleteCompanionMemory' | 'setCompanionGrowthEnabled' | 'setCompanionPersonality' | 'rollbackCompanionGrowth' | 'resetCompanionPersonality'> {
+export function createCompanionSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, 'setCompanionProfile' | 'setCompanionAppearance' | 'setCompanionDesktop' | 'setCompanionDesktopMode' | 'setCompanionShortcut' | 'setCompanionQuietShortcut' | 'setCompanionPortrait' | 'setCompanionVideo' | 'addCompanionVideo' | 'removeCompanionVideo' | 'setCompanionVideoPlacement' | 'setCompanionProvider' | 'setCompanionVoice' | 'setCompanionPermissions' | 'setCompanionComputer' | 'grantTemporaryCompanionWork' | 'addCompanionMessage' | 'addCompanionAudit' | 'clearCompanionMessages' | 'addCompanionMemory' | 'updateCompanionMemory' | 'deleteCompanionMemory' | 'setCompanionGrowthEnabled' | 'setCompanionPersonality' | 'rollbackCompanionGrowth' | 'resetCompanionPersonality'> {
   const updatePersonality = (changes: Partial<CompanionPersonality>, reason: string) => {
     const current = get().data
     const before = current.companion.personality
@@ -74,6 +75,11 @@ export function createCompanionSlice(get: () => LibraryStore, set: SetStore): Pi
       const videos = Object.fromEntries(Object.entries(clips).flatMap(([key, ids]) => ids?.[0] ? [[key, ids[0]]] : []))
       const visual = clips.idle?.length ? { type: 'video' as const, videos, clips } : { type: 'portrait' as const, assetId: current.companion.appearance.portraitAssetId }
       commit({ ...current, companion: { ...current.companion, desktop: { ...current.companion.desktop, videoAssets: videos, videoClips: clips, visual } } }, set)
+    },
+    setCompanionVideoPlacement: (assetId, placement) => {
+      const current = get().data
+      const videoPlacements = { ...(current.companion.desktop.videoPlacements ?? {}), [assetId]: normalizeCompanionVideoPlacement(placement) }
+      commit({ ...current, companion: { ...current.companion, desktop: { ...current.companion.desktop, videoPlacements } } }, set)
     },
     setCompanionProvider: (changes) => { const current = get().data; commit({ ...current, companion: { ...current.companion, provider: { ...current.companion.provider, ...changes } } }, set) },
     setCompanionVoice: (changes) => {

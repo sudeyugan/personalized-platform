@@ -169,6 +169,8 @@ export type CompanionDesktopMode = 'interactive' | 'quiet' | 'normal'
 export const companionVideoStates = ['celebrating', 'concerned', 'greeting', 'idle', 'listening', 'looking', 'nodding', 'shy', 'sleepy', 'speaking', 'stretching', 'yawning'] as const
 export type CompanionVideoState = typeof companionVideoStates[number]
 export type CompanionVideoLibrary = Partial<Record<CompanionVideoState, string[]>>
+export interface CompanionVideoPlacement { scale: number; x: number; y: number }
+export type CompanionVideoPlacements = Record<string, CompanionVideoPlacement>
 export type CompanionVisual =
   | { type: 'portrait'; assetId?: string }
   | { type: 'video'; videos: Partial<Record<CompanionVideoState, string>>; clips?: CompanionVideoLibrary }
@@ -220,7 +222,7 @@ export interface CompanionData {
   name: string
   expression: 'calm' | 'warm' | 'thinking'
   appearance: { hair: 'ink' | 'short' | 'long'; outfit: 'linen' | 'night' | 'sage'; portraitAssetId?: string }
-  desktop: { visible: boolean; mode: CompanionDesktopMode; visual: CompanionVisual; videoAssets?: Partial<Record<CompanionVideoState, string>>; videoClips?: CompanionVideoLibrary; toggleShortcut: string; quietShortcut: string; characterPackage?: CompanionCharacterPackage }
+  desktop: { visible: boolean; mode: CompanionDesktopMode; visual: CompanionVisual; videoAssets?: Partial<Record<CompanionVideoState, string>>; videoClips?: CompanionVideoLibrary; videoPlacements?: CompanionVideoPlacements; toggleShortcut: string; quietShortcut: string; characterPackage?: CompanionCharacterPackage }
   provider: { providerId: 'mock' | 'deepseek' | 'custom'; endpoint: string; model: string }
   voice: {
     stt: { providerId: 'none' | 'elevenlabs' | 'custom'; endpoint: string; model: string }

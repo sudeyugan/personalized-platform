@@ -35,9 +35,10 @@ export function createAssetsSlice(get: () => LibraryStore, set: SetStore): Pick<
         return remaining.length ? [[state, remaining]] : []
       }))
       const videos = Object.fromEntries(Object.entries(clips).flatMap(([state, assetIds]) => assetIds[0] ? [[state, assetIds[0]]] : []))
+      const videoPlacements = Object.fromEntries(Object.entries(current.companion.desktop.videoPlacements ?? {}).filter(([assetId]) => assetId !== id))
       const companion = clearsPortrait
-        ? { ...current.companion, appearance: { ...current.companion.appearance, portraitAssetId: undefined }, desktop: { ...current.companion.desktop, visual: { type: 'portrait' as const } } }
-        : { ...current.companion, desktop: { ...current.companion.desktop, videoAssets: videos, videoClips: clips, visual: visual.type === 'video' ? clips.idle?.length ? { type: 'video' as const, videos, clips } : { type: 'portrait' as const, assetId: current.companion.appearance.portraitAssetId } : visual } }
+        ? { ...current.companion, appearance: { ...current.companion.appearance, portraitAssetId: undefined }, desktop: { ...current.companion.desktop, videoPlacements, visual: { type: 'portrait' as const } } }
+        : { ...current.companion, desktop: { ...current.companion.desktop, videoPlacements, videoAssets: videos, videoClips: clips, visual: visual.type === 'video' ? clips.idle?.length ? { type: 'video' as const, videos, clips } : { type: 'portrait' as const, assetId: current.companion.appearance.portraitAssetId } : visual } }
       commit({ ...current, assets: current.assets.filter((item) => item.id !== id), chapters: Object.fromEntries(Object.entries(current.chapters).map(([chapterId, chapter]) => [chapterId, chapter.impressionAssetId === id ? { ...chapter, impressionAssetId: undefined } : chapter])), companion }, set)
     },
     cleanupUnusedCompanionAssets: async () => {
