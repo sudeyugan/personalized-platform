@@ -2,8 +2,8 @@
 
 > 本文件只保存当前审查规则和近期重要记录。旧记录见 [`docs/archive/SYSTEM_AUDIT_HISTORY.md`](../docs/archive/SYSTEM_AUDIT_HISTORY.md)。
 
-最后审查：2026-09-24（Agent 电脑能力与系统权限边界）
-审查结果：合规，完整门禁受既有 UI 断言阻断
+最后审查：2026-09-27（WSL 开发环境与 Windows 构建镜像）
+审查结果：合规，WSL UI 门禁与 Windows Release/NSIS 通过
 下一次触发：里程碑/正式发布、重大流程或架构变化、状态失真、连续失败或上下文无法恢复
 
 ## 触发条件
@@ -26,6 +26,16 @@
 - 正式发布确认验证、安装包、哈希、文档与人工状态相互一致。
 
 ## 审查记录
+
+### 2026-09-27：WSL 开发环境与 Windows 构建镜像审查
+
+- 触发原因：源码权威位置从 Windows NTFS 迁移到 WSL Linux 文件系统，且 Windows Tauri/NSIS 构建需要跨环境执行，属于开发流程与构建架构变化。
+- 审查结果：合规。源码、文档、治理状态和 Git 只以 `/home/su/projects/personalized-platform` 为权威；`D:\coding\personalized-platform-windows-build` 仅是每次构建前由 Robocopy `/MIR` 刷新的可重建镜像，不在其中编辑或维护独立 Git 历史。
+- 工具与依赖：WSL 用户级 Node `24.19.0`、pnpm `11.20.0` 与 ripgrep `15.1.0` 已安装；前端依赖使用 WSL 原生 `node_modules`。Windows 镜像独立保存 Windows `node_modules` 与 Cargo `target`，避免跨平台二进制和 pnpm 符号链接混用。
+- 安全与隐私：同步明确排除 `.git`、`node_modules`、`target`、`dist`、`.pnpm-store`、`.inputs`、`.env`、`.env.local` 和日志；未把个人资料库、DPAPI 密钥或 Provider Key 纳入源码或镜像。包装器在 Windows 子进程中清除继承的 `NODE_TLS_REJECT_UNAUTHORIZED`，不依赖关闭 TLS 校验。
+- 验证：冻结锁文件恢复成功；WSL `verify:ui` 通过 TypeScript、oxlint 与生产 Web build，lint 仅 14 条既有 warning。最终包装器完成镜像同步、Windows Release 与 NSIS；桌面副本与 Release SHA-256 同为 `D2087128FDCF3E278726C6C307C2286611FDAA99E809FBBDFD268F98EBD515F0`，安装包 SHA-256 为 `7CBB1A85A17349DF70A5309A49777DCC45C947A12286E5A791203CC4ACA92D2E`。
+- 偏差与后续：没有产品、版本、范围或运行时架构偏差。Windows 镜像占用约 5.2 GB 并会继续增长，但属于可删除重建缓存；`tauri-dev` 只在启动前同步一次，持续前端热更新优先使用 WSL `dev`，需要真实桌面能力时重启 `tauri-dev` 取得最新快照。
+
 
 ### 2026-09-24：Agent 电脑能力与系统权限边界审查
 
