@@ -9,6 +9,7 @@ export interface AgentTaskStepDraft {
   text?: string
   durationMs?: number
   source?: string
+  fps?: number
   toolName?: string
   arguments?: Record<string, unknown>
 }
@@ -46,6 +47,7 @@ export function createAgentTaskFromDraft(input: AgentTaskDraft, now = new Date()
       text: draft.text?.trim() || undefined,
       durationMs: draft.durationMs,
       source: draft.source?.trim() || undefined,
+      fps: draft.fps,
       toolName: draft.toolName?.trim() || undefined,
       arguments: draft.arguments,
     }
@@ -62,6 +64,7 @@ export function createAgentTaskFromDraft(input: AgentTaskDraft, now = new Date()
       if (recording) throw new Error('同一任务不能重复开始录屏')
       recording = true
       step.source = step.source || 'desktop'
+      step.fps = Math.max(5, Math.min(60, Math.round(step.fps ?? 30)))
     }
     if (step.action === 'screen.record_stop') {
       if (!recording) throw new Error('停止录屏之前必须先开始录屏')

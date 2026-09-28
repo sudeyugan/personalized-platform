@@ -203,7 +203,7 @@ async function executeTask(task: AgentTask, signal: AbortSignal, audioRef: { cur
       const windows = await getAllWindows()
       await windows.find((item) => item.label === 'companion-chat')?.hide()
       await waitFor(500, signal)
-      const result = resultRecord(await computer.execute({ action: 'screen_record_start', params: { source: step.source || 'desktop', fps: 30 } }, false))
+      const result = resultRecord(await computer.execute({ action: 'screen_record_start', params: { source: step.source || 'desktop', fps: step.fps ?? 30 } }, false))
       if (typeof result.recordingId !== 'string' || typeof result.path !== 'string') throw new Error('录屏没有返回任务编号或文件路径')
       recording = { id: result.recordingId, path: result.path, startedAt: performance.now(), narration: [] }
       return
@@ -261,7 +261,9 @@ async function executeTask(task: AgentTask, signal: AbortSignal, audioRef: { cur
       error: undefined,
       artifacts: completed?.artifacts ?? [],
     })
-    await emitTo('companion-chat', 'companion:transient-message', { role: 'companion', content: `任务“${task.title}”已经完成。` }).catch(() => undefined)
+    const video = completed?.artifacts.findLast((artifact) => artifact.type === 'video')
+    const content = video ? `任务“${task.title}”已经完成。视频已保存到：${video.path}` : `任务“${task.title}”已经完成。`
+    await emitTo('companion-chat', 'companion:transient-message', { role: 'companion', content }).catch(() => undefined)
   } catch (error) {
     const latest = taskById(task.id)
     if (error instanceof DOMException && error.name === 'AbortError') return

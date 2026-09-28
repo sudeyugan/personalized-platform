@@ -85,6 +85,9 @@ export async function runAgent(input: RunAgentInput) {
   let toolSteps = 0
   const toolDefinitions = input.registry.definitions()
   const actionIntent = detectActionIntent(input.message, toolDefinitions)
+  const taskPlanRequired = Boolean(actionIntent.requiresTaskPlan)
+  const modelToolDefinitions = taskPlanRequired
+    ? toolDefinitions.filter((tool) => tool.name === 'task.create') : toolDefinitions
   let directAction = actionIntent.directCall
   let actionRetryUsed = false
   let malformedToolRetryUsed = false
@@ -103,7 +106,7 @@ export async function runAgent(input: RunAgentInput) {
       try {
         const bufferActionResponse = actionIntent.expectsTool && !toolAttempted
         response = await withCancellation(input.provider.generate(
-          { messages, context: input.context, tools: toolDefinitions },
+          { messages, context: input.context, tools: modelToolDefinitions },
           {
             onTextDelta: bufferActionResponse ? undefined : (delta) => {
               streamedThisStep = true
@@ -189,5 +192,14 @@ export async function runAgent(input: RunAgentInput) {
     input.onAudit?.(auditRecord)
     session.events.push({ type: 'tool_result', callId: call.id, name: call.name, result, timestamp: new Date().toISOString() })
     messages.push({ role: 'assistant', content: '', toolCallId: call.id, toolName: call.name, toolCall: call }, toolResultMessage(call, result))
+    if (taskPlanRequired && call.name === 'task.create' && result.success) {
+      const task = result.data && typeof result.data === 'object' && !Array.isArray(result.data)
+        ? result.data as Record<string, unknown> : {}
+      const title = typeof task.title === 'string' ? task.title : '录制讲解'
+      const text = `任务“${title}”已创建，正在准备旁白与录屏。完成后会在任务卡片中显示实际视频文件。`
+      input.onStatus?.({ phase: 'responding' })
+      session.events.push({ type: 'assistant', content: text, timestamp: new Date().toISOString() })
+      return { text, session, audit }
+    }
   }
 }

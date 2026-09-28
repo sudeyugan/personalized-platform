@@ -86,15 +86,15 @@ describe('agent tool registry', () => {
         title: '介绍一隅',
         goal: '生成带小鱼旁白的程序介绍视频',
         steps: [
-          { title: '开始录屏', action: 'screen.record_start', source: 'desktop' },
+          { title: '开始录屏', action: 'screen.record_start', source: 'desktop', fps: 30 },
           { title: '介绍首页', action: 'speech.say', text: '你好，我是小鱼。' },
-          { title: '结束录屏', action: 'screen.record_stop' },
+          { title: '结束录屏', action: 'screen.record_stop', arguments: { recordingId: '{{steps.0.id}}' } },
           { title: '读取待办', action: 'tool.call', toolName: 'todo.list', arguments: {} },
         ],
       },
     }, services)
     expect(result).toMatchObject({ success: true })
-    expect(created).toMatchObject({ title: '介绍一隅', status: 'queued', steps: [{ action: 'screen.record_start' }, { action: 'speech.say' }, { action: 'screen.record_stop' }, { action: 'tool.call', toolName: 'todo.list' }] })
+    expect(created).toMatchObject({ title: '介绍一隅', status: 'queued', steps: [{ action: 'screen.record_start', fps: 30 }, { action: 'speech.say' }, { action: 'screen.record_stop' }, { action: 'tool.call', toolName: 'todo.list' }] })
   })
 
   it('reads personal modules only after their resource scope is granted', async () => {
@@ -374,7 +374,7 @@ describe('agent runtime', () => {
                 title: '小鱼自我介绍',
                 goal: '录制自我介绍视频',
                 steps: [
-                  { title: '开始录屏', action: 'screen.record_start', source: 'desktop' },
+                  { title: '开始录屏', action: 'screen.record_start', source: 'desktop', fps: 30 },
                   { title: '自我介绍', action: 'speech.say', text: '你好，我是小鱼。' },
                   { title: '停止录屏', action: 'screen.record_stop' },
                 ],
@@ -382,7 +382,7 @@ describe('agent runtime', () => {
             },
           }
         }
-        return { type: 'text', text: '录制任务已经创建。' }
+        throw new Error('TASK_SHOULD_RETURN_WITHOUT_ANOTHER_MODEL_CALL')
       },
     }
 
@@ -397,10 +397,11 @@ describe('agent runtime', () => {
       requestPermission: async () => true,
     })
 
-    expect(result.text).toContain('已经创建')
+    expect(result.text).toContain('已创建')
     expect(created).toMatchObject({ status: 'queued' })
     expect((created as { steps: Array<{ action: string }> }).steps[0]).toMatchObject({ action: 'screen.record_start' })
-    expect(requests).toHaveLength(3)
+    expect(requests).toHaveLength(2)
+    expect(requests.every((request) => request.tools.map((tool) => tool.name).join(',') === 'task.create')).toBe(true)
     expect(requests[1].messages.some((message) => message.role === 'system' && message.content.includes('arguments 不是完整有效的 JSON'))).toBe(true)
   })
 

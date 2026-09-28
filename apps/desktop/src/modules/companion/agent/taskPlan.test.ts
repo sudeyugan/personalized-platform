@@ -7,7 +7,7 @@ describe('agent task plans', () => {
       title: '介绍一隅',
       goal: '录制一段自我介绍',
       steps: [
-        { title: '开始录屏', action: 'screen.record_start' },
+        { title: '开始录屏', action: 'screen.record_start', fps: 30 },
         { title: '打开首页', action: 'app.open', destination: 'home' },
         { title: '讲解首页', action: 'speech.say', text: '这里是今日工作台。' },
         { title: '停止录屏', action: 'screen.record_stop' },
@@ -15,7 +15,7 @@ describe('agent task plans', () => {
     }, new Date('2026-09-28T08:00:00.000Z'))
     expect(task.status).toBe('queued')
     expect(task.steps).toHaveLength(4)
-    expect(task.steps[0]).toMatchObject({ action: 'screen.record_start', source: 'desktop', status: 'pending' })
+    expect(task.steps[0]).toMatchObject({ action: 'screen.record_start', source: 'desktop', fps: 30, status: 'pending' })
   })
 
   it('rejects unsupported destinations and unclosed recordings', () => {

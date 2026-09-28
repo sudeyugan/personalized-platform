@@ -146,7 +146,7 @@ export function createCompanionToolRegistry(onVisualState?: (state: CompanionVid
             steps: { type: 'array', items: { type: 'object', properties: {
               title: { type: 'string', minLength: 1 }, action: { type: 'string', enum: ['app.open', 'speech.say', 'wait', 'screen.record_start', 'screen.record_stop', 'tool.call'] },
               failurePolicy: { type: 'string', enum: ['retry', 'replan', 'ask', 'stop'] }, destination: { type: 'string', enum: agentDestinations },
-              text: { type: 'string' }, durationMs: { type: 'number', minimum: 250, maximum: 60000 }, source: { type: 'string', description: 'desktop 或 window:窗口标题' }, toolName: { type: 'string', description: 'tool.call 要执行的现有 Tool 名称' }, arguments: { type: 'object', description: '符合目标 Tool schema 的参数；可引用先前步骤结果', additionalProperties: true },
+              text: { type: 'string' }, durationMs: { type: 'number', minimum: 250, maximum: 60000 }, source: { type: 'string', description: 'desktop 或 window:窗口标题' }, fps: { type: 'number', minimum: 5, maximum: 60, description: '仅录屏开始步骤使用，默认 30' }, toolName: { type: 'string', description: 'tool.call 要执行的现有 Tool 名称' }, arguments: { type: 'object', description: '符合目标 Tool schema 的参数；可引用先前步骤结果', additionalProperties: true },
             }, required: ['title', 'action'], additionalProperties: false } },
           },
           required: ['title', 'goal', 'steps'], additionalProperties: false,

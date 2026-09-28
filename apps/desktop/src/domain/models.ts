@@ -234,6 +234,7 @@ export interface AgentTaskStep {
   text?: string
   durationMs?: number
   source?: string
+  fps?: number
   toolName?: string
   arguments?: Record<string, unknown>
   result?: unknown
