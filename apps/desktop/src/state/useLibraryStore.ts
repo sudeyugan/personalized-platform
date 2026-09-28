@@ -297,6 +297,15 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     queueLibrarySave(data, set)
   },
 
+  updateChapterSummary: (chapterId, summary) => {
+    const current = get().data
+    const chapter = current.chapters[chapterId]
+    if (!chapter) return
+    const data = { ...current, chapters: { ...current.chapters, [chapterId]: { ...chapter, summary: summary.trim().slice(0, 160), updatedAt: new Date().toISOString() } } }
+    set({ data })
+    queueLibrarySave(data, set)
+  },
+
   saveChapter: async (chapterId, content, plainText) => {
     const current = get().data
     const chapter = current.chapters[chapterId]

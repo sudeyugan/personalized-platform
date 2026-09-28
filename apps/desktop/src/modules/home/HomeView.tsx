@@ -6,6 +6,7 @@ import { beijingDate, generateDailyQuestion, isBeijingMorningReady, isLowQuality
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { HomeMoodCard } from '../mood/HomeMoodCard'
 import { useLiveDate } from './homeDate'
+import { TodayDesk } from './TodayDesk'
 
 export function HomeView() {
   const { data, navigate, selectChapter, createWork, saveMoodEntry, deleteMoodEntry, saveDailyQuestion, startDailyQuestionDiary, setCompanionDesktop } = useLibraryStore()
@@ -54,6 +55,8 @@ export function HomeView() {
         </div>
         <div className="date-orb"><span>{today.month}</span><strong>{today.day}</strong><small>{today.year}</small></div>
       </section>
+
+      <TodayDesk />
 
       <HomeMoodCard date={formatLocalDate()} entries={data.planner.moodEntries} onSave={saveMoodEntry} onDelete={deleteMoodEntry} />
 

@@ -282,6 +282,7 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
       courseImportVersion: 1,
     },
     works: data.works.map((work) => ({ ...work, volumeIds: work.volumeIds ?? [] })),
+    chapters: Object.fromEntries(Object.entries(data.chapters).map(([chapterId, chapter]) => [chapterId, { ...chapter, summary: chapter.summary ?? '' }])),
     settings: {
       ...seed.settings,
       ...data.settings,

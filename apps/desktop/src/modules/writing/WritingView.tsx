@@ -5,7 +5,7 @@ import TaskItem from '@tiptap/extension-task-item'
 import TaskList from '@tiptap/extension-task-list'
 import TextAlign from '@tiptap/extension-text-align'
 import type { EditorView } from '@tiptap/pm/view'
-import { ArrowDown, ArrowUp, BookOpen, ChevronDown, Clock3, Eye, FileClock, Focus, FolderPlus, LockKeyhole, MessageCircle, Plus, RotateCcw, Save, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, BookOpen, ChevronDown, Clock3, Eye, FileClock, Focus, FolderPlus, LayoutList, LockKeyhole, MessageCircle, PanelsTopLeft, Plus, RotateCcw, Save, Trash2, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useLibraryStore } from '../../state/useLibraryStore'
@@ -19,10 +19,13 @@ import { EntityTagMenu } from './EntityTagMenu'
 import { LineHeight } from './LineHeight'
 import { CompanionPanel } from '../companion/CompanionPanel'
 
+import { AuthorAnnotationMark } from './AuthorAnnotationMark'
+import { WritingToolsPanel } from './WritingToolsPanel'
+import { WorkSearchDialog } from './WorkSearchDialog'
 type PendingDeletion = { kind: 'work' | 'volume' | 'chapter' | 'chapter-permanent'; id: string; label: string } | null
 
 export function WritingView() {
-  const { data, saveStatus, recoveryDrafts, importAsset, linkAssetToChapter, lockWork, selectWork, selectChapter, renameWork, trashWork, createChapter, createVolume, renameVolume, trashVolume, moveChapter, reorderChapter, trashChapter, restoreChapter, permanentlyDeleteChapter, renameChapter, saveChapter, createManualVersion, restoreVersion, toggleVersionPinned, toggleFocusMode, updateChapterSession, saveRecoveryDraft, discardRecoveryDraft } = useLibraryStore()
+  const { data, saveStatus, recoveryDrafts, importAsset, linkAssetToChapter, lockWork, selectWork, selectChapter, renameWork, trashWork, createChapter, createVolume, renameVolume, trashVolume, moveChapter, reorderChapter, trashChapter, restoreChapter, permanentlyDeleteChapter, renameChapter, updateChapterSummary, saveChapter, createManualVersion, restoreVersion, toggleVersionPinned, toggleFocusMode, updateChapterSession, saveRecoveryDraft, discardRecoveryDraft } = useLibraryStore()
   const chapter = data.chapters[data.session.activeChapterId]
   const chapterId = chapter?.id
   const work = data.works.find((item) => item.id === data.session.activeWorkId)
@@ -33,6 +36,8 @@ export function WritingView() {
   const [previewVersionId, setPreviewVersionId] = useState<string | null>(null)
   const [pendingDeletion, setPendingDeletion] = useState<PendingDeletion>(null)
   const [companionDrawerOpen, setCompanionDrawerOpen] = useState(false)
+  const [chapterCards, setChapterCards] = useState(false)
+  const [workSearchOpen, setWorkSearchOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const sessionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const recoveryTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -62,6 +67,7 @@ export function WritingView() {
       TaskItem.configure({ nested: true }),
       ImageAssetNode,
       EntityReferenceMark,
+      AuthorAnnotationMark,
     ],
     content: chapter?.content,
     immediatelyRender: false,
@@ -116,6 +122,7 @@ export function WritingView() {
   if (!work || !chapter || !editor) {
     return <div className="empty-state"><BookOpen size={42} /><h2>还没有打开章节</h2><p>从左侧选择一个章节，或创建新的篇章。</p><button className="primary-button" onClick={createChapter}><Plus size={16} />新建章节</button></div>
   }
+  const activeChapters = work.chapterIds.flatMap((id) => data.chapters[id] && !data.chapters[id].deletedAt ? [data.chapters[id]] : [])
 
   const applySlashCommand = (command: 'heading' | 'quote' | 'divider') => {
     const cursor = editor.state.selection.from
@@ -142,6 +149,15 @@ export function WritingView() {
     if (!text) return
     setEntitySelection({ from: from + leading, to: to - trailing, text: text.slice(0, 80) })
   }
+  const prepareWorkReplace = async () => {
+    if (timer.current) clearTimeout(timer.current)
+    if (recoveryTimer.current) clearTimeout(recoveryTimer.current)
+    timer.current = null
+    recoveryTimer.current = null
+    await saveChapter(chapter.id, editor.getJSON(), editor.getText({ blockSeparator: '\n' }))
+    if (useLibraryStore.getState().saveStatus === 'error') throw new Error('当前章节保存失败，已停止整书替换。')
+  }
+
 
   return (
     <div className={`${data.settings.showRightPanel ? 'writing-layout' : 'writing-layout no-context'}${data.session.focusMode ? ' focus-writing' : ''}`}>
@@ -151,12 +167,12 @@ export function WritingView() {
           <div><select value={work.id} onChange={(event) => selectWork(event.target.value)}>{data.works.filter((item) => !item.deletedAt).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select><ChevronDown size={15} /></div>
           <span className="work-actions"><button onClick={() => { const title = window.prompt('重命名作品', work.title); if (title) renameWork(work.id, title) }}>重命名</button><button onClick={() => setPendingDeletion({ kind: 'work', id: work.id, label: work.title })}>删除</button></span>
         </div>
-        <div className="chapter-list-heading"><span>章节 · {work.chapterIds.filter((id) => !data.chapters[id]?.deletedAt).length}</span><span><button aria-label="新建卷" onClick={createVolume}><FolderPlus size={16} /></button><button aria-label="新建章节" onClick={createChapter}><Plus size={17} /></button></span></div>
+        <div className="chapter-list-heading"><span>章节 · {activeChapters.length}</span><span><button aria-label={chapterCards ? '切换到列表' : '切换到章节卡片'} title={chapterCards ? '列表视图' : '章节卡片'} onClick={() => setChapterCards((value) => !value)}>{chapterCards ? <LayoutList size={16} /> : <PanelsTopLeft size={16} />}</button><button aria-label="新建卷" onClick={createVolume}><FolderPlus size={16} /></button><button aria-label="新建章节" onClick={createChapter}><Plus size={17} /></button></span></div>
         {data.volumes.filter((volume) => volume.workId === work.id && !volume.deletedAt).map((volume) => <div className="volume-row" key={volume.id}><span>{volume.title}</span><span><button onClick={() => { const title = window.prompt('重命名卷', volume.title); if (title) renameVolume(volume.id, title) }}>改名</button><button onClick={() => setPendingDeletion({ kind: 'volume', id: volume.id, label: volume.title })}>删除</button></span></div>)}
-        <div className="chapter-list">
+        <div className={chapterCards ? 'chapter-list chapter-cards' : 'chapter-list'}>
           {work.chapterIds.filter((id) => !data.chapters[id]?.deletedAt).map((chapterId, index) => {
             const item = data.chapters[chapterId]
-            return <div draggable onDragStart={(event) => event.dataTransfer.setData('text/chapter-id', item.id)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => reorderChapter(event.dataTransfer.getData('text/chapter-id'), item.id)} className={item.id === chapter.id ? 'chapter-row active' : 'chapter-row'} key={item.id} onClick={() => selectChapter(item.id)}><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{item.title}</strong><small>{item.wordCount} 字</small></div><span className="chapter-actions"><button aria-label={`上移章节：${item.title}`} title="上移" onClick={(e) => { e.stopPropagation(); moveChapter(item.id, -1) }}><ArrowUp size={13} /></button><button aria-label={`下移章节：${item.title}`} title="下移" onClick={(e) => { e.stopPropagation(); moveChapter(item.id, 1) }}><ArrowDown size={13} /></button><button className="chapter-delete-button" aria-label={`删除章节：${item.title}`} title="删除章节（移入回收站）" onClick={(e) => { e.stopPropagation(); setPendingDeletion({ kind: 'chapter', id: item.id, label: item.title }) }}><Trash2 size={13} /></button></span></div>
+            return <div draggable onDragStart={(event) => event.dataTransfer.setData('text/chapter-id', item.id)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => reorderChapter(event.dataTransfer.getData('text/chapter-id'), item.id)} className={item.id === chapter.id ? 'chapter-row active' : 'chapter-row'} key={item.id} onClick={() => selectChapter(item.id)}><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{item.title}</strong><small>{item.wordCount} 字</small>{chapterCards && <textarea aria-label={item.title + ' 的章节摘要'} defaultValue={item.summary ?? ''} placeholder="一句话记下这一章…" maxLength={160} onClick={(event) => event.stopPropagation()} onBlur={(event) => updateChapterSummary(item.id, event.target.value)} />}</div><span className="chapter-actions"><button aria-label={`上移章节：${item.title}`} title="上移" onClick={(e) => { e.stopPropagation(); moveChapter(item.id, -1) }}><ArrowUp size={13} /></button><button aria-label={`下移章节：${item.title}`} title="下移" onClick={(e) => { e.stopPropagation(); moveChapter(item.id, 1) }}><ArrowDown size={13} /></button><button className="chapter-delete-button" aria-label={`删除章节：${item.title}`} title="删除章节（移入回收站）" onClick={(e) => { e.stopPropagation(); setPendingDeletion({ kind: 'chapter', id: item.id, label: item.title }) }}><Trash2 size={13} /></button></span></div>
           })}
         </div>
         <button className="new-chapter-button" onClick={createChapter}><Plus size={16} />新建章节</button>
@@ -183,10 +199,7 @@ export function WritingView() {
 
       {data.settings.showRightPanel && (
         <aside className="context-panel">
-          <section className="context-section">
-            <p className="context-label">今日写作</p>
-            <div className="daily-progress"><div><strong>{chapter.wordCount}</strong><span>/ {data.settings.dailyTarget} 字</span></div><div className="progress-track"><span style={{ width: `${Math.min(100, chapter.wordCount / data.settings.dailyTarget * 100)}%` }} /></div></div>
-          </section>
+          <WritingToolsPanel editor={editor} work={work} chapter={chapter} chapters={activeChapters} onOpenSearch={() => setWorkSearchOpen(true)} />
           <section className="context-section">
             <div className="context-heading"><p className="context-label">版本记录</p><button onClick={() => createManualVersion(chapter.id)} title="保存手动版本"><Save size={15} /></button></div>
             <div className="version-list">
@@ -203,6 +216,7 @@ export function WritingView() {
         </aside>
       )}
       {previewVersion && <div className="version-modal"><section><header><div><small>历史版本 r{previewVersion.revision}</small><h2>{previewVersion.label ?? '自动版本'}</h2></div><button onClick={() => setPreviewVersionId(null)}><X /></button></header><div className="version-comparison"><article><strong>历史内容</strong><pre>{previewVersion.plainText || '（空白）'}</pre></article><article><strong>当前内容</strong><pre>{chapter.plainText || '（空白）'}</pre></article></div><footer><span>恢复会创建新修订，不覆盖历史记录。</span><button className="primary-button" onClick={() => { void restoreVersion(chapter.id, previewVersion.id); setPreviewVersionId(null) }}><RotateCcw size={15} />恢复为新版本</button></footer></section></div>}
+      {workSearchOpen && <WorkSearchDialog work={work} chapters={activeChapters} editor={editor} onBeforeReplace={prepareWorkReplace} onClose={() => setWorkSearchOpen(false)} />}
       {pendingDeletion && <ConfirmDialog title={pendingDeletion.kind === 'chapter-permanent' ? '永久删除章节？' : `将${pendingDeletion.kind === 'work' ? '作品' : pendingDeletion.kind === 'volume' ? '卷' : '章节'}移入回收站？`} subject={pendingDeletion.kind === 'work' ? `《${pendingDeletion.label}》` : pendingDeletion.label} description={pendingDeletion.kind === 'chapter-permanent' ? '章节正文、历史版本和相关引用会被清理，这项操作无法撤销。' : '内容会从当前写作空间隐藏并进入回收站，之后仍可恢复。'} confirmLabel={pendingDeletion.kind === 'chapter-permanent' ? '永久删除' : '移入回收站'} permanent={pendingDeletion.kind === 'chapter-permanent'} facts={[{ label: '操作对象', value: pendingDeletion.kind === 'work' ? '整部作品' : pendingDeletion.kind === 'volume' ? '卷及其归档状态' : '单个章节' }, { label: '恢复方式', value: pendingDeletion.kind === 'chapter-permanent' ? '无法恢复' : '可从回收站恢复' }]} onCancel={() => setPendingDeletion(null)} onConfirm={() => { if (pendingDeletion.kind === 'work') trashWork(pendingDeletion.id); else if (pendingDeletion.kind === 'volume') trashVolume(pendingDeletion.id); else if (pendingDeletion.kind === 'chapter') trashChapter(pendingDeletion.id); else permanentlyDeleteChapter(pendingDeletion.id); setPendingDeletion(null) }} />}
     </div>
   )

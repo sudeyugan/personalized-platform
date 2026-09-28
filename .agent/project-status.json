@@ -2,23 +2,23 @@
   "schemaVersion": 1,
   "appVersion": "2.0.0",
   "productBaseline": "0.5",
-  "currentMilestone": "M10",
-  "milestoneStatus": "in_progress",
-  "nextMilestone": "M10",
-  "updatedAt": "2026-09-27",
+  "currentMilestone": "M11",
+  "milestoneStatus": "delivered_pending_manual",
+  "nextMilestone": "M11",
+  "updatedAt": "2026-09-28",
   "automatedChecks": {
     "status": "passed",
-    "verifiedAt": "2026-09-27"
+    "verifiedAt": "2026-09-28"
   },
   "manualAcceptance": {
     "status": "pending",
     "items": [
-      "自然体验透明 WebM、DeepSeek SSE、实时语音、暂停/继续朗读与中止回答，以及待办/日历/日记/章节/记忆写入逐次确认"
+      "自然体验今日工作台、章节卡片摘要、正文批注、分屏参考与全作品搜索替换的实际手感"
     ]
   },
   "installer": {
     "path": "apps/desktop/src-tauri/target/release/bundle/nsis/一隅_2.0.0_x64-setup.exe",
-    "sha256": "D983C6375B3096DBD13EB132C06F1692371E8E98D03E6A55B79360535F6B81D4"
+    "sha256": "DBF389BD023A252EB5D0EC40F13BAA31637304696500990C0091B785E742A720"
   },
   "milestones": [
     {
@@ -78,8 +78,14 @@
     {
       "id": "M10",
       "name": "AI 伙伴 Agent 与立绘基础",
-      "status": "in_progress",
-      "evidence": "Agent 读写闭环、逐次写入确认、静态/透明 WebM 立绘、DeepSeek SSE、ElevenLabs 实时 STT 与分句 TTS 已实现；删除/系统操作、OpenRouter 生图与 Live2D 待后续"
+      "status": "delivered_pending_manual",
+      "evidence": "Agent 读写闭环、逐次确认、受控电脑能力、静态/透明 WebM、DeepSeek SSE 与 ElevenLabs 语音已交付；OpenRouter 生图与 Live2D 不再阻塞阶段，按未来真实需要评估"
+    },
+    {
+      "id": "M11",
+      "name": "日常与创作一体化",
+      "status": "delivered_pending_manual",
+      "evidence": "今日工作台、章节卡片、正文批注、全作品安全搜索替换与分屏参考已实现并通过完整门禁；待自然体验"
     }
   ]
 }

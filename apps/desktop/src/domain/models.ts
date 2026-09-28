@@ -43,6 +43,8 @@ export interface Chapter {
   volumeId?: string
   deletedAt?: string
   impressionAssetId?: string
+  /** A short, manually maintained note shown on the chapter card. */
+  summary?: string
 }
 
 export interface Volume {

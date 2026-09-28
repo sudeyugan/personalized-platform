@@ -96,6 +96,15 @@ describe('library compatibility normalization', () => {
 
     expect(upgraded.planner.moodEntries[0]?.points).toEqual({ empty: 5 })
   })
+  it('adds an empty chapter card summary to older writing data', () => {
+    const legacy = createSeedLibrary()
+    delete legacy.chapters['chapter-welcome'].summary
+
+    const upgraded = normalizeLibrary(legacy)
+
+    expect(upgraded.chapters['chapter-welcome'].summary).toBe('')
+  })
+
   it('normalizes a large library within the one-second data preparation budget', () => {
     const library = createSeedLibrary()
     const base = library.chapters['chapter-welcome']

@@ -181,9 +181,20 @@
 - 触发原因：伙伴从一次性聊天演进为可调用内部查询能力的 Agent，同时活动角色渲染从差分角色包改为单张立绘，属于架构和安全边界变化。
 - 审查结果：合规。数据流为 `UI → Runtime → ModelProvider → Tool Registry → Permission Engine → Application Service`；首批四个 Tool 只读，schema、capability/risk、资料 scope、加密临时许可与最多 4 步限制均在模型无法绕过的应用层执行。
 - 安全边界：模型不能直接访问 Store、Repository、SQLite、文件、Shell 或任意 Rust command；审计只保存参数形状和字符串长度并过滤敏感键。桌面窗口只读取主窗口注册的单张立绘白名单，未扩大 capability。
+
 - 兼容与范围：旧角色包数据不删除但退出活动入口；`live2d` 仅预留类型。真实在线 Provider、写入 Tool/确认 UI、MCP、Computer Use 和 Live2D SDK 均未伪装为已完成。
 - 验证：Agent/Provider/伙伴定向测试 16/16、Rust 26/26、TypeScript、lint、生产 Web、Rust Release 和 NSIS 成功。lint 剩余 4 条是旧角色 Renderer 与待办页既有警告；一次误触发的前端全量测试 78/83 不作为本轮通过证据，失败集中于既有 App/资料导航 UI 查询。
 - 状态：当前仍是 M9 进行中和本地候选构建，不升级为正式发布或新里程碑；最新桌面 EXE 与项目内安装包哈希已记入 `PROJECT_STATE.md`。
+
+### 2026-09-28：M11 日常与创作一体化阶段审查
+
+- 触发原因：用户明确结束方向讨论并启动新的产品里程碑，同时确认“丰富但简单、个人长期使用”的基线和排除项。
+- 审查结果：合规。M11 复用 M9 的 PlannerData 与现有写作数据，只在章节上增加可选摘要；批注保存为 Tiptap 标记，全作品替换复用现有版本和持久化链路，分屏参考只读同作品章节。
+- 范围：实现今日工作台、章节卡片、作者批注、全作品安全搜索替换和分屏参考；不引入修订审批、目标/会话统计、模板、打卡、团队或商业化能力。
+- 安全与隐私：全部核心能力离线可用；没有新增依赖、网络、Rust command、文件访问、AI 上下文或权限。替换前展示匹配分布、允许排除章节、二次确认，并为每个受影响章节固定旧版本。
+- 兼容与结构：旧资料自动补空摘要，旧正文不改写；WritingView 保持在结构关注阈值以下，新职责分别进入 AuthorAnnotationMark、WritingToolsPanel、WorkSearchDialog 和纯函数模块。
+- 验证：Windows 完整门禁通过：前端 137/137、Rust 39/39、TypeScript、lint 0 warning 和生产构建；Release/NSIS 成功，桌面直接运行版已刷新。
+- 残余：批注、卡片、分屏和批量替换的实际手感需用户自然体验；M10 的 OpenRouter 生图与 Live2D 仅作为未来候选，不构成 M11 阻塞。
 
 ### 2026-09-18：M10 全局快捷键与 AI 伙伴设置审查
 
