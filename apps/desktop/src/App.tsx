@@ -16,6 +16,7 @@ import './styles/answerBook.css'
 import './styles/companion.css'
 import './styles/morningQuestion.css'
 
+const AgentTaskRuntime = lazy(() => import('./modules/companion/tasks/AgentTaskRuntime').then((module) => ({ default: module.AgentTaskRuntime })))
 const CompanionDesktopBridge = lazy(() => import('./modules/companion/CompanionDesktopBridge').then((module) => ({ default: module.CompanionDesktopBridge })))
 const DesktopCompanionWindow = lazy(() => import('./modules/companion/DesktopCompanionWindow').then((module) => ({ default: module.DesktopCompanionWindow })))
 const DesktopCompanionChatWindow = lazy(() => import('./modules/companion/DesktopCompanionChatWindow').then((module) => ({ default: module.DesktopCompanionChatWindow })))
@@ -55,5 +56,5 @@ function MainApp() {
 
   const completeOnboarding = async (result: OnboardingResult) => { const configured = await startupRepository.configure(result.libraryDirectory); await hydrate(); setTheme(result.theme); setBackupSettings({ directory: result.backupDirectory }); setStorage({ ...configured, libraryExists: true }) }
 
-  return <div className="app-window"><WindowTitleBar /><ErrorBoundary><div className="app-background">{startupError ? <main className="launch-screen"><div className="brand-mark">隅</div><p>{startupError}</p></main> : storage && !storage.libraryExists ? <OnboardingWizard defaultDirectory={storage.directory} onComplete={completeOnboarding} /> : ready ? <><Suspense fallback={null}><CompanionDesktopBridge /></Suspense><AppShell /></> : <main className="launch-screen"><div className="brand-mark">隅</div><p>正在拾起你的这一隅天地…</p></main>}</div></ErrorBoundary></div>
+  return <div className="app-window"><WindowTitleBar /><ErrorBoundary><div className="app-background">{startupError ? <main className="launch-screen"><div className="brand-mark">隅</div><p>{startupError}</p></main> : storage && !storage.libraryExists ? <OnboardingWizard defaultDirectory={storage.directory} onComplete={completeOnboarding} /> : ready ? <><Suspense fallback={null}><CompanionDesktopBridge /><AgentTaskRuntime /></Suspense><AppShell /></> : <main className="launch-screen"><div className="brand-mark">隅</div><p>正在拾起你的这一隅天地…</p></main>}</div></ErrorBoundary></div>
 }

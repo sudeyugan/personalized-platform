@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "appVersion": "2.0.0",
-  "productBaseline": "0.5",
-  "currentMilestone": "M11",
+  "productBaseline": "0.6",
+  "currentMilestone": "M12",
   "milestoneStatus": "delivered_pending_manual",
-  "nextMilestone": "M11",
+  "nextMilestone": "M12",
   "updatedAt": "2026-09-28",
   "automatedChecks": {
     "status": "passed",
@@ -13,12 +13,12 @@
   "manualAcceptance": {
     "status": "pending",
     "items": [
-      "自然体验今日工作台、章节卡片摘要、正文批注、分屏参考与全作品搜索替换的实际手感"
+      "用真实 DeepSeek 与 ElevenLabs 执行“小鱼录个视频介绍一下自己”，确认规划、页面切换、旁白、暂停恢复和最终 MP4 的实际体验"
     ]
   },
   "installer": {
     "path": "apps/desktop/src-tauri/target/release/bundle/nsis/一隅_2.0.0_x64-setup.exe",
-    "sha256": "DBF389BD023A252EB5D0EC40F13BAA31637304696500990C0091B785E742A720"
+    "sha256": "03EB5151EBE29FFB2033C2367C2873D6306778704F3CF7CC5145D612B84126CD"
   },
   "milestones": [
     {
@@ -86,6 +86,12 @@
       "name": "日常与创作一体化",
       "status": "delivered_pending_manual",
       "evidence": "今日工作台、章节卡片、正文批注、全作品安全搜索替换与分屏参考已实现并通过完整门禁；待自然体验"
+    },
+    {
+      "id": "M12",
+      "name": "通用自主任务系统",
+      "status": "delivered_pending_manual",
+      "evidence": "持久任务计划、本地执行器、暂停恢复停止、步骤失败策略、产物追踪与旁白录屏合成已实现；完整门禁 141/141 前端、40/40 Rust 通过，待真实 Provider 和录屏体验"
     }
   ]
 }

@@ -125,7 +125,7 @@ export function CompanionDesktopBridge() {
   }, [publish, snapshot])
   useEffect(() => {
     if (!isTauri()) return
-    let stopHide: (() => void) | undefined; let stopOpen: (() => void) | undefined; let stopReady: (() => void) | undefined; let stopTransient: (() => void) | undefined; let stopToggleChat: (() => void) | undefined; let stopOpenChat: (() => void) | undefined; let stopMoved: (() => void) | undefined; let stopChat: (() => void) | undefined; let stopNewChat: (() => void) | undefined; let stopVoice: (() => void) | undefined; let stopVoiceActivity: (() => void) | undefined; let stopVoiceToken: (() => void) | undefined; let stopPermission: (() => void) | undefined; let stopPrivacy: (() => void) | undefined; let stopSpeech: (() => void) | undefined; let stopSpeechPause: (() => void) | undefined; let stopTurn: (() => void) | undefined; let stopVoiceShow: (() => void) | undefined; let stopVoiceEnd: (() => void) | undefined; let stopVoiceHide: (() => void) | undefined; let stopTray: (() => void) | undefined
+    let stopHide: (() => void) | undefined; let stopOpen: (() => void) | undefined; let stopReady: (() => void) | undefined; let stopTransient: (() => void) | undefined; let stopToggleChat: (() => void) | undefined; let stopOpenChat: (() => void) | undefined; let stopMoved: (() => void) | undefined; let stopChat: (() => void) | undefined; let stopNewChat: (() => void) | undefined; let stopVoice: (() => void) | undefined; let stopVoiceActivity: (() => void) | undefined; let stopVoiceToken: (() => void) | undefined; let stopPermission: (() => void) | undefined; let stopPrivacy: (() => void) | undefined; let stopSpeech: (() => void) | undefined; let stopSpeechPause: (() => void) | undefined; let stopTurn: (() => void) | undefined; let stopVoiceShow: (() => void) | undefined; let stopVoiceEnd: (() => void) | undefined; let stopVoiceHide: (() => void) | undefined; let stopTray: (() => void) | undefined; let stopTaskControl: (() => void) | undefined; let stopTaskSpeech: (() => void) | undefined
     const windows = async () => {
       const all = await getAllWindows()
       return { portrait: all.find((item) => item.label === 'companion'), chat: all.find((item) => item.label === 'companion-chat') }
@@ -234,6 +234,17 @@ export function CompanionDesktopBridge() {
     void listen('companion:turn-stop', () => {
       cancelActiveTurn()
     }).then((stop) => { stopTurn = stop })
+    void listen<{ id: string; action: 'pause' | 'resume' | 'cancel' }>('companion:task-control', (event) => {
+      const store = useLibraryStore.getState()
+      if (event.payload.action === 'pause') store.pauseAgentTask(event.payload.id)
+      else if (event.payload.action === 'resume') store.resumeAgentTask(event.payload.id)
+      else store.cancelAgentTask(event.payload.id)
+    }).then((stop) => { stopTaskControl = stop })
+    void listen<{ active: boolean }>('companion:task-speech-state', (event) => {
+      window.clearTimeout(resetStateTimer.current)
+      setVisualState(event.payload.active ? 'speaking' : undefined)
+    }).then((stop) => { stopTaskSpeech = stop })
+
     void listen<{ message: string; inputMode?: 'text' | 'voice'; wake?: boolean; replace?: boolean; requestId?: string }>('companion:chat-send', (event) => {
       if (!event.payload.message.trim()) return
       if (sending.current) {
@@ -347,6 +358,10 @@ export function CompanionDesktopBridge() {
         if (!trust.retainConversationHistory) {
           void emitTo('companion-chat', 'companion:transient-message', { role: 'companion', content: responseText })
         }
+        const taskActive = useLibraryStore.getState().data.companion.tasks.some((task) => ['queued', 'preparing', 'running'].includes(task.status))
+        if (taskActive) {
+          return
+        }
         speechBuffer = responseText
         flushSpeech(true)
         void emitTo('companion-chat', 'companion:stream-text', { text: '' })
@@ -400,7 +415,7 @@ export function CompanionDesktopBridge() {
         .catch((error) => emitTo('companion-chat', 'companion:voice-token-response', { requestId: event.payload.requestId, error: error instanceof Error ? error.message : String(error) }))
     }).then((stop) => { stopVoiceToken = stop })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- unmount must clean the latest in-flight resources stored in refs.
-    return () => { stopHide?.(); stopOpen?.(); stopReady?.(); stopTransient?.(); stopToggleChat?.(); stopOpenChat?.(); stopMoved?.(); stopChat?.(); stopNewChat?.(); stopVoice?.(); stopVoiceActivity?.(); stopVoiceToken?.(); stopPermission?.(); stopPrivacy?.(); stopSpeech?.(); stopSpeechPause?.(); stopTurn?.(); stopVoiceShow?.(); stopVoiceEnd?.(); stopVoiceHide?.(); stopTray?.(); activeTurn.current?.abort(); permissionRequests.current.forEach((resolve) => resolve(false)); permissionRequests.current.clear(); privacyRequests.current.forEach((resolve) => resolve(false)); privacyRequests.current.clear(); speechGeneration.current += 1; const audio = spokenAudio.current; audio?.pause(); audio?.dispatchEvent(new Event('ended')); window.clearTimeout(resetStateTimer.current) }
+    return () => { stopHide?.(); stopOpen?.(); stopReady?.(); stopTransient?.(); stopToggleChat?.(); stopOpenChat?.(); stopMoved?.(); stopChat?.(); stopNewChat?.(); stopVoice?.(); stopVoiceActivity?.(); stopVoiceToken?.(); stopPermission?.(); stopPrivacy?.(); stopSpeech?.(); stopSpeechPause?.(); stopTurn?.(); stopVoiceShow?.(); stopVoiceEnd?.(); stopVoiceHide?.(); stopTray?.(); stopTaskControl?.(); stopTaskSpeech?.(); activeTurn.current?.abort(); permissionRequests.current.forEach((resolve) => resolve(false)); permissionRequests.current.clear(); privacyRequests.current.forEach((resolve) => resolve(false)); privacyRequests.current.clear(); speechGeneration.current += 1; const audio = spokenAudio.current; audio?.pause(); audio?.dispatchEvent(new Event('ended')); window.clearTimeout(resetStateTimer.current) }
   }, [clearCompanionMessages, publish, setCompanionDesktop])
   useEffect(() => {
     if (!isTauri()) return

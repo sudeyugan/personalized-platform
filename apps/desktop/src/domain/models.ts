@@ -220,6 +220,44 @@ export interface CompanionCharacterPackage {
   expressions: Record<string, { eye: string; brow: string; mouth: string; overlay?: string }>
   motions: Record<string, { frameAssetIds: string[]; fps: number; loop: boolean }>
 }
+export type AgentTaskStatus = 'queued' | 'preparing' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled'
+export type AgentTaskStepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped'
+export type AgentTaskFailurePolicy = 'retry' | 'replan' | 'ask' | 'stop'
+export type AgentTaskAction = 'app.open' | 'speech.say' | 'wait' | 'screen.record_start' | 'screen.record_stop'
+export interface AgentTaskStep {
+  id: string
+  title: string
+  action: AgentTaskAction
+  status: AgentTaskStepStatus
+  failurePolicy: AgentTaskFailurePolicy
+  destination?: string
+  text?: string
+  durationMs?: number
+  source?: string
+  startedAt?: string
+  completedAt?: string
+  error?: string
+}
+export interface AgentTaskArtifact {
+  id: string
+  type: 'video' | 'audio' | 'file'
+  label: string
+  path: string
+  createdAt: string
+}
+export interface AgentTask {
+  id: string
+  title: string
+  goal: string
+  status: AgentTaskStatus
+  steps: AgentTaskStep[]
+  currentStep: number
+  artifacts: AgentTaskArtifact[]
+  createdAt: string
+  updatedAt: string
+  completedAt?: string
+  error?: string
+}
 export interface CompanionData {
   name: string
   expression: 'calm' | 'warm' | 'thinking'
@@ -244,6 +282,7 @@ export interface CompanionData {
   messages: CompanionMessage[]
   memories: CompanionMemory[]
   agentAudit: CompanionAgentAuditEntry[]
+  tasks: AgentTask[]
   personality: CompanionPersonality
   growth: { enabled: boolean; logs: CompanionGrowthLog[] }
 }

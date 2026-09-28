@@ -222,6 +222,10 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
       if (!saved) throw new Error('这条记忆无法保存；加密作品内容不会写入普通记忆')
       return { saved: true }
     },
+    createTask: (task) => {
+      useLibraryStore.getState().addAgentTask(task)
+      return { taskId: task.id, title: task.title, status: task.status, stepCount: task.steps.length }
+    },
     openDestination: (input) => {
       useLibraryStore.getState().openAgentDestination({
         destination: input.destination,

@@ -11,6 +11,7 @@ import { backupRepository } from '../infrastructure/backupRepository'
 import { createSecuritySlice } from './securitySlice'
 import { createMusicSlice, resolvePlaybackContext } from './musicSlice'
 import { createCompanionSlice } from './companionSlice'
+import { createAgentTaskSlice } from './agentTaskSlice'
 import { createPlannerSlice } from './plannerSlice'
 import { createAnswerBookSlice } from './answerBookSlice'
 import { formatLocalDate } from '../domain/localDate'
@@ -360,6 +361,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   ...createSecuritySlice(get, set),
   ...createMusicSlice(get, set),
   ...createCompanionSlice(get, set),
+  ...createAgentTaskSlice(get, set),
   ...createPlannerSlice(get, set),
   ...createAnswerBookSlice(get, set),
 

@@ -1,4 +1,4 @@
-import type { LibraryData } from '../../../domain/models'
+import type { AgentTask, LibraryData } from '../../../domain/models'
 
 export interface AgentDataAccess {
   workIds: Set<string>
@@ -56,12 +56,13 @@ export interface AgentApplicationServices {
   createCourse?(input: { title: string; day: number; period: number; teacher?: string; location?: string; weeks?: string; note?: string }): unknown
   updateCourse?(input: { id: string; title?: string; day?: number; period?: number; teacher?: string; location?: string; weeks?: string; note?: string }): unknown
   saveMemory?(content: string): unknown
+  createTask?(task: AgentTask): unknown
   openDestination?(input: { destination: string; date?: string; range?: string; targetId?: string; filter?: string; section?: string }): unknown
   controlMusic?(action: string): unknown
   computer?: { execute(request: { action: string; params?: Record<string, unknown> }, confirmed: boolean): Promise<unknown> }
 }
 
-export type AgentWriteServices = Pick<AgentApplicationServices, 'createTodo' | 'updateTodo' | 'setTodoCompleted' | 'setTodoHoliday' | 'createCalendarEvent' | 'updateCalendarEvent' | 'appendDiary' | 'writeDiary' | 'saveMood' | 'createWork' | 'renameCurrentWork' | 'createChapter' | 'renameChapter' | 'appendChapter' | 'createRecord' | 'updateRecord' | 'createCourse' | 'updateCourse' | 'saveMemory' | 'openDestination' | 'controlMusic' | 'searchWeb' | 'computer'>
+export type AgentWriteServices = Pick<AgentApplicationServices, 'createTodo' | 'updateTodo' | 'setTodoCompleted' | 'setTodoHoliday' | 'createCalendarEvent' | 'updateCalendarEvent' | 'appendDiary' | 'writeDiary' | 'saveMood' | 'createWork' | 'renameCurrentWork' | 'createChapter' | 'renameChapter' | 'appendChapter' | 'createRecord' | 'updateRecord' | 'createCourse' | 'updateCourse' | 'saveMemory' | 'createTask' | 'openDestination' | 'controlMusic' | 'searchWeb' | 'computer'>
 
 function excerpt(text: string, query: string) {
   const index = text.toLocaleLowerCase().indexOf(query.toLocaleLowerCase())

@@ -34,6 +34,7 @@ export function describeAgentPermission(request: AgentPermissionRequest) {
     case 'course.create': return { title: '添加课程？', subject: value(args.title), detail: `星期 ${value(args.day)} · 第 ${value(args.period)} 节` }
     case 'course.update': return { title: '修改课程？', subject: value(args.title) || value(args.id), detail: [value(args.day), value(args.period), value(args.location)].filter(Boolean).join(' · ') || '修改现有信息' }
     case 'memory.save': return { title: '让伙伴记住？', subject: value(args.content).slice(0, 120), detail: '之后可以在 AI 伙伴设置中查看和删除' }
+    case 'task.create': return { title: '开始这个自主任务？', subject: value(args.title), detail: `${Array.isArray(args.steps) ? args.steps.length : 0} 个步骤 · ${value(args.goal).slice(0, 100)}` }
     default: return { title: '允许这次操作？', subject: request.tool.description, detail: request.call.name }
   }
 }

@@ -44,6 +44,21 @@ fn strings(request: &ComputerActionRequest, key: &str) -> Result<Vec<String>, St
     }).unwrap_or_else(|| Ok(Vec::new()))
 }
 
+fn bytes(request: &ComputerActionRequest, key: &str) -> Result<Vec<u8>, String> {
+    request.params.get(key).and_then(Value::as_array).ok_or_else(|| format!("COMPUTER_ARGUMENT_INVALID:{key}"))?
+        .iter().map(|item| item.as_u64().filter(|value| *value <= 255).map(|value| value as u8).ok_or_else(|| format!("COMPUTER_ARGUMENT_INVALID:{key}"))).collect()
+}
+
+fn narration_segments(request: &ComputerActionRequest) -> Result<Vec<(String, u64)>, String> {
+    request.params.get("segments").and_then(Value::as_array).ok_or_else(|| "COMPUTER_ARGUMENT_INVALID:segments".to_string())?
+        .iter().map(|item| {
+            let record = item.as_object().ok_or_else(|| "COMPUTER_ARGUMENT_INVALID:segments".to_string())?;
+            let path = record.get("path").and_then(Value::as_str).map(str::to_string).ok_or_else(|| "COMPUTER_ARGUMENT_INVALID:segments.path".to_string())?;
+            let start = record.get("startMs").and_then(Value::as_u64).ok_or_else(|| "COMPUTER_ARGUMENT_INVALID:segments.startMs".to_string())?;
+            Ok((path, start))
+        }).collect()
+}
+
 fn execute(
     app: &AppHandle,
     runtime: &ComputerRuntime,
@@ -113,6 +128,10 @@ fn execute(
             let (recordings, _) = runtime.statuses();
             Ok(json!({ "recordings": recordings }))
         }
+        "media_narration_save" => recording::save_narration(policy, &bytes(request, "bytes")?),
+        "media_narration_compose" => recording::compose_narration(
+            policy, string(request, "sourcePath")?, &narration_segments(request)?),
+        "media_narration_cleanup" => recording::cleanup_narration(policy, &strings(request, "paths")?),
         "file_list" => serde_json::to_value(files::list(policy, string(request, "path")?, boolean(request, "recursive", false), confirmed)?).map_err(|error| error.to_string()),
         "file_search" => serde_json::to_value(files::search(policy, string(request, "path")?, string(request, "query")?, confirmed)?).map_err(|error| error.to_string()),
         "file_read_text" => Ok(json!({ "content": files::read_text(policy, string(request, "path")?, confirmed)? })),

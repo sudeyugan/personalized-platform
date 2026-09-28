@@ -106,6 +106,90 @@ pub fn capture(policy: &ComputerPolicy, source: &str, supplied: Option<&str>, co
     Ok(json!({ "path": output.to_string_lossy() }))
 }
 
+fn recording_path(policy: &ComputerPolicy, value: &str, extension: &str) -> Result<PathBuf, String> {
+    let directory = default_directory(policy)?;
+    let path = PathBuf::from(value.trim());
+    if !path.is_absolute() || !path.starts_with(&directory) || path.extension().and_then(|item| item.to_str()).map(|item| item.eq_ignore_ascii_case(extension)) != Some(true) {
+        return Err("TASK_MEDIA_PATH_DENIED:任务媒体必须位于录制目录".into());
+    }
+    Ok(path)
+}
+
+pub fn save_narration(policy: &ComputerPolicy, bytes: &[u8]) -> Result<Value, String> {
+    if bytes.is_empty() || bytes.len() > 20 * 1024 * 1024 {
+        return Err("TASK_AUDIO_SIZE:旁白音频必须介于 1 字节和 20 MiB 之间".into());
+    }
+    let directory = default_directory(policy)?;
+    fs::create_dir_all(&directory).map_err(|error| format!("TASK_AUDIO_DIR:{error}"))?;
+    let path = directory.join(format!(".yiyu-task-audio-{}.mp3", now_ms()));
+    fs::write(&path, bytes).map_err(|error| format!("TASK_AUDIO_WRITE:{error}"))?;
+    Ok(json!({ "path": path.to_string_lossy() }))
+}
+
+pub fn compose_narration(
+    policy: &ComputerPolicy,
+    source: &str,
+    segments: &[(String, u64)],
+) -> Result<Value, String> {
+    if segments.is_empty() || segments.len() > 32 {
+        return Err("TASK_NARRATION_SEGMENTS:旁白片段需要 1–32 段".into());
+    }
+    let ffmpeg = detect_ffmpeg(Some(policy)).ok_or_else(|| "FFMPEG_NOT_FOUND:请在设置中选择 FFmpeg".to_string())?;
+    let source_path = recording_path(policy, source, "mp4")?;
+    if !source_path.is_file() {
+        return Err("TASK_VIDEO_MISSING:找不到任务录屏文件".into());
+    }
+    let mut audio_paths = Vec::with_capacity(segments.len());
+    for (path, _) in segments {
+        let audio = recording_path(policy, path, "mp3")?;
+        if !audio.is_file() {
+            return Err("TASK_AUDIO_MISSING:找不到任务旁白片段".into());
+        }
+        audio_paths.push(audio);
+    }
+    let directory = default_directory(policy)?;
+    let output = directory.join(format!("yiyu-narrated-{}.mp4", now_ms()));
+    let mut command = base_command(&ffmpeg);
+    command.args(["-hide_banner", "-loglevel", "error", "-i"]).arg(&source_path);
+    for audio in &audio_paths {
+        command.arg("-i").arg(audio);
+    }
+    let mut filters = Vec::with_capacity(segments.len() + 1);
+    for (index, (_, start_ms)) in segments.iter().enumerate() {
+        filters.push(format!("[{}:a]adelay=delays={}:all=1[a{}]", index + 1, start_ms, index + 1));
+    }
+    let inputs = (1..=segments.len()).map(|index| format!("[a{index}]")).collect::<String>();
+    filters.push(format!("{inputs}amix=inputs={}:duration=longest:normalize=0[aout]", segments.len()));
+    let result = command
+        .arg("-filter_complex")
+        .arg(filters.join(";"))
+        .args(["-map", "0:v:0", "-map", "[aout]", "-c:v", "copy", "-c:a", "aac", "-movflags", "+faststart", "-y"])
+        .arg(&output)
+        .output()
+        .map_err(|error| format!("TASK_NARRATION_START:{error}"))?;
+    if !result.status.success() {
+        return Err(format!("TASK_NARRATION_FAILED:{}", String::from_utf8_lossy(&result.stderr)));
+    }
+    for path in audio_paths {
+        let _ = fs::remove_file(path);
+    }
+    Ok(json!({ "path": output.to_string_lossy(), "sourcePath": source_path.to_string_lossy(), "segmentCount": segments.len() }))
+}
+
+pub fn cleanup_narration(policy: &ComputerPolicy, paths: &[String]) -> Result<Value, String> {
+    if paths.len() > 32 {
+        return Err("TASK_NARRATION_SEGMENTS:旁白片段不能超过 32 段".into());
+    }
+    let mut removed = 0;
+    for value in paths {
+        let path = recording_path(policy, value, "mp3")?;
+        if path.is_file() && fs::remove_file(path).is_ok() {
+            removed += 1;
+        }
+    }
+    Ok(json!({ "removed": removed }))
+}
+
 pub fn start(
     runtime: &ComputerRuntime,
     policy: &ComputerPolicy,

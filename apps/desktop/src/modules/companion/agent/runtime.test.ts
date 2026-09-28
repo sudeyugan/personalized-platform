@@ -75,6 +75,27 @@ describe('agent tool registry', () => {
     await expect(registry.execute({ id: '3', name: 'missing', arguments: {} }, current.services)).resolves.toMatchObject({ success: false, error: { code: 'ToolNotFound' } })
   })
 
+  it('validates and creates a persistent multi-step task', async () => {
+    const current = fixture()
+    let created: unknown
+    const services = createAgentApplicationServices(current.data, current.access, { createTask: (task) => { created = task; return task } })
+    const result = await createCompanionToolRegistry().execute({
+      id: 'task-1',
+      name: 'task.create',
+      arguments: {
+        title: '介绍一隅',
+        goal: '生成带小鱼旁白的程序介绍视频',
+        steps: [
+          { title: '开始录屏', action: 'screen.record_start', source: 'desktop' },
+          { title: '介绍首页', action: 'speech.say', text: '你好，我是小鱼。' },
+          { title: '结束录屏', action: 'screen.record_stop' },
+        ],
+      },
+    }, services)
+    expect(result).toMatchObject({ success: true })
+    expect(created).toMatchObject({ title: '介绍一隅', status: 'queued', steps: [{ action: 'screen.record_start' }, { action: 'speech.say' }, { action: 'screen.record_stop' }] })
+  })
+
   it('reads personal modules only after their resource scope is granted', async () => {
     const current = fixture()
     current.data.planner.diaryEntries.push({ date: '2026-09-23', title: '今天', content: '完成了统一 Agent 接入', updatedAt: new Date().toISOString() })

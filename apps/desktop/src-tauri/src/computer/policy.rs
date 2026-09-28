@@ -5,7 +5,7 @@ pub fn capability(action: &str) -> Option<&'static str> {
         "app_list" | "app_open" => "applications",
         "window_list" | "window_focus" | "window_close" | "window_move" => "windows",
         "screen_list_sources" | "screen_capture" => "screen_capture",
-        "screen_record_start" | "screen_record_stop" | "screen_record_status" => "screen_record",
+        "screen_record_start" | "screen_record_stop" | "screen_record_status" | "media_narration_save" | "media_narration_compose" | "media_narration_cleanup" => "screen_record",
         "input_click" | "input_type_text" | "input_hotkey" => "input",
         "clipboard_read" => "clipboard_read",
         "clipboard_write" => "clipboard_write",
@@ -135,5 +135,12 @@ mod tests {
         };
         assert!(authorize(&policy(), &request, false).is_err());
         assert!(authorize(&policy(), &request, true).is_ok());
+    }
+
+    #[test]
+    fn task_media_actions_share_screen_record_permission() {
+        assert_eq!(capability("media_narration_save"), Some("screen_record"));
+        assert_eq!(capability("media_narration_compose"), Some("screen_record"));
+        assert_eq!(capability("media_narration_cleanup"), Some("screen_record"));
     }
 }
