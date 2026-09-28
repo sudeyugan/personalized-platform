@@ -87,6 +87,7 @@ export async function runAgent(input: RunAgentInput) {
   const actionIntent = detectActionIntent(input.message, toolDefinitions)
   let directAction = actionIntent.directCall
   let actionRetryUsed = false
+  let malformedToolRetryUsed = false
   let toolAttempted = false
   const maxToolSteps = input.maxToolSteps ?? DEFAULT_MAX_TOOL_STEPS
 
@@ -114,6 +115,15 @@ export async function runAgent(input: RunAgentInput) {
       } catch (error) {
         if (error instanceof AgentRuntimeError && error.code === 'AgentCancelled') throw error
         const message = modelErrorMessage(error)
+        if (message.startsWith('MODEL_TOOL_ARGUMENTS_INVALID:') && !malformedToolRetryUsed) {
+          malformedToolRetryUsed = true
+          if (streamedThisStep) input.onTextReset?.()
+          messages.push({
+            role: 'system',
+            content: '上一条 Tool Call 的 arguments 不是完整有效的 JSON，应用没有执行任何动作。请重新生成一次 Tool Call：只输出符合目标 Tool schema 的参数，不要使用 Markdown 代码块、注释或尾随逗号；字符串中的换行和引号必须正确转义。',
+          })
+          continue
+        }
         input.onStatus?.({ phase: 'error', message })
         throw new AgentRuntimeError('ModelError', message)
       }

@@ -343,6 +343,66 @@ describe('agent runtime', () => {
     expect(result.text).toContain('参数无效')
     expect(result.audit[0].errorCode).toBe('InvalidArguments')
   })
+  it('retries one malformed Tool argument response before creating a recording task', async () => {
+    const current = fixture()
+    current.data.companion.permissions.writeActions = true
+    let created: unknown
+    const services = createAgentApplicationServices(current.data, current.access, {
+      createTask: (task) => { created = task; return task },
+    })
+    const permissions = new AgentPermissionEngine({
+      policy: { autoAllow: ['read'] },
+      resourcePermissions: current.data.companion.permissions,
+      access: current.access,
+    })
+    const requests: AgentModelRequest[] = []
+    let attempt = 0
+    const provider: AgentModelProvider = {
+      id: 'malformed-then-valid',
+      testConnection: async () => 'ok',
+      generate: async (request) => {
+        requests.push(request)
+        attempt += 1
+        if (attempt === 1) throw new Error('MODEL_TOOL_ARGUMENTS_INVALID:模型返回了无法解析的 Tool 参数')
+        if (attempt === 2) {
+          return {
+            type: 'tool_call',
+            call: {
+              id: 'task-retry',
+              name: 'task.create',
+              arguments: {
+                title: '小鱼自我介绍',
+                goal: '录制自我介绍视频',
+                steps: [
+                  { title: '开始录屏', action: 'screen.record_start', source: 'desktop' },
+                  { title: '自我介绍', action: 'speech.say', text: '你好，我是小鱼。' },
+                  { title: '停止录屏', action: 'screen.record_stop' },
+                ],
+              },
+            },
+          }
+        }
+        return { type: 'text', text: '录制任务已经创建。' }
+      },
+    }
+
+    const result = await runAgent({
+      message: '小鱼录个视频介绍一下自己',
+      history: [],
+      context: current.context,
+      provider,
+      registry: createCompanionToolRegistry(),
+      permissions,
+      services,
+      requestPermission: async () => true,
+    })
+
+    expect(result.text).toContain('已经创建')
+    expect(created).toMatchObject({ status: 'queued' })
+    expect((created as { steps: Array<{ action: string }> }).steps[0]).toMatchObject({ action: 'screen.record_start' })
+    expect(requests).toHaveLength(3)
+    expect(requests[1].messages.some((message) => message.role === 'system' && message.content.includes('arguments 不是完整有效的 JSON'))).toBe(true)
+  })
 
   it('stops safely when the model exceeds the tool-step limit', async () => {
     const current = fixture()
