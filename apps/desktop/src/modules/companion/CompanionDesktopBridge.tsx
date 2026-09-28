@@ -234,10 +234,11 @@ export function CompanionDesktopBridge() {
     void listen('companion:turn-stop', () => {
       cancelActiveTurn()
     }).then((stop) => { stopTurn = stop })
-    void listen<{ id: string; action: 'pause' | 'resume' | 'cancel' }>('companion:task-control', (event) => {
+    void listen<{ id: string; action: 'pause' | 'resume' | 'confirm' | 'cancel' }>('companion:task-control', (event) => {
       const store = useLibraryStore.getState()
       if (event.payload.action === 'pause') store.pauseAgentTask(event.payload.id)
       else if (event.payload.action === 'resume') store.resumeAgentTask(event.payload.id)
+      else if (event.payload.action === 'confirm') store.confirmAgentTaskStep(event.payload.id)
       else store.cancelAgentTask(event.payload.id)
     }).then((stop) => { stopTaskControl = stop })
     void listen<{ active: boolean }>('companion:task-speech-state', (event) => {

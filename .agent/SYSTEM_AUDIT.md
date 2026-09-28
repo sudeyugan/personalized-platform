@@ -3,7 +3,7 @@
 > 本文件只保存当前审查规则和近期重要记录。旧记录见 [`docs/archive/SYSTEM_AUDIT_HISTORY.md`](../docs/archive/SYSTEM_AUDIT_HISTORY.md)。
 
 最后审查：2026-09-28（M12 通用自主任务系统）
-审查结果：合规，任务权限与媒体边界明确，完整门禁及 Windows Release/NSIS 通过
+审查结果：合规，统一 Tool 任务、逐步确认、恢复防重放与媒体边界明确，完整门禁及 Windows Release/NSIS 通过
 下一次触发：里程碑/正式发布、重大流程或架构变化、状态失真、连续失败或上下文无法恢复
 
 ## 触发条件
@@ -30,10 +30,10 @@
 ### 2026-09-28：M12 通用自主任务系统审查
 
 - 触发原因：Agent 从单轮 Tool 调用扩展为可持久、可恢复的跨页面任务，并新增 TTS 临时媒体与 FFmpeg 音画合成，属于运行时、存储和安全边界变化。
-- 审查结果：合规。模型只能创建动作白名单内的结构化计划，最多 32 个本地步骤；单轮模型 Tool 上限仍为 8。任务整体经过既有写入确认，电脑动作继续由 Rust 主进程按 screen_record 权限复核。
-- 生命周期：任务最多保留 20 条；应用重启将 preparing/running 统一转为 paused，运行中步骤重置为 pending。界面始终显示当前任务并提供暂停、恢复、停止；取消或异常会停止由任务启动的录屏，保留未完成片段。
+- 审查结果：合规。TaskActionRegistry 只包装现有 Tool Registry、Application Service 与 Permission Engine；模型只能创建最多 32 个结构化步骤，单轮模型 Tool 上限仍为 8。递归 task.create、视觉状态和专用录屏动作不作为通用 Tool 步骤。
+- 生命周期：任务最多保留 20 条；应用重启将 preparing/running 统一转为 paused，并清除未完成步骤的一次性确认。每步执行前按最新资料和权限重新决策；确认仅放行 requiresConfirmation 的当前步骤，明确拒绝不可绕过。录屏恢复只重放媒体/展示步骤，不重复已完成的写入 Tool。
 - 媒体与隐私：TTS 沿用既有 Provider 信任和外发脱敏；MP3 临时文件、源视频和合成视频都限制在录制目录并校验扩展名，成功、失败与停止后清理临时旁白。FFmpeg 路径仍来自既有受控探测/设置。
-- 验证：Windows verify:full 通过 TypeScript、lint 0 warning、141/141 前端测试、40/40 Rust 测试和生产 Web 构建；Release/桌面 EXE SHA-256 为 1CF7401F87D925C9D2D7E2FB5F7372D73F29F8870511AABBF7270DEDCB5E0D56，NSIS 为 03EB5151EBE29FFB2033C2367C2873D6306778704F3CF7CC5145D612B84126CD。
+- 验证：Windows verify:full 通过 TypeScript、lint 0 warning、147/147 前端测试、40/40 Rust 测试和生产 Web 构建；Release/桌面 EXE SHA-256 为 FDAF2953F0809C4D032755186E0A2E9004DD8B815E896DDA47F4881CC7D489D3，NSIS 为 33B77C887AD2866B1261ED9213DD556488CD6F7AD8A88335973547E4F235D6DD。
 - 人工项：真实 DeepSeek 是否稳定产出自然计划、ElevenLabs 旁白时长与页面停留是否协调、FFmpeg 在当前显示器缩放下的录屏/合成效果需要用户自然体验。
 
 ### 2026-09-27：WSL 开发环境与 Windows 构建镜像审查

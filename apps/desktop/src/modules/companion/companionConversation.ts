@@ -1,5 +1,5 @@
 import type { JSONContent } from '@tiptap/react'
-import type { CompanionVideoState, CourseDay, CoursePeriod, MoodKind, MoodPeriod } from '../../domain/models'
+import type { CompanionVideoState, CourseDay, CoursePeriod, LibraryData, MoodKind, MoodPeriod } from '../../domain/models'
 import { createCompanionProvider } from '../../infrastructure/companionProvider'
 import { searchWeb } from '../../infrastructure/webSearch'
 import { createComputerService } from '../../infrastructure/computerService'
@@ -8,6 +8,7 @@ import { applyContextPrivacy, applyHistoryPrivacy, assertExternalAiAllowed } fro
 import { createPrivacyProtectedProvider, protectOutboundText, type PrivacyReviewRequest } from '../privacy'
 import { AgentPermissionEngine, buildAgentAccess, buildAgentContext, createAgentApplicationServices, createCompanionToolRegistry, runAgent } from './agent'
 import type { AgentPermissionRequest, AgentRuntimeStatus } from './agent/types'
+import type { AgentDataAccess } from './agent/applicationServices'
 
 export interface CompanionTurnOptions {
   onStatus?: (status?: AgentRuntimeStatus) => void
@@ -42,15 +43,12 @@ const paragraphs = (text: string): JSONContent[] => text.trim().split(/\n{2,}/).
   content: value ? [{ type: 'text', text: value }] : undefined,
 }))
 
-export async function sendCompanionTurn(message: string, options: CompanionTurnOptions = {}) {
-  const clean = message.trim()
-  if (!clean) throw new Error('请输入想说的话')
-  const store = useLibraryStore.getState()
-  const { data, temporaryCompanionWorkIds } = store
-  const access = buildAgentAccess(data, temporaryCompanionWorkIds)
-  assertExternalAiAllowed(data.companion.provider.providerId, data.settings.trust, 'companion')
-  const context = applyContextPrivacy(buildAgentContext(data, access), data.settings.trust)
-  const services = createAgentApplicationServices(data, access, {
+export function createLiveCompanionApplicationServices(
+  data: LibraryData,
+  access: AgentDataAccess,
+  requestPrivacyReview?: (request: PrivacyReviewRequest) => Promise<boolean>,
+) {
+  return createAgentApplicationServices(data, access, {
     createTodo: (title, dueDate) => {
       const date = dueDate ?? today()
       if (!isoDate.test(date)) throw new Error('待办日期必须使用 YYYY-MM-DD')
@@ -249,9 +247,20 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
       trust: data.settings.trust,
       destination: data.settings.webSearch.providerId === 'tencent' ? '腾讯云联网搜索' : data.settings.webSearch.providerId === 'bocha' ? '博查联网搜索' : 'Bing Search',
       purpose: '联网查询',
-      requestReview: options.requestPrivacyReview,
+      requestReview: requestPrivacyReview,
     }), data.settings.webSearch),
   })
+}
+
+export async function sendCompanionTurn(message: string, options: CompanionTurnOptions = {}) {
+  const clean = message.trim()
+  if (!clean) throw new Error('请输入想说的话')
+  const store = useLibraryStore.getState()
+  const { data, temporaryCompanionWorkIds } = store
+  const access = buildAgentAccess(data, temporaryCompanionWorkIds)
+  assertExternalAiAllowed(data.companion.provider.providerId, data.settings.trust, 'companion')
+  const context = applyContextPrivacy(buildAgentContext(data, access), data.settings.trust)
+  const services = createLiveCompanionApplicationServices(data, access, options.requestPrivacyReview)
   const registry = createCompanionToolRegistry(options.onVisualState)
   const permissions = new AgentPermissionEngine({
     policy: { autoAllow: ['read', 'presentation'] },

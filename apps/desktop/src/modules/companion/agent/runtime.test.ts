@@ -89,11 +89,12 @@ describe('agent tool registry', () => {
           { title: '开始录屏', action: 'screen.record_start', source: 'desktop' },
           { title: '介绍首页', action: 'speech.say', text: '你好，我是小鱼。' },
           { title: '结束录屏', action: 'screen.record_stop' },
+          { title: '读取待办', action: 'tool.call', toolName: 'todo.list', arguments: {} },
         ],
       },
     }, services)
     expect(result).toMatchObject({ success: true })
-    expect(created).toMatchObject({ title: '介绍一隅', status: 'queued', steps: [{ action: 'screen.record_start' }, { action: 'speech.say' }, { action: 'screen.record_stop' }] })
+    expect(created).toMatchObject({ title: '介绍一隅', status: 'queued', steps: [{ action: 'screen.record_start' }, { action: 'speech.say' }, { action: 'screen.record_stop' }, { action: 'tool.call', toolName: 'todo.list' }] })
   })
 
   it('reads personal modules only after their resource scope is granted', async () => {

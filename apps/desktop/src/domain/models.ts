@@ -223,7 +223,7 @@ export interface CompanionCharacterPackage {
 export type AgentTaskStatus = 'queued' | 'preparing' | 'running' | 'paused' | 'completed' | 'failed' | 'cancelled'
 export type AgentTaskStepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped'
 export type AgentTaskFailurePolicy = 'retry' | 'replan' | 'ask' | 'stop'
-export type AgentTaskAction = 'app.open' | 'speech.say' | 'wait' | 'screen.record_start' | 'screen.record_stop'
+export type AgentTaskAction = 'app.open' | 'speech.say' | 'wait' | 'screen.record_start' | 'screen.record_stop' | 'tool.call'
 export interface AgentTaskStep {
   id: string
   title: string
@@ -234,6 +234,11 @@ export interface AgentTaskStep {
   text?: string
   durationMs?: number
   source?: string
+  toolName?: string
+  arguments?: Record<string, unknown>
+  result?: unknown
+  confirmed?: boolean
+  confirmationRequired?: boolean
   startedAt?: string
   completedAt?: string
   error?: string

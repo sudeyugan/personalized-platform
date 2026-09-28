@@ -8,6 +8,11 @@ import { useLibraryStore } from '../../../state/useLibraryStore'
 import { PrivacySession } from '../../privacy'
 import { assertExternalAiAllowed } from '../../trust/trustPolicy'
 import { viewForAgentDestination } from '../agent/featureContract'
+import { AgentPermissionEngine } from '../agent/permission'
+import { buildAgentAccess } from '../agent/context'
+import { TaskActionConfirmationRequired, TaskActionRegistry } from '../agent/taskActionRegistry'
+import { createCompanionToolRegistry } from '../agent/tools'
+import { createLiveCompanionApplicationServices } from '../companionConversation'
 
 interface PreparedSpeech {
   blob: Blob
@@ -134,9 +139,26 @@ async function executeTask(task: AgentTask, signal: AbortSignal, audioRef: { cur
   if (!current || current.status === 'paused' || current.status === 'cancelled') return
   store.updateAgentTask(task.id, { status: 'running', error: undefined })
   const computer = createComputerService(useLibraryStore.getState().data.companion.computer)
+  const createTaskActions = () => {
+    const liveStore = useLibraryStore.getState()
+    const liveData = liveStore.data
+    const access = buildAgentAccess(liveData, liveStore.temporaryCompanionWorkIds)
+    return new TaskActionRegistry(
+      createCompanionToolRegistry(),
+      new AgentPermissionEngine({
+        policy: { autoAllow: ['read', 'presentation'] },
+        resourcePermissions: liveData.companion.permissions,
+        computer: liveData.companion.computer,
+        access,
+      }),
+      createLiveCompanionApplicationServices(liveData, access),
+      task.id,
+      (entry) => useLibraryStore.getState().addCompanionAudit([entry]),
+    )
+  }
   let recording: RecordingContext | undefined
 
-  const runStep = async (step: AgentTaskStep) => {
+  const runStep = async (step: AgentTaskStep, index: number) => {
     if (step.action === 'app.open') {
       useLibraryStore.getState().openAgentDestination({ destination: step.destination! })
       await waitFor(900, signal)
@@ -146,6 +168,17 @@ async function executeTask(task: AgentTask, signal: AbortSignal, audioRef: { cur
     }
     if (step.action === 'wait') {
       await waitFor(step.durationMs ?? 1000, signal)
+      return
+    }
+    if (step.action === 'tool.call') {
+      const latest = taskById(task.id)
+      if (!latest) throw new Error('任务已不存在')
+      const result = await createTaskActions().execute(step, latest, index)
+      updateStep(task.id, index, { result, confirmationRequired: false })
+      if (result && typeof result === 'object' && !Array.isArray(result) && 'path' in result) {
+        const path = (result as { path?: unknown }).path
+        if (typeof path === 'string') addArtifact(task.id, { type: /\.(?:mp3|wav|m4a)$/i.test(path) ? 'audio' : 'file', label: step.title, path })
+      }
       return
     }
     if (step.action === 'speech.say') {
@@ -206,9 +239,10 @@ async function executeTask(task: AgentTask, signal: AbortSignal, audioRef: { cur
       let attempts = step.failurePolicy === 'retry' ? 2 : 1
       while (attempts > 0) {
         try {
-          await runStep(step)
+          await runStep(step, index)
           attempts = 0
         } catch (error) {
+          if (error instanceof TaskActionConfirmationRequired) throw error
           attempts -= 1
           if (attempts > 0 && !signal.aborted) {
             await waitFor(700, signal)
@@ -217,7 +251,7 @@ async function executeTask(task: AgentTask, signal: AbortSignal, audioRef: { cur
           throw error
         }
       }
-      updateStep(task.id, index, { status: 'completed', completedAt: new Date().toISOString() })
+      updateStep(task.id, index, { status: 'completed', completedAt: new Date().toISOString(), confirmed: undefined, confirmationRequired: undefined })
     }
     const completed = taskById(task.id)
     useLibraryStore.getState().updateAgentTask(task.id, {
@@ -234,11 +268,16 @@ async function executeTask(task: AgentTask, signal: AbortSignal, audioRef: { cur
     const message = error instanceof Error ? error.message : '任务执行失败'
     const index = latest?.currentStep ?? 0
     const step = latest?.steps[index]
+    if (error instanceof TaskActionConfirmationRequired) {
+      updateStep(task.id, index, { status: 'pending', startedAt: undefined, confirmationRequired: true, error: message })
+      useLibraryStore.getState().updateAgentTask(task.id, { status: 'paused', error: `等待确认：${message}` })
+      return
+    }
     if (step?.failurePolicy === 'ask' || step?.failurePolicy === 'replan') {
-      updateStep(task.id, index, { status: 'pending', startedAt: undefined, error: message })
+      updateStep(task.id, index, { status: 'pending', startedAt: undefined, confirmed: undefined, confirmationRequired: undefined, error: message })
       useLibraryStore.getState().updateAgentTask(task.id, { status: 'paused', error: step.failurePolicy === 'replan' ? `需要调整计划：${message}` : `需要你的处理：${message}` })
     } else {
-      updateStep(task.id, index, { status: 'failed', completedAt: new Date().toISOString(), error: message })
+      updateStep(task.id, index, { status: 'failed', completedAt: new Date().toISOString(), confirmed: undefined, confirmationRequired: undefined, error: message })
       useLibraryStore.getState().updateAgentTask(task.id, { status: 'failed', error: message })
     }
   } finally {

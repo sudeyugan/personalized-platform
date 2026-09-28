@@ -1,5 +1,5 @@
 import type { JSONContent } from '@tiptap/react'
-import { companionVideoStates, type CompanionVideoLibrary, type CompanionVideoState, type Course, type CourseDay, type LibraryData, type MoodEntry, type MoodKind, type MoodPeriod, type MoodPoints, type TodoItem } from './models'
+import { companionVideoStates, type AgentTask, type CompanionVideoLibrary, type CompanionVideoState, type Course, type CourseDay, type LibraryData, type MoodEntry, type MoodKind, type MoodPeriod, type MoodPoints, type TodoItem } from './models'
 import { countChineseWords } from './wordCount'
 
 const introContent: JSONContent = {
@@ -185,8 +185,28 @@ export function createSeedLibrary(): LibraryData {
   }
 }
 
-export function normalizeLibrary(data: LibraryData): LibraryData {
+function normalizeAgentTasks(tasks: AgentTask[] | undefined): AgentTask[] {
+  return (tasks ?? []).map((task) => {
+    const interrupted = task.status === 'running' || task.status === 'preparing'
+    const steps: AgentTask['steps'] = task.steps.map((step) => ({
+      ...step,
+      ...(step.status === 'running' ? {
+        status: 'pending' as const,
+        startedAt: undefined,
+      } : {}),
+      confirmed: undefined,
+    }))
+    return {
+      ...task,
+      ...(interrupted ? { status: 'paused' as const, error: '应用重新启动，任务已安全暂停' } : {}),
+      steps,
+    }
+  }).slice(-20)
+}
+
   const seed = createSeedLibrary()
+export function normalizeLibrary(data: LibraryData): LibraryData {
+
   const storedModules = data.settings.modules ?? []
   const modules = seed.settings.modules.map((defaultModule) => {
     const stored = storedModules.find((module) => module.id === defaultModule.id)
@@ -262,7 +282,7 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
     aiGenerations: data.aiGenerations ?? [],
     tracks: data.tracks ?? [],
     musicContexts: { ...seed.musicContexts, ...data.musicContexts, works: data.musicContexts?.works ?? {}, chapters: data.musicContexts?.chapters ?? {} },
-    companion: { ...seed.companion, ...data.companion, appearance: { ...seed.companion.appearance, ...data.companion?.appearance }, desktop: { ...seed.companion.desktop, ...data.companion?.desktop, visual: normalizedVisual, videoAssets: primaryVideos, videoClips, videoPlacements: data.companion?.desktop?.videoPlacements ?? {} }, provider: { ...seed.companion.provider, ...data.companion?.provider }, voice: { ...seed.companion.voice, ...data.companion?.voice, stt: { ...seed.companion.voice.stt, ...data.companion?.voice?.stt }, tts: { ...seed.companion.voice.tts, ...data.companion?.voice?.tts } }, permissions, computer: { ...seed.companion.computer, ...data.companion?.computer, grants: data.companion?.computer?.grants ?? [] }, messages: data.companion?.messages ?? [], memories: data.companion?.memories ?? [], agentAudit: data.companion?.agentAudit ?? [], tasks: (data.companion?.tasks ?? []).map((task) => task.status === 'running' || task.status === 'preparing' ? { ...task, status: 'paused' as const, error: '应用重新启动，任务已安全暂停', steps: task.steps.map((step) => step.status === 'running' ? { ...step, status: 'pending' as const, startedAt: undefined } : step) } : task).slice(-20), personality: { ...seed.companion.personality, ...data.companion?.personality }, growth: { ...seed.companion.growth, ...data.companion?.growth, logs: data.companion?.growth?.logs ?? [] } },
+    companion: { ...seed.companion, ...data.companion, appearance: { ...seed.companion.appearance, ...data.companion?.appearance }, desktop: { ...seed.companion.desktop, ...data.companion?.desktop, visual: normalizedVisual, videoAssets: primaryVideos, videoClips, videoPlacements: data.companion?.desktop?.videoPlacements ?? {} }, provider: { ...seed.companion.provider, ...data.companion?.provider }, voice: { ...seed.companion.voice, ...data.companion?.voice, stt: { ...seed.companion.voice.stt, ...data.companion?.voice?.stt }, tts: { ...seed.companion.voice.tts, ...data.companion?.voice?.tts } }, permissions, computer: { ...seed.companion.computer, ...data.companion?.computer, grants: data.companion?.computer?.grants ?? [] }, messages: data.companion?.messages ?? [], memories: data.companion?.memories ?? [], agentAudit: data.companion?.agentAudit ?? [], tasks: normalizeAgentTasks(data.companion?.tasks), personality: { ...seed.companion.personality, ...data.companion?.personality }, growth: { ...seed.companion.growth, ...data.companion?.growth, logs: data.companion?.growth?.logs ?? [] } },
     answerBook: { favorites: data.answerBook?.favorites ?? [] },
     planner: {
       courses,

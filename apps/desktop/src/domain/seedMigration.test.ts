@@ -105,6 +105,36 @@ describe('library compatibility normalization', () => {
     expect(upgraded.chapters['chapter-welcome'].summary).toBe('')
   })
 
+  it('pauses interrupted tasks and expires unfinished step confirmations on restart', () => {
+    const library = createSeedLibrary()
+    library.companion.tasks = [{
+      id: 'task-restart',
+      title: '重启任务',
+      goal: '验证确认不会跨启动复用',
+      status: 'running',
+      currentStep: 0,
+      steps: [{
+        id: 'step-write',
+        title: '写入',
+        action: 'tool.call',
+        status: 'running',
+        failurePolicy: 'ask',
+        toolName: 'todo.create',
+        arguments: { title: '重启后不应自动创建' },
+        confirmed: true,
+        startedAt: '2026-09-28T08:00:00.000Z',
+      }],
+      artifacts: [],
+      createdAt: '2026-09-28T08:00:00.000Z',
+      updatedAt: '2026-09-28T08:00:00.000Z',
+    }]
+
+    const [task] = normalizeLibrary(library).companion.tasks
+
+    expect(task).toMatchObject({ status: 'paused', error: '应用重新启动，任务已安全暂停' })
+    expect(task.steps[0]).toMatchObject({ status: 'pending', confirmed: undefined, startedAt: undefined })
+  })
+
   it('normalizes a large library within the one-second data preparation budget', () => {
     const library = createSeedLibrary()
     const base = library.chapters['chapter-welcome']

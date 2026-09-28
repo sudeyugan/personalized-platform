@@ -4,6 +4,7 @@ import { AgentToolRegistry } from './toolRegistry'
 import { createComputerTools } from './computerTools'
 import { agentDestinations, agentFeatureContracts, assertAgentFeatureContract } from './featureContract'
 import { createAgentTaskFromDraft, type AgentTaskStepDraft } from './taskPlan'
+import { isTaskToolEligible } from './taskActionRegistry'
 
 const emptySchema = { type: 'object' as const, properties: {}, additionalProperties: false }
 const querySchema = {
@@ -21,7 +22,7 @@ const requireService = <T>(service: T | undefined, label: string): T => {
 const optionalText = (value: unknown) => typeof value === 'string' && value.trim() ? value.trim() : undefined
 
 export function createCompanionToolRegistry(onVisualState?: (state: CompanionVideoState) => void) {
-  const registry = new AgentToolRegistry()
+  const registry: AgentToolRegistry = new AgentToolRegistry()
     .register({
       definition: { name: 'work.get_current', description: '读取当前已授权作品的基本信息', inputSchema: emptySchema, capability: 'read', risk: 'read_only', scope: 'active_work' },
       execute: (_args, services: AgentApplicationServices) => services.getCurrentWork() ?? { found: false },
@@ -136,23 +137,23 @@ export function createCompanionToolRegistry(onVisualState?: (state: CompanionVid
     .register({
       definition: {
         name: 'task.create',
-        description: '为需要多个步骤、等待、页面切换、旁白或录屏的目标创建一个可暂停恢复的后台任务。视频介绍应先开始录屏，在页面间加入短暂等待并逐段旁白，最后停止录屏',
+        description: '为需要多个步骤、等待、页面切换、旁白、录屏或组合多个现有 Tool 的目标创建可暂停恢复的后台任务。普通 Tool 用 tool.call、toolName 和 arguments 表示；后续步骤可用 {{last.id}} 或 {{steps.0.id}} 引用先前结果',
         inputSchema: {
           type: 'object',
           properties: {
             title: { type: 'string', minLength: 1, description: '简短任务标题' },
             goal: { type: 'string', minLength: 1, description: '用户希望达成的最终结果' },
             steps: { type: 'array', items: { type: 'object', properties: {
-              title: { type: 'string', minLength: 1 }, action: { type: 'string', enum: ['app.open', 'speech.say', 'wait', 'screen.record_start', 'screen.record_stop'] },
+              title: { type: 'string', minLength: 1 }, action: { type: 'string', enum: ['app.open', 'speech.say', 'wait', 'screen.record_start', 'screen.record_stop', 'tool.call'] },
               failurePolicy: { type: 'string', enum: ['retry', 'replan', 'ask', 'stop'] }, destination: { type: 'string', enum: agentDestinations },
-              text: { type: 'string' }, durationMs: { type: 'number', minimum: 250, maximum: 60000 }, source: { type: 'string', description: 'desktop 或 window:窗口标题' },
+              text: { type: 'string' }, durationMs: { type: 'number', minimum: 250, maximum: 60000 }, source: { type: 'string', description: 'desktop 或 window:窗口标题' }, toolName: { type: 'string', description: 'tool.call 要执行的现有 Tool 名称' }, arguments: { type: 'object', description: '符合目标 Tool schema 的参数；可引用先前步骤结果', additionalProperties: true },
             }, required: ['title', 'action'], additionalProperties: false } },
           },
           required: ['title', 'goal', 'steps'], additionalProperties: false,
         },
         capability: 'create', risk: 'medium', scope: 'none',
       },
-      execute: (args, services) => requireService(services.createTask, '自主任务')!(createAgentTaskFromDraft({ title: String(args.title), goal: String(args.goal), steps: args.steps as AgentTaskStepDraft[] })),
+      execute: (args, services) => requireService(services.createTask, '自主任务')!(createAgentTaskFromDraft({ title: String(args.title), goal: String(args.goal), steps: args.steps as AgentTaskStepDraft[] }, new Date(), new Set(registry.definitions().filter(isTaskToolEligible).map((tool) => tool.name)))),
     })
     .register({
       definition: { name: 'app.open', description: '打开一隅中的页面或具体视图；可携带日期、周/月范围、记录 ID、筛选或设置分区', inputSchema: { type: 'object', properties: { destination: { type: 'string', enum: agentDestinations, description: '受控页面目标' }, date: { type: 'string', description: '可选日期 YYYY-MM-DD' }, range: { type: 'string', enum: ['week', 'month'] }, targetId: { type: 'string' }, filter: { type: 'string' }, section: { type: 'string' } }, required: ['destination'], additionalProperties: false }, capability: 'presentation', risk: 'low', scope: 'none' },
