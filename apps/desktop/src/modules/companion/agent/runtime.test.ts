@@ -174,6 +174,15 @@ describe('agent runtime', () => {
     expect(result.text).toBe('我在这里。')
     expect(result.audit).toHaveLength(0)
   })
+  it('reports configured task narration truthfully to the model', async () => {
+    const current = fixture()
+    current.context.runtimeCapabilities = { ttsConfigured: true }
+    const provider = new ScriptedProvider([{ type: 'text', text: '语音已经配置。' }])
+    await runAgent({ message: '语音状态', history: [], provider, registry: createCompanionToolRegistry(), ...current })
+    const system = provider.requests[0].messages.find((message) => message.role === 'system')?.content
+    expect(system).toContain('TTS 已在应用中配置')
+    expect(system).toContain('不得声称没有语音播放能力')
+  })
 
   it('routes an explicit domain open through the real tool chain before asking the model to respond', async () => {
     const current = fixture()

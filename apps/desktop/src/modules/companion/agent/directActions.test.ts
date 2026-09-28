@@ -52,6 +52,7 @@ describe('direct computer actions', () => {
     expect(detectActionIntent('帮我创建一个明晚散步的待办', [lowRiskTool('todo.create')])).toMatchObject({ expectsTool: true, directCall: undefined })
     expect(detectActionIntent('小鱼录个视频介绍一下自己', [lowRiskTool('task.create')])).toMatchObject({ expectsTool: true, directCall: undefined, requiresTaskPlan: true })
     expect(detectActionIntent('为什么不能创建待办？', [lowRiskTool('todo.create')])).toEqual({ expectsTool: false })
+    expect(detectActionIntent('10秒的视频来介绍你自己。', [lowRiskTool('task.create')])).toMatchObject({ expectsTool: true, requiresTaskPlan: true })
     expect(detectActionIntent('我刚才打开设置后看到了权限项', [lowRiskTool('app.open')])).toEqual({ expectsTool: false })
   })
 })

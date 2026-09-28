@@ -15,6 +15,7 @@ export interface AgentContextSnapshot {
     period: string
   }
   activeWork?: { id: string; title: string }
+  runtimeCapabilities?: { ttsConfigured: boolean }
   activeChapter?: { id: string; title: string }
   selection?: string
   availableFeatures?: string[]

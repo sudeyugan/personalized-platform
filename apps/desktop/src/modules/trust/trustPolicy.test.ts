@@ -12,8 +12,8 @@ describe('trust policy', () => {
 
   it('removes authorized context and history when sharing is disabled', () => {
     const trust = { ...createSeedLibrary().settings.trust, shareAuthorizedContext: false, shareRecentConversation: false }
-    const context: AgentContextSnapshot = { page: 'writing', companion: { name: '小隅' }, localTime: { timeZone: 'Asia/Shanghai', date: '2026-09-22', time: '12:00:00', weekday: '星期二', period: '中午' }, activeWork: { id: 'work-1', title: '私密作品' }, activeChapter: { id: 'chapter-1', title: '私密章节' }, selection: '私密选区' }
-    expect(applyContextPrivacy(context, trust)).toEqual({ page: 'writing', companion: { name: '小隅' }, localTime: context.localTime })
+    const context: AgentContextSnapshot = { page: 'writing', companion: { name: '小隅' }, localTime: { timeZone: 'Asia/Shanghai', date: '2026-09-22', time: '12:00:00', weekday: '星期二', period: '中午' }, runtimeCapabilities: { ttsConfigured: true }, activeWork: { id: 'work-1', title: '私密作品' }, activeChapter: { id: 'chapter-1', title: '私密章节' }, selection: '私密选区' }
+    expect(applyContextPrivacy(context, trust)).toEqual({ page: 'writing', companion: { name: '小隅' }, localTime: context.localTime, runtimeCapabilities: { ttsConfigured: true } })
     expect(applyHistoryPrivacy([{ role: 'user', content: '上一轮私密对话' }], trust)).toEqual([])
   })
 })

@@ -61,6 +61,9 @@ export function buildAgentContext(data: LibraryData, access: AgentAccessSnapshot
     page: data.session.activeView,
     companion: { name: data.companion.name },
     localTime: beijingTime(now),
+    runtimeCapabilities: {
+      ttsConfigured: data.companion.voice.tts.providerId === 'elevenlabs' && Boolean(data.companion.voice.tts.voice.trim()),
+    },
     activeWork: work ? { id: work.id, title: work.title } : undefined,
     activeChapter: chapter ? { id: chapter.id, title: chapter.title } : undefined,
     selection: selection?.trim() || undefined,

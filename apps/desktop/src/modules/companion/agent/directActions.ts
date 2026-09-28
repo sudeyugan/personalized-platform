@@ -10,7 +10,7 @@ const explicitOpenIntent = /^(?:(?:小鱼|你)[，,\s]*)?(?:(?:请|麻烦|帮我
 const webTarget = /https:\/\/[^\s，。！？；;]+|(?:www\.)?[a-z0-9](?:[a-z0-9-]*\.)+[a-z]{2,24}(?::\d{2,5})?(?:\/[^\s，。！？；;]*)?/i
 const discussionPrefix = /^(?:为什么|为何|怎么|如何|是否|能否|可不可以|可以吗|介绍|解释|说明|讨论|假如|如果|不要|别|无需|不用)/
 const actionVerb = /^(?:(?:小鱼|你)[，,\s]*)?(?:(?:请|麻烦|帮我|替我|给我(?:的)?|试着|尝试|我想让你)[，,\s]*)*(?:把[^，。！？]{0,40})?(?:打开|访问|进入|跳转|切换到|创建|新增|添加|修改|改写|重命名|记录|保存|删除|移除|开始录屏|停止录屏|录制屏幕|录(?:个|制)?视频|截图|截屏|读取剪贴板|查看剪贴板|写入剪贴板|复制到剪贴板|播放音乐|暂停音乐|上一首|下一首|聚焦窗口|关闭窗口|移动窗口|输入文字|点击|运行程序|停止程序|发送通知)/
-const narratedRecording = /(?:录(?:个|制)?视频|录屏).*(?:介绍|讲解|演示)|(?:介绍|讲解|演示).*(?:录(?:个|制)?视频|录屏)/
+const narratedRecording = /(?:录(?:个|制)?视频|录屏).*(?:介绍|讲解|演示)|(?:介绍|讲解|演示).*(?:录(?:个|制)?视频|录屏)|(?:\d+|[一二三四五六七八九十百]+)\s*秒(?:钟)?(?:的)?视频(?:来)?(?:介绍|讲解|演示)/
 
 function hasTool(tools: AgentToolDefinition[], name: string) {
   return tools.some((tool) => tool.name === name)
@@ -73,7 +73,7 @@ export function detectActionIntent(message: string, tools: AgentToolDefinition[]
   if (!normalized || discussionPrefix.test(normalized)) return { expectsTool: false }
   const directCall = resolveWebOpen(normalized, tools) ?? resolveKnownAction(normalized, tools)
   const requiresTaskPlan = hasTool(tools, 'task.create') && narratedRecording.test(normalized)
-  return { expectsTool: Boolean(directCall) || actionVerb.test(normalized), directCall, ...(requiresTaskPlan ? { requiresTaskPlan: true } : {}) }
+  return { expectsTool: requiresTaskPlan || Boolean(directCall) || actionVerb.test(normalized), directCall, ...(requiresTaskPlan ? { requiresTaskPlan: true } : {}) }
 }
 
 export function resolveDirectAction(message: string, tools: AgentToolDefinition[]): AgentToolCall | undefined {

@@ -17,7 +17,10 @@ export function assertExternalAiAllowed(providerId: string, trust: LibraryData['
 
 export function applyContextPrivacy(context: AgentContextSnapshot, trust: LibraryData['settings']['trust']): AgentContextSnapshot {
   if (trust.shareAuthorizedContext) return context
-  return { page: context.page, companion: context.companion, localTime: context.localTime }
+  return {
+    page: context.page, companion: context.companion, localTime: context.localTime,
+    ...(context.runtimeCapabilities ? { runtimeCapabilities: context.runtimeCapabilities } : {}),
+  }
 }
 
 export function applyHistoryPrivacy(history: AgentMessage[], trust: LibraryData['settings']['trust']) {
