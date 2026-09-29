@@ -79,11 +79,9 @@ export function DesktopCompanionWindow() {
   const [snapshot, setSnapshot] = useState(emptyCompanionDesktopSnapshot)
   const [receivedSnapshot, setReceivedSnapshot] = useState(false)
   const [readyVisual, setReadyVisual] = useState<ReadyVisual>()
-  const [outgoingVisual, setOutgoingVisual] = useState<ReadyVisual>()
   const [selectedVideoId, setSelectedVideoId] = useState<string>()
   const [idleInterlude, setIdleInterlude] = useState<CompanionVideoState>()
   const previousIdleInterlude = useRef<CompanionVideoState | undefined>(undefined)
-  const visualTransitionTimer = useRef<number | undefined>(undefined)
   const pendingReadyId = useRef<string | undefined>(undefined)
   const pointerStart = useRef<{ x: number; y: number } | undefined>(undefined)
   const pointerId = useRef<number | undefined>(undefined)
@@ -152,18 +150,12 @@ export function DesktopCompanionWindow() {
       : true
   useEffect(() => {
     if (!receivedSnapshot || hasConfiguredVisual) return
-    window.clearTimeout(visualTransitionTimer.current)
-    setOutgoingVisual(undefined)
     setReadyVisual(undefined)
   }, [hasConfiguredVisual, receivedSnapshot])
-  useEffect(() => () => window.clearTimeout(visualTransitionTimer.current), [])
   const markReady = (next: ReadyVisual) => {
     if (next.id !== desiredVisual?.id || next.id === readyVisual?.id) return
-    window.clearTimeout(visualTransitionTimer.current)
-    setOutgoingVisual(readyVisual)
     setReadyVisual(next)
     pendingReadyId.current = undefined
-    visualTransitionTimer.current = window.setTimeout(() => setOutgoingVisual(undefined), 260)
     void emitTo('main', 'companion:visual-ready', { assetId: next.id })
   }
   const presentVideo = (video: HTMLVideoElement, next: ReadyVisual) => {
@@ -194,9 +186,6 @@ export function DesktopCompanionWindow() {
   }
   const loopVideo = !idleInterlude && isSustainedVideoState(displayedAction) && (displayedAction !== 'idle' || videoCandidates.length < 2)
   const visual = <>
-    {outgoingVisual && outgoingVisual.id !== readyVisual?.id && (outgoingVisual.kind === 'video'
-      ? <video className="desktop-media outgoing" key={outgoingVisual.id} style={videoStyle(outgoingVisual.id)} src={outgoingVisual.url} autoPlay loop muted playsInline draggable={false} />
-      : <img className="desktop-media outgoing" key={outgoingVisual.id} style={videoStyle(outgoingVisual.id)} src={outgoingVisual.url} alt="" draggable={false} />)}
     {readyVisual && (readyVisual.kind === 'video'
       ? <video className="desktop-media ready" key={readyVisual.id} style={videoStyle(readyVisual.id)} src={readyVisual.url} autoPlay loop={loopVideo} muted playsInline draggable={false} onEnded={advanceIdle} />
       : <img className="desktop-media ready" key={readyVisual.id} style={videoStyle(readyVisual.id)} src={readyVisual.url} alt="" draggable={false} />)}

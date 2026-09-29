@@ -36,7 +36,7 @@ html:has(.desktop-companion),body:has(.desktop-companion),#root:has(.desktop-com
 .desktop-visual:active{cursor:grabbing}
 .desktop-companion.visual-video .desktop-visual{animation:none}
 .desktop-companion.mode-quiet .desktop-visual{opacity:.8}
-.desktop-visual>.desktop-media{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;object-position:center bottom;background:transparent;pointer-events:none;opacity:0;transition:opacity 220ms ease;will-change:opacity,transform;backface-visibility:hidden}.desktop-visual>.desktop-media.pending{z-index:1;opacity:0}.desktop-visual>.desktop-media.ready{z-index:2;opacity:1}.desktop-visual>.desktop-media.outgoing{z-index:3;opacity:0}
+.desktop-visual>.desktop-media{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain;object-position:center bottom;background:transparent;pointer-events:none;opacity:0;will-change:transform;backface-visibility:hidden}.desktop-visual>.desktop-media.pending{z-index:1;opacity:0}.desktop-visual>.desktop-media.ready{z-index:2;opacity:1}
 .desktop-interaction-layer{position:absolute;inset:0;z-index:3;cursor:grab;touch-action:none;outline:none;background:transparent}.desktop-interaction-layer:active{cursor:grabbing}
 .desktop-visual>.desktop-character{align-self:center}
 .action-listening .desktop-visual{animation:companion-listen 1.8s ease-in-out infinite}
