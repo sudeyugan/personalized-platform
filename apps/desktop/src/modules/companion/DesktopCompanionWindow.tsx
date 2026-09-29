@@ -81,8 +81,12 @@ export function DesktopCompanionWindow() {
   const [readyVisual, setReadyVisual] = useState<ReadyVisual>()
   const [selectedVideoId, setSelectedVideoId] = useState<string>()
   const [idleInterlude, setIdleInterlude] = useState<CompanionVideoState>()
+  const [heldFrameAssetId, setHeldFrameAssetId] = useState<string>()
   const previousIdleInterlude = useRef<CompanionVideoState | undefined>(undefined)
   const pendingReadyId = useRef<string | undefined>(undefined)
+  const heldFrameAssetIdRef = useRef<string | undefined>(undefined)
+  const holdRevision = useRef(0)
+  const holdCanvasRef = useRef<HTMLCanvasElement>(null)
   const pointerStart = useRef<{ x: number; y: number } | undefined>(undefined)
   const pointerId = useRef<number | undefined>(undefined)
   const dragged = useRef(false)
@@ -151,12 +155,41 @@ export function DesktopCompanionWindow() {
   useEffect(() => {
     if (!receivedSnapshot || hasConfiguredVisual) return
     setReadyVisual(undefined)
+    heldFrameAssetIdRef.current = undefined
+    setHeldFrameAssetId(undefined)
   }, [hasConfiguredVisual, receivedSnapshot])
+  const releaseHeldFrameAfterPaint = () => {
+    if (!heldFrameAssetIdRef.current) return
+    const revision = ++holdRevision.current
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      if (holdRevision.current !== revision) return
+      heldFrameAssetIdRef.current = undefined
+      setHeldFrameAssetId(undefined)
+    }))
+  }
+  const holdLastVideoFrame = (video: HTMLVideoElement, assetId: string) => {
+    const canvas = holdCanvasRef.current
+    if (!canvas || !video.videoWidth || !video.videoHeight) return
+    const context = canvas.getContext('2d')
+    if (!context) return
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    context.clearRect(0, 0, canvas.width, canvas.height)
+    try {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    } catch {
+      return
+    }
+    holdRevision.current += 1
+    heldFrameAssetIdRef.current = assetId
+    setHeldFrameAssetId(assetId)
+  }
   const markReady = (next: ReadyVisual) => {
     if (next.id !== desiredVisual?.id || next.id === readyVisual?.id) return
     setReadyVisual(next)
     pendingReadyId.current = undefined
     void emitTo('main', 'companion:visual-ready', { assetId: next.id })
+    releaseHeldFrameAfterPaint()
   }
   const presentVideo = (video: HTMLVideoElement, next: ReadyVisual) => {
     if (pendingReadyId.current === next.id) return
@@ -171,8 +204,9 @@ export function DesktopCompanionWindow() {
   const reportLoadError = (assetId: string) => {
     void emitTo('main', 'companion:visual-error', { assetId })
   }
-  const advanceIdle = () => {
-    if (readyVisual?.id !== selectedVideoId) return
+  const advanceIdle = (video: HTMLVideoElement) => {
+    if (!readyVisual || readyVisual.id !== selectedVideoId) return
+    holdLastVideoFrame(video, readyVisual.id)
     if (idleInterlude === displayedAction) {
       setIdleInterlude(undefined)
       return
@@ -187,8 +221,9 @@ export function DesktopCompanionWindow() {
   const loopVideo = !idleInterlude && isSustainedVideoState(displayedAction) && (displayedAction !== 'idle' || videoCandidates.length < 2)
   const visual = <>
     {readyVisual && (readyVisual.kind === 'video'
-      ? <video className="desktop-media ready" key={readyVisual.id} style={videoStyle(readyVisual.id)} src={readyVisual.url} autoPlay loop={loopVideo} muted playsInline draggable={false} onEnded={advanceIdle} />
+      ? <video className="desktop-media ready" key={readyVisual.id} style={videoStyle(readyVisual.id)} src={readyVisual.url} autoPlay loop={loopVideo} muted playsInline draggable={false} onEnded={(event) => advanceIdle(event.currentTarget)} />
       : <img className="desktop-media ready" key={readyVisual.id} style={videoStyle(readyVisual.id)} src={readyVisual.url} alt="" draggable={false} />)}
+    <canvas ref={holdCanvasRef} className={`desktop-media held-frame${heldFrameAssetId ? ' active' : ''}`} style={heldFrameAssetId ? videoStyle(heldFrameAssetId) : undefined} aria-hidden="true" />
     {isChangingVisual && desiredVisual && (desiredVisual.kind === 'video'
       ? <video className="desktop-media pending" key={desiredVisual.id} style={videoStyle(desiredVisual.id)} src={desiredVisual.url} autoPlay loop={loopVideo} muted playsInline preload="auto" draggable={false} onPlaying={(event) => presentVideo(event.currentTarget, desiredVisual)} onError={() => reportLoadError(desiredVisual.id)} />
       : <img className="desktop-media pending" key={desiredVisual.id} style={videoStyle(desiredVisual.id)} src={desiredVisual.url} alt="" draggable={false} onLoad={() => markReady(desiredVisual)} onError={() => reportLoadError(desiredVisual.id)} />)}
