@@ -2,7 +2,7 @@ import { Pause, Play, RotateCcw } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import type { Asset, CompanionVideoPlacement } from '../../domain/models'
 import { assetRepository } from '../../infrastructure/assetRepository'
-import { companionVideoPlacementStyle, defaultCompanionVideoPlacement, moveCompanionVideoPlacement, normalizeCompanionVideoPlacement } from '../companion/companionVideoPlacement'
+import { companionVideoPlacementStyle, defaultCompanionVideoPlacement, moveCompanionVideoPlacement, normalizeCompanionVideoPlacement, scaleCompanionVideoPlacement } from '../companion/companionVideoPlacement'
 
 export interface CompanionVideoCalibrationAsset {
   asset: Asset
@@ -56,6 +56,7 @@ export function CompanionVideoPreviewEditor({ asset, placement, referenceAssets,
   const videoRef = useRef<HTMLVideoElement>(null)
   const draftRef = useRef(draft)
   const dragRef = useRef<{ pointerId: number; clientX: number; clientY: number; placement: CompanionVideoPlacement } | undefined>(undefined)
+  const resizeRef = useRef<{ pointerId: number; clientX: number; clientY: number; width: number; height: number; placement: CompanionVideoPlacement } | undefined>(undefined)
 
   const url = useAssetUrl(asset)
   const reference = availableReferences.find((entry) => entry.asset.id === referenceAssetId)
@@ -131,6 +132,41 @@ export function CompanionVideoPreviewEditor({ asset, placement, referenceAssets,
     event.currentTarget.releasePointerCapture(event.pointerId)
     commit()
   }
+  const beginResize = (event: PointerEvent<HTMLButtonElement>) => {
+    if (!url || event.button !== 0) return
+    event.stopPropagation()
+    const stage = event.currentTarget.parentElement
+    if (!stage) return
+    const bounds = stage.getBoundingClientRect()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    resizeRef.current = {
+      pointerId: event.pointerId,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      width: bounds.width,
+      height: bounds.height,
+      placement: draftRef.current,
+    }
+  }
+  const resize = (event: PointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    const origin = resizeRef.current
+    if (!origin || origin.pointerId !== event.pointerId) return
+    applyPlacement(scaleCompanionVideoPlacement(
+      origin.placement,
+      event.clientX - origin.clientX,
+      event.clientY - origin.clientY,
+      origin.width,
+      origin.height,
+    ))
+  }
+  const endResize = (event: PointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    if (resizeRef.current?.pointerId !== event.pointerId) return
+    resizeRef.current = undefined
+    event.currentTarget.releasePointerCapture(event.pointerId)
+    commit()
+  }
   const moveWithKeyboard = (event: KeyboardEvent<HTMLDivElement>) => {
     const distance = event.shiftKey ? 5 : 1
     const change = event.key === 'ArrowLeft' ? { x: draft.x - distance }
@@ -152,13 +188,13 @@ export function CompanionVideoPreviewEditor({ asset, placement, referenceAssets,
           {availableReferences.map((entry) => <option key={entry.asset.id} value={entry.asset.id}>{entry.asset.fileName}</option>)}
         </select>
       </label>
-      <small>{availableReferences.length ? '基底保持不动；拖动上层视频使轮廓重合。' : '再添加一段 WebM 后即可选择首帧基底。'}</small>
+      <small>{availableReferences.length ? '拖动画面定位，拖右下角保持原比例缩放。' : '再添加一段 WebM 后即可选择首帧基底。'}</small>
     </div>
     <div
       className="companion-video-preview-stage calibration-stage"
       role="application"
       tabIndex={0}
-      aria-label="拖动视频调整位置；方向键微调，Shift 加方向键大步移动"
+      aria-label="拖动画面调整位置，拖动右下角控制点保持原比例缩放；方向键微调位置"
       onPointerDown={beginDrag}
       onPointerMove={drag}
       onPointerUp={endDrag}
@@ -189,7 +225,16 @@ export function CompanionVideoPreviewEditor({ asset, placement, referenceAssets,
       /> : <span>正在载入预览…</span>}
       <i className="calibration-guide horizontal" aria-hidden="true" />
       <i className="calibration-guide vertical" aria-hidden="true" />
-      <b className="calibration-drag-hint">拖动调整位置</b>
+      <b className="calibration-drag-hint">拖动画面定位 · 右下角缩放</b>
+      <button
+        type="button"
+        className="calibration-resize-handle"
+        aria-label="保持原比例调整视频大小"
+        onPointerDown={beginResize}
+        onPointerMove={resize}
+        onPointerUp={endResize}
+        onPointerCancel={endResize}
+      >↘</button>
     </div>
     <div className="companion-video-adjustments">
       <label><span>大小 <b>{Math.round(draft.scale * 100)}%</b></span><input aria-label="视频大小" type="range" min="60" max="180" step="1" value={Math.round(draft.scale * 100)} onChange={(event) => update({ scale: Number(event.target.value) / 100 })} onPointerUp={commit} onKeyUp={commit} onBlur={commit} /></label>

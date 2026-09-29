@@ -41,3 +41,18 @@ export function moveCompanionVideoPlacement(
     y: placement.y + deltaY / stageHeight * 100,
   })
 }
+
+export function scaleCompanionVideoPlacement(
+  value: Partial<CompanionVideoPlacement> | undefined,
+  deltaX: number,
+  deltaY: number,
+  stageWidth: number,
+  stageHeight: number,
+) {
+  const placement = normalizeCompanionVideoPlacement(value)
+  if (stageWidth <= 0 || stageHeight <= 0) return placement
+  return normalizeCompanionVideoPlacement({
+    ...placement,
+    scale: placement.scale + (deltaX / stageWidth + deltaY / stageHeight) / 2,
+  })
+}

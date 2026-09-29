@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { companionVideoPlacementStyle, moveCompanionVideoPlacement, normalizeCompanionVideoPlacement } from './companionVideoPlacement'
+import { companionVideoPlacementStyle, moveCompanionVideoPlacement, normalizeCompanionVideoPlacement, scaleCompanionVideoPlacement } from './companionVideoPlacement'
 
 describe('companion WebM placement', () => {
   it('keeps legacy clips centered at their original scale', () => {
@@ -33,5 +33,15 @@ describe('companion WebM placement', () => {
       x: 40,
       y: -40,
     })
+  })
+
+  it('scales uniformly while keeping the original aspect ratio', () => {
+    expect(scaleCompanionVideoPlacement({ scale: 1, x: 4, y: -3 }, 18, 32, 180, 320)).toEqual({
+      scale: 1.1,
+      x: 4,
+      y: -3,
+    })
+    expect(scaleCompanionVideoPlacement({ scale: 1.75 }, 100, 100, 100, 100).scale).toBe(1.8)
+    expect(scaleCompanionVideoPlacement({ scale: .65 }, -100, -100, 100, 100).scale).toBe(.6)
   })
 })
