@@ -1,7 +1,7 @@
 import { describe,expect,it } from 'vitest'
 import { createSeedLibrary } from '../domain/seed'
 import { buildCompanionContext } from './companionSlice'
-import { companionDesktopSnapshot } from '../modules/companion/companionDesktop'
+import { companionDesktopSnapshot, companionVisualAssetIds } from '../modules/companion/companionDesktop'
 
 describe('companion permission context',()=>{
   it('reads only explicitly granted scopes',()=>{const data=createSeedLibrary();expect(buildCompanionContext(data,[]).text).toBe('');data.companion.permissions.chapterIds=[data.session.activeChapterId];expect(buildCompanionContext(data,[]).text).toContain('章节片段')})
@@ -10,5 +10,6 @@ describe('companion permission context',()=>{
   it('derives a display-only desktop action without document context',()=>{const data=createSeedLibrary();const snapshot=companionDesktopSnapshot(data.companion,'writing',false);expect(snapshot.action).toBe('idle');expect(snapshot).not.toHaveProperty('permissions');expect(snapshot).not.toHaveProperty('memories')})
   it('keeps idle while the model is thinking',()=>{const data=createSeedLibrary();const snapshot=companionDesktopSnapshot(data.companion,'home',false,[],undefined,{phase:'thinking'});expect(snapshot.action).toBe('idle')})
   it('passes per-clip WebM placement to the display-only snapshot',()=>{const data=createSeedLibrary();data.companion.desktop.videoPlacements={clip:{scale:1.2,x:4,y:-3}};expect(companionDesktopSnapshot(data.companion,'home',false).videoPlacements).toEqual({clip:{scale:1.2,x:4,y:-3}})})
+  it('includes configured WebM assets for explicit preview while a portrait is active',()=>{const data=createSeedLibrary();data.companion.desktop.visual={type:'portrait',assetId:'asset-portrait'};data.companion.desktop.videoClips={idle:['preview-video']};data.assets.push({id:'asset-portrait',fileName:'portrait.png',mimeType:'image/png',size:1,width:100,height:200,sha256:'portrait-hash',createdAt:new Date().toISOString(),chapterIds:[]},{id:'preview-video',fileName:'idle.webm',mimeType:'video/webm',size:1,width:720,height:1280,sha256:'video-hash',createdAt:new Date().toISOString(),chapterIds:[]});const snapshot=companionDesktopSnapshot(data.companion,'home',false,data.assets);expect(snapshot.visual).toEqual({type:'portrait',assetId:'asset-portrait'});expect(snapshot.previewVideoAssetIds).toContain('preview-video');expect(snapshot.assetMimeTypes['preview-video']).toBe('video/webm');expect(companionVisualAssetIds(snapshot)).toEqual(expect.arrayContaining(['asset-portrait','preview-video']))})
   it('keeps the selected portrait in the display-only desktop snapshot',()=>{const data=createSeedLibrary();data.companion.desktop.visual={type:'portrait',assetId:'asset-portrait'};data.assets.push({id:'asset-portrait',fileName:'portrait.png',mimeType:'image/png',size:1,width:100,height:200,sha256:'hash',createdAt:new Date().toISOString(),chapterIds:[]});expect(companionDesktopSnapshot(data.companion,'home',false,data.assets).visual).toEqual({type:'portrait',assetId:'asset-portrait'})})
 })

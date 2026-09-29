@@ -11,6 +11,7 @@ export interface CompanionDesktopSnapshot {
   visual: CompanionVisual
   videoPlacements: CompanionVideoPlacements
   assetMimeTypes: Record<string, string>
+  previewVideoAssetIds: string[]
   messages: CompanionMessage[]
   voice: { sttEnabled: boolean; sttProviderId: CompanionData['voice']['stt']['providerId']; ttsEnabled: boolean; wakeEnabled: boolean; wakeWord: string; wakeSensitivity: CompanionData['voice']['wakeSensitivity']; conversationMode: CompanionData['voice']['conversationMode']; speakerVerification: boolean }
   agentStatus?: AgentRuntimeStatus
@@ -27,17 +28,19 @@ export const emptyCompanionDesktopSnapshot: CompanionDesktopSnapshot = {
   visual: { type: 'portrait' },
   videoPlacements: {},
   assetMimeTypes: {},
+  previewVideoAssetIds: [],
   messages: [],
   voice: { sttEnabled: false, sttProviderId: 'none', ttsEnabled: false, wakeEnabled: false, wakeWord: '小鱼', wakeSensitivity: 'standard', conversationMode: 'short', speakerVerification: true },
 }
 
 export function companionVisualAssetIds(snapshot: CompanionDesktopSnapshot) {
-  if (snapshot.visual.type === 'portrait') return snapshot.visual.assetId ? [snapshot.visual.assetId] : []
-  if (snapshot.visual.type === 'video') return [...new Set([
+  const activeIds = snapshot.visual.type === 'portrait'
+    ? snapshot.visual.assetId ? [snapshot.visual.assetId] : []
+    : snapshot.visual.type === 'video' ? [
     ...Object.values(snapshot.visual.videos).filter((id): id is string => Boolean(id)),
     ...Object.values(snapshot.visual.clips ?? {}).flatMap((ids) => ids),
-  ])]
-  return []
+  ] : []
+  return [...new Set([...activeIds, ...snapshot.previewVideoAssetIds])]
 }
 
 export function companionDesktopSnapshot(companion: CompanionData, _activeView: string, playing: boolean, assets: Asset[] = [], overrideAction?: CompanionVideoState, agentStatus?: AgentRuntimeStatus, externalAiAllowed = true, desktopModeOverride?: CompanionDesktopMode): CompanionDesktopSnapshot {
@@ -49,9 +52,13 @@ export function companionDesktopSnapshot(companion: CompanionData, _activeView: 
       : overrideAction ?? 'idle'
   const storedVisual = companion.desktop.visual ?? { type: 'portrait', assetId: companion.appearance.portraitAssetId }
   const visual = storedVisual.type === 'video' ? { ...storedVisual, clips: companion.desktop.videoClips ?? storedVisual.clips } : storedVisual
-  const ids = visual.type === 'portrait' && visual.assetId ? new Set([visual.assetId]) : visual.type === 'video' ? new Set(companionVisualAssetIds({ ...emptyCompanionDesktopSnapshot, visual })) : new Set<string>()
+  const previewVideoAssetIds = [...new Set([
+    ...Object.values(companion.desktop.videoAssets ?? {}).filter((id): id is string => Boolean(id)),
+    ...Object.values(companion.desktop.videoClips ?? {}).flatMap((ids) => ids),
+  ])]
+  const ids = new Set(companionVisualAssetIds({ ...emptyCompanionDesktopSnapshot, visual, previewVideoAssetIds }))
   const assetMimeTypes = Object.fromEntries(assets.filter((asset) => !asset.deletedAt && ids.has(asset.id)).map((asset) => [asset.id, asset.mimeType]))
   const labels: Record<CompanionVideoState, string> = { celebrating: '一起庆祝', concerned: '认真关切', greeting: '向你问好', idle: '在这一隅陪着你', listening: '正在倾听', looking: '看看周围', nodding: '认真点头', shy: '有一点害羞', sleepy: '有些困倦', speaking: '正在回应', stretching: '舒展一下', yawning: '打个哈欠' }
   const task = [...companion.tasks].reverse().find((item) => item.status !== 'cancelled')
-  return { name: companion.name, videoPlacements: companion.desktop.videoPlacements ?? {}, desktopMode: desktopModeOverride ?? companion.desktop.mode, expression: companion.expression, appearance: companion.appearance, action, actionLabel: agentStatus?.phase === 'error' ? agentStatus.message : labels[action], visual, assetMimeTypes, messages: companion.messages.slice(-6), voice: { sttEnabled: externalAiAllowed && companion.voice.stt.providerId !== 'none', sttProviderId: companion.voice.stt.providerId, ttsEnabled: externalAiAllowed && companion.voice.tts.providerId !== 'none' && Boolean(companion.voice.tts.voice), wakeEnabled: externalAiAllowed && companion.voice.wakeEnabled, wakeWord: companion.voice.wakeWord, wakeSensitivity: companion.voice.wakeSensitivity, conversationMode: companion.voice.conversationMode, speakerVerification: companion.voice.speakerVerification }, agentStatus, task }
+  return { name: companion.name, videoPlacements: companion.desktop.videoPlacements ?? {}, previewVideoAssetIds, desktopMode: desktopModeOverride ?? companion.desktop.mode, expression: companion.expression, appearance: companion.appearance, action, actionLabel: agentStatus?.phase === 'error' ? agentStatus.message : labels[action], visual, assetMimeTypes, messages: companion.messages.slice(-6), voice: { sttEnabled: externalAiAllowed && companion.voice.stt.providerId !== 'none', sttProviderId: companion.voice.stt.providerId, ttsEnabled: externalAiAllowed && companion.voice.tts.providerId !== 'none' && Boolean(companion.voice.tts.voice), wakeEnabled: externalAiAllowed && companion.voice.wakeEnabled, wakeWord: companion.voice.wakeWord, wakeSensitivity: companion.voice.wakeSensitivity, conversationMode: companion.voice.conversationMode, speakerVerification: companion.voice.speakerVerification }, agentStatus, task }
 }

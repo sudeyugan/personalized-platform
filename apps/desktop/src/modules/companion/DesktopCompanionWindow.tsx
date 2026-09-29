@@ -8,7 +8,8 @@ import { companionVisualAssetIds, emptyCompanionDesktopSnapshot, type CompanionD
 import { availableIdleInterludes, chooseDifferentItem, configuredClipsForState, isSustainedVideoState, isTransientVideoState, nextIdleInterludeDelay } from './companionVideoPlayback'
 import { companionVideoPlacementStyle } from './companionVideoPlacement'
 
-type ReadyVisual = { id: string; kind: 'image' | 'video'; url: string }
+type ReadyVisual = { id: string; instanceKey: string; kind: 'image' | 'video'; preview?: boolean; url: string }
+type PreviewVideoRequest = { assetId: string; instanceKey: string }
 
 function clipsForState(snapshot: CompanionDesktopSnapshot, state: CompanionVideoState) {
   const clips = configuredClipsForState(snapshot.visual, state)
@@ -82,8 +83,10 @@ export function DesktopCompanionWindow() {
   const [selectedVideoId, setSelectedVideoId] = useState<string>()
   const [idleInterlude, setIdleInterlude] = useState<CompanionVideoState>()
   const [heldFrameAssetId, setHeldFrameAssetId] = useState<string>()
+  const [previewRequest, setPreviewRequest] = useState<PreviewVideoRequest>()
   const previousIdleInterlude = useRef<CompanionVideoState | undefined>(undefined)
   const pendingReadyId = useRef<string | undefined>(undefined)
+  const previewSequence = useRef(0)
   const heldFrameAssetIdRef = useRef<string | undefined>(undefined)
   const holdRevision = useRef(0)
   const holdCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -98,6 +101,15 @@ export function DesktopCompanionWindow() {
       setReceivedSnapshot(true)
     }).then((value) => { stopSnapshot = value; void emitTo('main', 'companion:ready') })
     return () => { stopSnapshot?.() }
+  }, [])
+  useEffect(() => {
+    let stopPreview: (() => void) | undefined
+    void listen<{ assetId: string }>('companion:preview-video', (event) => {
+      if (!event.payload.assetId) return
+      const sequence = ++previewSequence.current
+      setPreviewRequest({ assetId: event.payload.assetId, instanceKey: `preview:${sequence}:${event.payload.assetId}` })
+    }).then((stop) => { stopPreview = stop })
+    return () => { stopPreview?.() }
   }, [])
   useEffect(() => {
     const appWindow = getCurrentWindow()
@@ -141,12 +153,16 @@ export function DesktopCompanionWindow() {
   }, [idleInterlude, snapshot.action, snapshot.visual])
   const videoId = snapshot.visual.type === 'video' ? selectedVideoId : undefined
   const videoUrl = videoId ? urls[videoId] : undefined
-  const desiredVisual: ReadyVisual | undefined = videoId && videoUrl
-    ? { id: videoId, kind: 'video', url: videoUrl }
+  const normalVisual: ReadyVisual | undefined = videoId && videoUrl
+    ? { id: videoId, instanceKey: videoId, kind: 'video', url: videoUrl }
     : snapshot.visual.type === 'portrait' && snapshot.visual.assetId && portraitUrl
-      ? { id: snapshot.visual.assetId, kind: 'image', url: portraitUrl }
+      ? { id: snapshot.visual.assetId, instanceKey: snapshot.visual.assetId, kind: 'image', url: portraitUrl }
       : undefined
-  const isChangingVisual = Boolean(desiredVisual && desiredVisual.id !== readyVisual?.id)
+  const previewUrl = previewRequest ? urls[previewRequest.assetId] : undefined
+  const desiredVisual: ReadyVisual | undefined = previewRequest && previewUrl
+    ? { id: previewRequest.assetId, instanceKey: previewRequest.instanceKey, kind: 'video', preview: true, url: previewUrl }
+    : normalVisual
+  const isChangingVisual = Boolean(desiredVisual && desiredVisual.instanceKey !== readyVisual?.instanceKey)
   const hasConfiguredVisual = snapshot.visual.type === 'video'
     ? clipsForState(snapshot, 'idle').length > 0
     : snapshot.visual.type === 'portrait'
@@ -185,17 +201,17 @@ export function DesktopCompanionWindow() {
     setHeldFrameAssetId(assetId)
   }
   const markReady = (next: ReadyVisual) => {
-    if (next.id !== desiredVisual?.id || next.id === readyVisual?.id) return
+    if (next.instanceKey !== desiredVisual?.instanceKey || next.instanceKey === readyVisual?.instanceKey) return
     setReadyVisual(next)
     pendingReadyId.current = undefined
     void emitTo('main', 'companion:visual-ready', { assetId: next.id })
     releaseHeldFrameAfterPaint()
   }
   const presentVideo = (video: HTMLVideoElement, next: ReadyVisual) => {
-    if (pendingReadyId.current === next.id) return
-    pendingReadyId.current = next.id
+    if (pendingReadyId.current === next.instanceKey) return
+    pendingReadyId.current = next.instanceKey
     const commitPresentedFrame = () => window.requestAnimationFrame(() => {
-      if (pendingReadyId.current === next.id) markReady(next)
+      if (pendingReadyId.current === next.instanceKey) markReady(next)
     })
     if ('requestVideoFrameCallback' in video) video.requestVideoFrameCallback(() => commitPresentedFrame())
     else window.requestAnimationFrame(() => window.requestAnimationFrame(commitPresentedFrame))
@@ -204,8 +220,14 @@ export function DesktopCompanionWindow() {
   const reportLoadError = (assetId: string) => {
     void emitTo('main', 'companion:visual-error', { assetId })
   }
-  const advanceIdle = (video: HTMLVideoElement) => {
-    if (!readyVisual || readyVisual.id !== selectedVideoId) return
+  const advanceVideo = (video: HTMLVideoElement) => {
+    if (!readyVisual) return
+    if (readyVisual.preview) {
+      holdLastVideoFrame(video, readyVisual.id)
+      setPreviewRequest((current) => current?.instanceKey === readyVisual.instanceKey ? undefined : current)
+      return
+    }
+    if (readyVisual.id !== selectedVideoId) return
     holdLastVideoFrame(video, readyVisual.id)
     if (idleInterlude === displayedAction) {
       setIdleInterlude(undefined)
@@ -221,12 +243,12 @@ export function DesktopCompanionWindow() {
   const loopVideo = !idleInterlude && isSustainedVideoState(displayedAction) && (displayedAction !== 'idle' || videoCandidates.length < 2)
   const visual = <>
     {readyVisual && (readyVisual.kind === 'video'
-      ? <video className="desktop-media ready" key={readyVisual.id} style={videoStyle(readyVisual.id)} src={readyVisual.url} autoPlay loop={loopVideo} muted playsInline draggable={false} onEnded={(event) => advanceIdle(event.currentTarget)} />
-      : <img className="desktop-media ready" key={readyVisual.id} style={videoStyle(readyVisual.id)} src={readyVisual.url} alt="" draggable={false} />)}
+      ? <video className="desktop-media ready" key={readyVisual.instanceKey} style={videoStyle(readyVisual.id)} src={readyVisual.url} autoPlay loop={readyVisual.preview ? false : loopVideo} muted playsInline draggable={false} onEnded={(event) => advanceVideo(event.currentTarget)} />
+      : <img className="desktop-media ready" key={readyVisual.instanceKey} style={videoStyle(readyVisual.id)} src={readyVisual.url} alt="" draggable={false} />)}
     <canvas ref={holdCanvasRef} className={`desktop-media held-frame${heldFrameAssetId ? ' active' : ''}`} style={heldFrameAssetId ? videoStyle(heldFrameAssetId) : undefined} aria-hidden="true" />
     {isChangingVisual && desiredVisual && (desiredVisual.kind === 'video'
-      ? <video className="desktop-media pending" key={desiredVisual.id} style={videoStyle(desiredVisual.id)} src={desiredVisual.url} autoPlay loop={loopVideo} muted playsInline preload="auto" draggable={false} onPlaying={(event) => presentVideo(event.currentTarget, desiredVisual)} onError={() => reportLoadError(desiredVisual.id)} />
-      : <img className="desktop-media pending" key={desiredVisual.id} style={videoStyle(desiredVisual.id)} src={desiredVisual.url} alt="" draggable={false} onLoad={() => markReady(desiredVisual)} onError={() => reportLoadError(desiredVisual.id)} />)}
+      ? <video className="desktop-media pending" key={desiredVisual.instanceKey} style={videoStyle(desiredVisual.id)} src={desiredVisual.url} autoPlay loop={desiredVisual.preview ? false : loopVideo} muted playsInline preload="auto" draggable={false} onPlaying={(event) => presentVideo(event.currentTarget, desiredVisual)} onError={() => reportLoadError(desiredVisual.id)} />
+      : <img className="desktop-media pending" key={desiredVisual.instanceKey} style={videoStyle(desiredVisual.id)} src={desiredVisual.url} alt="" draggable={false} onLoad={() => markReady(desiredVisual)} onError={() => reportLoadError(desiredVisual.id)} />)}
     {!readyVisual && receivedSnapshot && !hasConfiguredVisual && <div className={`desktop-character hair-${snapshot.appearance.hair} outfit-${snapshot.appearance.outfit} expression-${snapshot.expression}`}><span className="character-hair" /><span className="character-face">隅</span><span className="character-outfit" /></div>}
   </>
   const beginPointer = (event: React.PointerEvent) => {

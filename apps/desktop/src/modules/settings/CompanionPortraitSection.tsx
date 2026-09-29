@@ -1,4 +1,4 @@
-import { listen } from '@tauri-apps/api/event'
+import { emitTo, listen } from '@tauri-apps/api/event'
 import { Check, Film, ImagePlus, LoaderCircle, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import type { CompanionVideoState } from '../../domain/models'
@@ -97,6 +97,11 @@ export function CompanionPortraitSection() {
     setStatus({ tone: 'success', message: removed ? '已清理 ' + removed + ' 个未使用的伙伴文件。' : '没有可清理的伙伴文件。' })
     setBusy('')
   }
+  const toggleVideoEditor = (assetId: string) => {
+    const opening = editingAssetId !== assetId
+    setEditingAssetId(opening ? assetId : undefined)
+    if (opening && '__TAURI_INTERNALS__' in window) void emitTo('companion', 'companion:preview-video', { assetId })
+  }
 
   const renderVideoSlot = (item: (typeof videoStates)[number], featured = false) => {
     const assets = (clips[item.id] ?? []).map((id) => data.assets.find((entry) => entry.id === id && !entry.deletedAt)).filter((asset): asset is NonNullable<typeof asset> => Boolean(asset))
@@ -104,7 +109,7 @@ export function CompanionPortraitSection() {
       <span className="video-slot-icon">{busy === item.id ? <LoaderCircle className="spin" size={15} /> : assets.length ? <Check size={15} /> : <Film size={15} />}</span>
       <span><strong>{item.label}</strong><small>{assets.length ? `${assets.length} 段素材 · 播放时自动选择` : item.hint}</small></span>
       <label className={busy ? 'disabled' : ''}>{busy === item.id ? '导入中…' : <><Plus size={12} />{assets.length ? '继续添加' : featured ? '选择 WebM' : '添加'}</>}<input type="file" accept="video/webm,.webm" disabled={Boolean(busy)} onChange={(event) => { void importVideo(item.id, event.target.files?.[0]); event.target.value = '' }} /></label>
-      {assets.length > 0 && <div className="video-slot-assets">{assets.map((asset) => <CompanionVideoAssetRow key={asset.id} asset={asset} busy={Boolean(busy)} open={editingAssetId === asset.id} placement={placements[asset.id]} referenceAssets={calibrationAssets} onToggle={() => setEditingAssetId((current) => current === asset.id ? undefined : asset.id)} onRemove={() => { removeCompanionVideo(item.id, asset.id); setEditingAssetId((current) => current === asset.id ? undefined : current) }} onPlacementChange={(placement) => setCompanionVideoPlacement(asset.id, placement)} />)}</div>}
+      {assets.length > 0 && <div className="video-slot-assets">{assets.map((asset) => <CompanionVideoAssetRow key={asset.id} asset={asset} busy={Boolean(busy)} open={editingAssetId === asset.id} placement={placements[asset.id]} referenceAssets={calibrationAssets} onToggle={() => toggleVideoEditor(asset.id)} onRemove={() => { removeCompanionVideo(item.id, asset.id); setEditingAssetId((current) => current === asset.id ? undefined : current) }} onPlacementChange={(placement) => setCompanionVideoPlacement(asset.id, placement)} />)}</div>}
     </div>
   }
 
