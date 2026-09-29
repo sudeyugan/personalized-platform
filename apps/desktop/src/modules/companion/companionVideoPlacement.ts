@@ -25,3 +25,19 @@ export function isDefaultCompanionVideoPlacement(value?: Partial<CompanionVideoP
   const placement = normalizeCompanionVideoPlacement(value)
   return placement.scale === 1 && placement.x === 0 && placement.y === 0
 }
+
+export function moveCompanionVideoPlacement(
+  value: Partial<CompanionVideoPlacement> | undefined,
+  deltaX: number,
+  deltaY: number,
+  stageWidth: number,
+  stageHeight: number,
+) {
+  const placement = normalizeCompanionVideoPlacement(value)
+  if (stageWidth <= 0 || stageHeight <= 0) return placement
+  return normalizeCompanionVideoPlacement({
+    ...placement,
+    x: placement.x + deltaX / stageWidth * 100,
+    y: placement.y + deltaY / stageHeight * 100,
+  })
+}

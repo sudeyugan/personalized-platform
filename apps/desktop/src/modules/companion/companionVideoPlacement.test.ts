@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { companionVideoPlacementStyle, normalizeCompanionVideoPlacement } from './companionVideoPlacement'
+import { companionVideoPlacementStyle, moveCompanionVideoPlacement, normalizeCompanionVideoPlacement } from './companionVideoPlacement'
 
 describe('companion WebM placement', () => {
   it('keeps legacy clips centered at their original scale', () => {
@@ -20,5 +20,18 @@ describe('companion WebM placement', () => {
 
   it('falls back when persisted values are not finite', () => {
     expect(normalizeCompanionVideoPlacement({ scale: Number.NaN, x: Number.POSITIVE_INFINITY, y: -4 })).toEqual({ scale: 1, x: 0, y: -4 })
+  })
+
+  it('converts preview dragging into the persisted percentage placement', () => {
+    expect(moveCompanionVideoPlacement({ scale: 1.1, x: 5, y: -2 }, 18, 32, 180, 320)).toEqual({
+      scale: 1.1,
+      x: 15,
+      y: 8,
+    })
+    expect(moveCompanionVideoPlacement(undefined, 500, -500, 180, 320)).toEqual({
+      scale: 1,
+      x: 40,
+      y: -40,
+    })
   })
 })

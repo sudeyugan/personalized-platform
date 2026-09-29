@@ -36,6 +36,9 @@ export function CompanionPortraitSection() {
   const clips = data.companion.desktop.videoClips ?? Object.fromEntries(Object.entries(data.companion.desktop.videoAssets ?? (visual.type === 'video' ? visual.videos : {})).map(([state, id]) => [state, id ? [id] : []]))
   const placements = data.companion.desktop.videoPlacements ?? {}
   const [editorMode, setEditorMode] = useState<'portrait' | 'video'>(visual.type === 'video' ? 'video' : 'portrait')
+  const configuredVideoAssetIds = new Set(Object.values(clips).flatMap((ids) => ids ?? []))
+  const calibrationAssets = data.assets.filter((asset) => configuredVideoAssetIds.has(asset.id) && !asset.deletedAt)
+    .map((asset) => ({ asset, placement: placements[asset.id] }))
   const [editingAssetId, setEditingAssetId] = useState<string>()
   const [status, setStatus] = useState<ImportStatus>({ tone: 'neutral', message: '选择一种桌面形象方式进行设置。' })
   const [busy, setBusy] = useState('')
@@ -101,7 +104,7 @@ export function CompanionPortraitSection() {
       <span className="video-slot-icon">{busy === item.id ? <LoaderCircle className="spin" size={15} /> : assets.length ? <Check size={15} /> : <Film size={15} />}</span>
       <span><strong>{item.label}</strong><small>{assets.length ? `${assets.length} 段素材 · 播放时自动选择` : item.hint}</small></span>
       <label className={busy ? 'disabled' : ''}>{busy === item.id ? '导入中…' : <><Plus size={12} />{assets.length ? '继续添加' : featured ? '选择 WebM' : '添加'}</>}<input type="file" accept="video/webm,.webm" disabled={Boolean(busy)} onChange={(event) => { void importVideo(item.id, event.target.files?.[0]); event.target.value = '' }} /></label>
-      {assets.length > 0 && <div className="video-slot-assets">{assets.map((asset) => <CompanionVideoAssetRow key={asset.id} asset={asset} busy={Boolean(busy)} open={editingAssetId === asset.id} placement={placements[asset.id]} onToggle={() => setEditingAssetId((current) => current === asset.id ? undefined : asset.id)} onRemove={() => { removeCompanionVideo(item.id, asset.id); setEditingAssetId((current) => current === asset.id ? undefined : current) }} onPlacementChange={(placement) => setCompanionVideoPlacement(asset.id, placement)} />)}</div>}
+      {assets.length > 0 && <div className="video-slot-assets">{assets.map((asset) => <CompanionVideoAssetRow key={asset.id} asset={asset} busy={Boolean(busy)} open={editingAssetId === asset.id} placement={placements[asset.id]} referenceAssets={calibrationAssets} onToggle={() => setEditingAssetId((current) => current === asset.id ? undefined : asset.id)} onRemove={() => { removeCompanionVideo(item.id, asset.id); setEditingAssetId((current) => current === asset.id ? undefined : current) }} onPlacementChange={(placement) => setCompanionVideoPlacement(asset.id, placement)} />)}</div>}
     </div>
   }
 

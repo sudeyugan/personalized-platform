@@ -1,6 +1,6 @@
 import { SlidersHorizontal, Trash2 } from 'lucide-react'
 import type { Asset, CompanionVideoPlacement } from '../../domain/models'
-import { CompanionVideoPreviewEditor } from './CompanionVideoPreviewEditor'
+import { CompanionVideoPreviewEditor, type CompanionVideoCalibrationAsset } from './CompanionVideoPreviewEditor'
 
 interface CompanionVideoAssetRowProps {
   asset: Asset
@@ -8,11 +8,12 @@ interface CompanionVideoAssetRowProps {
   open: boolean
   placement?: CompanionVideoPlacement
   onToggle: () => void
+  referenceAssets: CompanionVideoCalibrationAsset[]
   onRemove: () => void
   onPlacementChange: (placement: CompanionVideoPlacement) => void
 }
 
-export function CompanionVideoAssetRow({ asset, busy, open, placement, onToggle, onRemove, onPlacementChange }: CompanionVideoAssetRowProps) {
+export function CompanionVideoAssetRow({ asset, busy, open, placement, referenceAssets, onToggle, onRemove, onPlacementChange }: CompanionVideoAssetRowProps) {
   return <div className={open ? 'editing' : ''}>
     <span title={asset.fileName}>
       {asset.fileName}
@@ -29,6 +30,7 @@ export function CompanionVideoAssetRow({ asset, busy, open, placement, onToggle,
     {open && <CompanionVideoPreviewEditor
       asset={asset}
       placement={placement}
+      referenceAssets={referenceAssets}
       onCommit={onPlacementChange}
     />}
   </div>
