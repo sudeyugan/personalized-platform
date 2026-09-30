@@ -43,6 +43,18 @@ export function companionVisualAssetIds(snapshot: CompanionDesktopSnapshot) {
   return [...new Set([...activeIds, ...snapshot.previewVideoAssetIds])]
 }
 
+export function companionRequestedVisualAssetIds(snapshot: CompanionDesktopSnapshot, selectedVideoId?: string, previewAssetId?: string) {
+  const activeIds = snapshot.visual.type === 'portrait'
+    ? snapshot.visual.assetId ? [snapshot.visual.assetId] : []
+    : snapshot.visual.type === 'video'
+      ? [...Object.values(snapshot.visual.videos), ...Object.values(snapshot.visual.clips ?? {}).flatMap((ids) => ids)].filter((id): id is string => Boolean(id))
+      : []
+  const selected = selectedVideoId && activeIds.includes(selectedVideoId) ? selectedVideoId : undefined
+  const preview = previewAssetId && snapshot.previewVideoAssetIds.includes(previewAssetId) ? previewAssetId : undefined
+  const portrait = snapshot.visual.type === 'portrait' ? snapshot.visual.assetId : undefined
+  return [...new Set([portrait, selected, preview].filter((id): id is string => Boolean(id)))]
+}
+
 export function companionDesktopSnapshot(companion: CompanionData, _activeView: string, playing: boolean, assets: Asset[] = [], overrideAction?: CompanionVideoState, agentStatus?: AgentRuntimeStatus, externalAiAllowed = true, desktopModeOverride?: CompanionDesktopMode): CompanionDesktopSnapshot {
   const interactionAction: CompanionVideoState = agentStatus?.phase === 'responding' ? 'speaking' : playing ? 'listening' : 'idle'
   const action: CompanionVideoState = overrideAction === 'listening' || overrideAction === 'speaking'

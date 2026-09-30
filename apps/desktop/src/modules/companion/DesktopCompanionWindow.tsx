@@ -4,7 +4,7 @@ import { emitTo, listen } from '@tauri-apps/api/event'
 import { availableMonitors, getCurrentWindow, type Monitor } from '@tauri-apps/api/window'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CompanionVideoState } from '../../domain/models'
-import { companionVisualAssetIds, emptyCompanionDesktopSnapshot, type CompanionDesktopSnapshot } from './companionDesktop'
+import { companionRequestedVisualAssetIds, emptyCompanionDesktopSnapshot, type CompanionDesktopSnapshot } from './companionDesktop'
 import { availableIdleInterludes, chooseDifferentItem, chooseIdleInterlude, chooseNextIdleClip, configuredClipsForState, configuredIdleInterludes, isSustainedVideoState, isTransientVideoState, nextIdleInterludeDelay } from './companionVideoPlayback'
 import { companionVideoPlacementStyle } from './companionVideoPlacement'
 
@@ -44,10 +44,10 @@ async function keepCompanionVisible() {
   if (x !== position.x || y !== position.y) await window.setPosition(new PhysicalPosition(x, y))
 }
 
-function useDesktopVisualUrls(snapshot: CompanionDesktopSnapshot) {
+function useDesktopVisualUrls(snapshot: CompanionDesktopSnapshot, selectedVideoId?: string, previewAssetId?: string) {
   const [urls, setUrls] = useState<Record<string, string>>({})
   const urlsRef = useRef<Record<string, string>>({})
-  const assetIds = useMemo(() => companionVisualAssetIds(snapshot), [snapshot])
+  const assetIds = useMemo(() => companionRequestedVisualAssetIds(snapshot, selectedVideoId, previewAssetId), [previewAssetId, selectedVideoId, snapshot])
   useEffect(() => {
     let disposed = false
     const missingIds = assetIds.filter((id) => !urlsRef.current[id])
@@ -95,7 +95,7 @@ export function DesktopCompanionWindow() {
   const pointerStart = useRef<{ x: number; y: number } | undefined>(undefined)
   const pointerId = useRef<number | undefined>(undefined)
   const dragged = useRef(false)
-  const urls = useDesktopVisualUrls(snapshot)
+  const urls = useDesktopVisualUrls(snapshot, selectedVideoId, previewRequest?.assetId)
   useEffect(() => {
     let stopSnapshot: (() => void) | undefined
     void listen<CompanionDesktopSnapshot>('companion:snapshot', (event) => {
