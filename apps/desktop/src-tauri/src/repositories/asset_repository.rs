@@ -95,6 +95,10 @@ impl AssetRepository {
             sha256: format!("{:X}", Sha256::digest(bytes)),
         })
     }
+    pub fn video_path(&self, id: &str) -> Result<PathBuf, String> {
+        validate_id(id)?;
+        Ok(self.root.join("videos").join(format!("{id}.webm")))
+    }
 
     pub fn read(&self, id: &str, mime_type: &str, thumbnail: bool) -> Result<Vec<u8>, String> {
         validate_id(id)?;

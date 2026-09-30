@@ -1,10 +1,10 @@
-import { invoke } from '@tauri-apps/api/core'
+import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 import { PhysicalPosition } from '@tauri-apps/api/dpi'
 import { emitTo, listen } from '@tauri-apps/api/event'
 import { availableMonitors, getCurrentWindow, type Monitor } from '@tauri-apps/api/window'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CompanionVideoState } from '../../domain/models'
-import { companionRequestedVisualAssetIds, emptyCompanionDesktopSnapshot, type CompanionDesktopSnapshot } from './companionDesktop'
+import { companionBlobAssetIds, emptyCompanionDesktopSnapshot, type CompanionDesktopSnapshot } from './companionDesktop'
 import { availableIdleInterludes, chooseDifferentItem, chooseIdleInterlude, chooseNextIdleClip, configuredClipsForState, configuredIdleInterludes, isSustainedVideoState, isTransientVideoState, nextIdleInterludeDelay } from './companionVideoPlayback'
 import { companionVideoPlacementStyle } from './companionVideoPlacement'
 
@@ -44,10 +44,10 @@ async function keepCompanionVisible() {
   if (x !== position.x || y !== position.y) await window.setPosition(new PhysicalPosition(x, y))
 }
 
-function useDesktopVisualUrls(snapshot: CompanionDesktopSnapshot, selectedVideoId?: string, previewAssetId?: string) {
+function useDesktopVisualUrls(snapshot: CompanionDesktopSnapshot) {
   const [urls, setUrls] = useState<Record<string, string>>({})
   const urlsRef = useRef<Record<string, string>>({})
-  const assetIds = useMemo(() => companionRequestedVisualAssetIds(snapshot, selectedVideoId, previewAssetId), [previewAssetId, selectedVideoId, snapshot])
+  const assetIds = useMemo(() => companionBlobAssetIds(snapshot), [snapshot])
   useEffect(() => {
     let disposed = false
     const missingIds = assetIds.filter((id) => !urlsRef.current[id])
@@ -95,7 +95,7 @@ export function DesktopCompanionWindow() {
   const pointerStart = useRef<{ x: number; y: number } | undefined>(undefined)
   const pointerId = useRef<number | undefined>(undefined)
   const dragged = useRef(false)
-  const urls = useDesktopVisualUrls(snapshot, selectedVideoId, previewRequest?.assetId)
+  const urls = useDesktopVisualUrls(snapshot)
   useEffect(() => {
     let stopSnapshot: (() => void) | undefined
     void listen<CompanionDesktopSnapshot>('companion:snapshot', (event) => {
@@ -149,13 +149,13 @@ export function DesktopCompanionWindow() {
     return () => window.clearTimeout(timer)
   }, [idleInterlude, idleInterludeReady, snapshot.action, snapshot.visual])
   const videoId = snapshot.visual.type === 'video' ? selectedVideoId : undefined
-  const videoUrl = videoId ? urls[videoId] : undefined
+  const videoUrl = videoId ? convertFileSrc(videoId, 'yiyu-companion') : undefined
   const normalVisual: ReadyVisual | undefined = videoId && videoUrl
     ? { id: videoId, instanceKey: `${displayedAction}:${videoId}:${playbackRevision}`, kind: 'video', url: videoUrl }
     : snapshot.visual.type === 'portrait' && snapshot.visual.assetId && portraitUrl
       ? { id: snapshot.visual.assetId, instanceKey: snapshot.visual.assetId, kind: 'image', url: portraitUrl }
       : undefined
-  const previewUrl = previewRequest ? urls[previewRequest.assetId] : undefined
+  const previewUrl = previewRequest ? convertFileSrc(previewRequest.assetId, 'yiyu-companion') : undefined
   const desiredVisual: ReadyVisual | undefined = previewRequest && previewUrl
     ? { id: previewRequest.assetId, instanceKey: previewRequest.instanceKey, kind: 'video', preview: true, url: previewUrl }
     : normalVisual
@@ -253,11 +253,11 @@ export function DesktopCompanionWindow() {
   const loopVideo = !idleInterlude && isSustainedVideoState(displayedAction) && (displayedAction !== 'idle' || (videoCandidates.length < 2 && !hasIdleInterludes))
   const visual = <>
     {readyVisual && (readyVisual.kind === 'video'
-      ? <video className="desktop-media ready" key={readyVisual.instanceKey} style={videoStyle(readyVisual.id)} src={readyVisual.url} autoPlay loop={readyVisual.preview ? false : loopVideo} muted playsInline draggable={false} onEnded={(event) => advanceVideo(event.currentTarget)} />
+      ? <video className="desktop-media ready" key={readyVisual.instanceKey} style={videoStyle(readyVisual.id)} src={readyVisual.url} crossOrigin="anonymous" autoPlay loop={readyVisual.preview ? false : loopVideo} muted playsInline draggable={false} onEnded={(event) => advanceVideo(event.currentTarget)} />
       : <img className="desktop-media ready" key={readyVisual.instanceKey} style={videoStyle(readyVisual.id)} src={readyVisual.url} alt="" draggable={false} />)}
     <canvas ref={holdCanvasRef} className={`desktop-media held-frame${heldFrameAssetId ? ' active' : ''}`} style={heldFrameAssetId ? videoStyle(heldFrameAssetId) : undefined} aria-hidden="true" />
     {isChangingVisual && desiredVisual && (desiredVisual.kind === 'video'
-      ? <video className="desktop-media pending" key={desiredVisual.instanceKey} style={videoStyle(desiredVisual.id)} src={desiredVisual.url} autoPlay loop={desiredVisual.preview ? false : loopVideo} muted playsInline preload="auto" draggable={false} onPlaying={(event) => presentVideo(event.currentTarget, desiredVisual)} onError={() => reportLoadError(desiredVisual.id)} />
+      ? <video className="desktop-media pending" key={desiredVisual.instanceKey} style={videoStyle(desiredVisual.id)} src={desiredVisual.url} crossOrigin="anonymous" autoPlay loop={desiredVisual.preview ? false : loopVideo} muted playsInline preload="auto" draggable={false} onPlaying={(event) => presentVideo(event.currentTarget, desiredVisual)} onError={() => reportLoadError(desiredVisual.id)} />
       : <img className="desktop-media pending" key={desiredVisual.instanceKey} style={videoStyle(desiredVisual.id)} src={desiredVisual.url} alt="" draggable={false} onLoad={() => markReady(desiredVisual)} onError={() => reportLoadError(desiredVisual.id)} />)}
     {!readyVisual && receivedSnapshot && !hasConfiguredVisual && <div className={`desktop-character hair-${snapshot.appearance.hair} outfit-${snapshot.appearance.outfit} expression-${snapshot.expression}`}><span className="character-hair" /><span className="character-face">隅</span><span className="character-outfit" /></div>}
   </>

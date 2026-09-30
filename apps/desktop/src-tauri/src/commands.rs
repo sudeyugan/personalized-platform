@@ -35,6 +35,16 @@ fn require_main(window: &WebviewWindow) -> Result<(), String> {
 #[derive(Default)]
 pub struct CompanionAssetScope(Mutex<HashSet<String>>);
 
+impl CompanionAssetScope {
+    pub fn contains(&self, id: &str) -> Result<bool, String> {
+        Ok(self
+            .0
+            .lock()
+            .map_err(|_| "COMPANION_ASSET_SCOPE_LOCKED:伙伴素材清单暂不可用")?
+            .contains(id))
+    }
+}
+
 fn valid_asset_id(id: &str) -> bool {
     id.starts_with("asset-") && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
 }
@@ -68,12 +78,7 @@ pub fn read_companion_image_asset(
     if window.label() != "companion" {
         return Err("WINDOW_CAPABILITY_DENIED:该命令仅供桌面伙伴读取已授权显示素材".into());
     }
-    if !scope
-        .0
-        .lock()
-        .map_err(|_| "COMPANION_ASSET_SCOPE_LOCKED:伙伴素材清单暂不可用")?
-        .contains(&id)
-    {
+    if !scope.contains(&id)? {
         return Err("COMPANION_ASSET_DENIED:素材不在当前伙伴角色包中".into());
     }
     AssetRepository::from_app(&app)?

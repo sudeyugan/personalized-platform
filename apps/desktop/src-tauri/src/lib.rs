@@ -1,4 +1,5 @@
 mod commands;
+mod companion_asset_protocol;
 mod computer;
 mod local_voice;
 mod repositories;
@@ -77,6 +78,13 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .manage(commands::CompanionAssetScope::default())
         .manage(local_voice::LocalVoiceState::default())
+        .register_asynchronous_uri_scheme_protocol("yiyu-companion", |context, request, responder| {
+            let app = context.app_handle().clone();
+            let webview_label = context.webview_label().to_string();
+            std::thread::spawn(move || {
+                responder.respond(companion_asset_protocol::respond(&app, &webview_label, request));
+            });
+        })
         .manage(BackgroundWakeRuntime::new())
         .manage(computer::ComputerRuntime::default())
         .setup(|app| {

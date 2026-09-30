@@ -2,8 +2,8 @@
 
 > 本文件只保存当前审查规则和近期重要记录。旧记录见 [`docs/archive/SYSTEM_AUDIT_HISTORY.md`](../docs/archive/SYSTEM_AUDIT_HISTORY.md)。
 
-最后审查：2026-09-28（M12 通用自主任务系统）
-审查结果：合规，统一 Tool 任务、逐步确认、恢复防重放与媒体边界明确，完整门禁及 Windows Release/NSIS 通过
+最后审查：2026-09-30（透明 WebM 受控 Range 协议）
+审查结果：合规，协议限 companion 窗口和角色素材 ID 白名单，分段读取不暴露任意路径
 下一次触发：里程碑/正式发布、重大流程或架构变化、状态失真、连续失败或上下文无法恢复
 
 ## 触发条件
@@ -26,6 +26,15 @@
 - 正式发布确认验证、安装包、哈希、文档与人工状态相互一致。
 
 ## 审查记录
+
+### 2026-09-30：透明 WebM 受控 Range 协议审查
+
+- 触发原因：伙伴视频从 Rust 整文件 IPC Blob 改为 WebView2 自定义本地协议，涉及媒体传输、窗口权限、CSP 和运行时架构。
+- 审查结果：合规。协议仅注册为 `yiyu-companion`，只接受 `companion` WebView 请求和主窗口实时登记的素材 ID；ID 再经仓储校验并固定映射到资料库 `assets/videos/<id>.webm`，没有任意路径参数、目录遍历或其他子窗口读取能力。
+- 性能与生命周期：文件读取在独立线程执行；Range 单次最多返回 1 MiB，不再经 Tauri command 把整段 WebM 复制为 ArrayBuffer/Blob。静态图片保持原路径；播放器的首帧提交、末帧 canvas 和动作调度保持不变。
+- 浏览器边界：CSP 仅在 `media-src` 增加内部协议及其 Windows localhost 映射，不开放远程媒体域名。响应提供 `video/webm`、byte Range 与匿名 CORS；视频元素显式 `crossOrigin=anonymous`，保持 canvas 可读。
+- 验证：Windows `verify:full` 通过 TypeScript、lint 0 warning、155/155 前端测试、43/43 Rust 测试和生产 Web 构建；Windows Release/NSIS 通过，Release/桌面 EXE SHA-256 为 8789B7D7239FFCDE633B98427A9C3CC5AE77E17874A553238BD93E526B3FF729，NSIS 为 CAA056AF73E27ECA057F5166B26113AC8B6887647E190CACECE4678FEFDBE199。本机 rustfmt 仍未安装。
+- 人工项：需用现有高分辨率透明素材确认冷启动、第一次进入不同动作、末帧无缝切换、透明通道与长时间内存表现。
 
 ### 2026-09-28：M12 通用自主任务系统审查
 
