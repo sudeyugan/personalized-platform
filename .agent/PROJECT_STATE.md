@@ -1,15 +1,16 @@
 # Project State
 
 <!-- generated:project-status:start -->
-最后更新：2026-09-29  
+最后更新：2026-09-30  
 当前版本：`2.0.0`  
 当前阶段：M12 通用自主任务系统  
 阶段状态：已交付待人工验收  
 下一阶段：后续方向待用户确认  
 自动门禁：已通过  
 人工验收：待验收
-- 2026-09-29：WebM 校准预览与桌面形象联动完成。每次打开某段素材的“预览并调整”，桌面形象都会用独立实例从头单次播放该动画；即使它正是当前动作也能重新播放，结束后通过既有末帧兜底与新帧就绪机制无过渡恢复原状态，关闭面板和调整 placement 不会重复触发。桌面快照只额外白名单化已明确配置的伙伴 WebM，因此静态立绘模式也能预览且未扩大到素材库。TypeScript、lint 0 warning、WebM 播放/位置/快照范围定向测试 17/17、生产 Web 与 Windows Release/NSIS 通过；Release/桌面 EXE SHA-256 为 18154E546CA734271A60C045E55336D3ED6C04803CB7466AE93BE51E987583A7，项目内 NSIS SHA-256 为 4CF0CAE1ABEA7A6AC2A4B86F69C20117DD83669580B350BA36BB0A83C8B8885F。待用户实机确认点击预览时桌面形象立即播放、结束后自然恢复。
 <!-- generated:project-status:end -->
+- 2026-09-30：透明 WebM 动作库由十二类扩展为十九类，新增整理衣服、双手背后轻摇、整理头发、双手轻合、轻轻探身、放松肩膀和轻快摇晃七个独立上传槽；设置页新增“自然待机动作”分区，并将 idle 第 1 段明确标为 10 秒基础 idle、后 3 段标为轻变化 idle。播放策略改为基础 idle 在 idle 片段中约占 78%，变化后必回基础；自然动作先等待 45–90 秒，再等当前 idle 完整结束才按克制权重进入，相同动作不紧邻重复，轻快摇晃最低频。新增动作只由本地待机调度，不扩大 Agent Tool 状态。TypeScript、lint 0 warning、WebM/迁移/Agent/帮助相关测试 56/56、生产 Web 与 Windows Release/NSIS 通过；Release/桌面 EXE SHA-256 为 2DB8FAE50851DE25FDD109454AEE40FC2F722627A2860B8FB5CE93591EF6A5E4，项目内 NSIS SHA-256 为 92590E3AE0FB970CBE851CEF6BF1CF60B787E767AF22BCDBA0F42AA4DA9040B2。待用户按顺序导入 1 段基础 idle、3 段变化 idle 和七类动作后自然体验频率与观感。
+- 2026-09-29：WebM 校准预览与桌面形象联动完成。每次打开某段素材的“预览并调整”，桌面形象都会用独立实例从头单次播放该动画；即使它正是当前动作也能重新播放，结束后通过既有末帧兜底与新帧就绪机制无过渡恢复原状态，关闭面板和调整 placement 不会重复触发。桌面快照只额外白名单化已明确配置的伙伴 WebM，因此静态立绘模式也能预览且未扩大到素材库。TypeScript、lint 0 warning、WebM 播放/位置/快照范围定向测试 17/17、生产 Web 与 Windows Release/NSIS 通过；Release/桌面 EXE SHA-256 为 18154E546CA734271A60C045E55336D3ED6C04803CB7466AE93BE51E987583A7，项目内 NSIS SHA-256 为 4CF0CAE1ABEA7A6AC2A4B86F69C20117DD83669580B350BA36BB0A83C8B8885F。待用户实机确认点击预览时桌面形象立即播放、结束后自然恢复。
 - 2026-09-29：继续修复透明 WebM 切换时“旧画面先消失、下一段随后出现”的合成空帧。根因是下一段只在旧段 ended 后挂载；pending 层能等待新视频解码，却不能阻止 WebView2 先释放已结束 VP9 Alpha 的旧合成表面。现于 ended 回调同步把旧视频末帧绘入透明 canvas 兜底层，保持原素材 placement；新视频经过 playing、requestVideoFrameCallback 和首次提交后，兜底仍保留两个合成帧再直接撤除。该路径依赖用户已确认的“首帧＝末帧＝共同原图”契约，不使用淡化、透明度动画或延迟动作。WebM 播放与位置定向测试 9/9、TypeScript、lint 0 warning、生产 Web 与 Windows Release/NSIS 通过；Release/桌面 EXE SHA-256 为 28450A0D98174C1AA2DAB59644AD89922CC47C31287A86EF965723E22E82FC39，项目内 NSIS SHA-256 为 798535296850C3C4CA413A9724D070E507BE4D852A033D0CB8BF4D813BDC742C。真实透明窗口合成观感待用户用现有素材复验。
 - 2026-09-29：WebM 素材预览升级为首帧校准台。当前素材默认停在首帧，可从全部已配置 WebM 中任选另一段首帧作为半透明基底并调节透明度；预览画布支持直接拖动定位、方向键微调与 Shift 大步移动，右下角控制点只改变统一 scale，因此放大缩小始终保持 WebM 原始宽高比，大小和横纵位置滑杆继续精调并复用原有逐素材 placement，无新数据模型。仍可播放完整动作、返回首帧或恢复默认。位置与等比例缩放定向测试 5/5、TypeScript、lint 0 warning、生产 Web 和 Windows Release/NSIS 通过；桌面固定 EXE 已更新且与 Release SHA-256 同为 62914BA1EE6484E27A150670D3A67C142B8C4D14168A2C35907E74FD6F87FA5B，项目内 NSIS SHA-256 为 28907E893AAF4733DB094376E71CA079EA40371AB7455DEE2B3228214A6ACB96。待用户用实际透明素材确认轮廓叠合、拖动/缩放手感和校准后无缝切换观感。
 

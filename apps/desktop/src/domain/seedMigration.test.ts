@@ -64,17 +64,17 @@ describe('library compatibility normalization', () => {
     expect(upgraded.settings.modules.find((module) => module.id === 'music')?.available).toBe(true)
   })
 
-  it('upgrades old WebM states into the current twelve-state library', () => {
+  it('upgrades old WebM states and preserves expanded ambient actions', () => {
     const legacy = createSeedLibrary()
     legacy.companion.provider.providerId = 'deepseek'
     legacy.companion.desktop.visual = { type: 'video', videos: { idle: 'idle-1', happy: 'happy-1', thinking: 'thinking-1', agreeing: 'agreeing-1' } } as unknown as LibraryData['companion']['desktop']['visual']
-    legacy.companion.desktop.videoAssets = { idle: 'idle-1', happy: 'happy-1', thinking: 'thinking-1', agreeing: 'agreeing-1' } as unknown as LibraryData['companion']['desktop']['videoAssets']
+    legacy.companion.desktop.videoAssets = { idle: 'idle-1', happy: 'happy-1', thinking: 'thinking-1', agreeing: 'agreeing-1', clothes_adjust: 'clothes-1' } as unknown as LibraryData['companion']['desktop']['videoAssets']
     delete legacy.companion.desktop.videoClips
     delete (legacy.settings as Partial<LibraryData['settings']>).trust
 
     const upgraded = normalizeLibrary(legacy)
 
-    expect(upgraded.companion.desktop.videoClips).toEqual({ idle: ['idle-1'], celebrating: ['happy-1'], nodding: ['agreeing-1'] })
+    expect(upgraded.companion.desktop.videoClips).toEqual({ idle: ['idle-1'], celebrating: ['happy-1'], nodding: ['agreeing-1'], clothes_adjust: ['clothes-1'] })
     expect(upgraded.companion.desktop.visual).toMatchObject({ type: 'video', videos: { idle: 'idle-1', celebrating: 'happy-1', nodding: 'agreeing-1' } })
     expect(upgraded.settings.trust.externalAiProcessing).toBe(true)
     expect(upgraded.settings.trust.outboundProtection).toBe(true)

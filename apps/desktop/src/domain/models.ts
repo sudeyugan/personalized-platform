@@ -168,7 +168,7 @@ export interface CompanionMemory { id: string; content: string; source: 'manual'
 export interface CompanionPersonality { warmth: number; curiosity: number; initiative: number }
 export interface CompanionGrowthLog { id: string; before: CompanionPersonality; after: CompanionPersonality; reason: string; createdAt: string }
 export type CompanionDesktopMode = 'interactive' | 'quiet' | 'normal'
-export const companionVideoStates = ['celebrating', 'concerned', 'greeting', 'idle', 'listening', 'looking', 'nodding', 'shy', 'sleepy', 'speaking', 'stretching', 'yawning'] as const
+export const companionVideoStates = ['celebrating', 'clothes_adjust', 'concerned', 'greeting', 'hair_adjust', 'hands_behind_sway', 'hands_clasped', 'idle', 'lean_forward', 'listening', 'looking', 'nodding', 'playful_sway', 'shoulder_relax', 'shy', 'sleepy', 'speaking', 'stretching', 'yawning'] as const
 export type CompanionVideoState = typeof companionVideoStates[number]
 export type CompanionVideoLibrary = Partial<Record<CompanionVideoState, string[]>>
 export interface CompanionVideoPlacement { scale: number; x: number; y: number }

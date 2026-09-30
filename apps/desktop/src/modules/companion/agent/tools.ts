@@ -180,7 +180,7 @@ export function createCompanionToolRegistry(onVisualState?: (state: CompanionVid
   if (onVisualState) registry.register({
     definition: {
       name: 'companion.set_state',
-      description: '仅在语气明确时选择一次伙伴表情或姿势；不要每轮调用，环顾与伸展通常由本地待机调度负责',
+      description: '仅在语气明确时选择一次伙伴表情或姿势；不要每轮调用，整理衣服、调整头发、轻摇等自然动作由本地待机调度负责',
       inputSchema: { type: 'object', properties: { state: { type: 'string', enum: ['idle', 'celebrating', 'concerned', 'greeting', 'looking', 'nodding', 'shy', 'sleepy', 'stretching', 'yawning'], description: '伙伴表情或姿势状态' } }, required: ['state'], additionalProperties: false },
       capability: 'presentation', risk: 'low', scope: 'none',
     },

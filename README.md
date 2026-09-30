@@ -5,7 +5,7 @@
 <!-- generated:project-status:start -->
 > 当前版本：`2.0.0`｜当前阶段：M12 通用自主任务系统｜状态：已交付待人工验收｜下一阶段：后续方向待用户确认
 >
-> 自动门禁：已通过｜人工验收：待验收｜状态更新时间：2026-09-29
+> 自动门禁：已通过｜人工验收：待验收｜状态更新时间：2026-09-30
 >
 > 最近安装包：`apps/desktop/src-tauri/target/release/bundle/nsis/一隅_2.0.0_x64-setup.exe`
 <!-- generated:project-status:end -->

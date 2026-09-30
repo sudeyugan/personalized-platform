@@ -6,6 +6,7 @@ interface CompanionVideoAssetRowProps {
   asset: Asset
   busy: boolean
   open: boolean
+  roleLabel?: string
   placement?: CompanionVideoPlacement
   onToggle: () => void
   referenceAssets: CompanionVideoCalibrationAsset[]
@@ -13,11 +14,11 @@ interface CompanionVideoAssetRowProps {
   onPlacementChange: (placement: CompanionVideoPlacement) => void
 }
 
-export function CompanionVideoAssetRow({ asset, busy, open, placement, referenceAssets, onToggle, onRemove, onPlacementChange }: CompanionVideoAssetRowProps) {
+export function CompanionVideoAssetRow({ asset, busy, open, placement, roleLabel, referenceAssets, onToggle, onRemove, onPlacementChange }: CompanionVideoAssetRowProps) {
   return <div className={open ? 'editing' : ''}>
     <span title={asset.fileName}>
       {asset.fileName}
-      <small>{asset.width && asset.height ? `${asset.width}×${asset.height}` : 'WebM'}</small>
+      <small>{roleLabel ? `${roleLabel} · ` : ''}{asset.width && asset.height ? `${asset.width}×${asset.height}` : 'WebM'}</small>
     </span>
     <span className="video-slot-asset-actions">
       <button type="button" aria-label={`预览并调整 ${asset.fileName}`} aria-expanded={open} onClick={onToggle}>

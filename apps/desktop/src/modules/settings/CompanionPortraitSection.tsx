@@ -7,7 +7,7 @@ import { AssetImage } from '../assets/AssetImage'
 import { CompanionVideoAssetRow } from './CompanionVideoAssetRow'
 
 const interactionStates: { id: CompanionVideoState; label: string; hint: string }[] = [
-  { id: 'idle', label: '待机', hint: '必需 · 默认状态与多片段轮换' },
+  { id: 'idle', label: '待机', hint: '必需 · 第 1 段为 10 秒基础 idle，后 3 段为轻变化 idle' },
   { id: 'listening', label: '倾听', hint: '可选 · 用户说话或音乐播放时' },
   { id: 'speaking', label: '说话 / 回应', hint: '可选 · 回复生成或 TTS 播放时' },
 ]
@@ -15,6 +15,15 @@ const expressionStates: { id: CompanionVideoState; label: string; hint: string }
   { id: 'celebrating', label: '庆祝', hint: '可选 · 达成目标或收到好消息时' },
   { id: 'concerned', label: '担忧 / 关切', hint: '可选 · 安慰、风险或困难话题' },
   { id: 'shy', label: '害羞', hint: '可选 · 克制的害羞反应' },
+]
+const naturalIdleStates: { id: CompanionVideoState; label: string; hint: string }[] = [
+  { id: 'clothes_adjust', label: '整理衣服', hint: '自然穿插 · 较常见的细微整理动作' },
+  { id: 'hands_behind_sway', label: '双手背后轻摇', hint: '自然穿插 · 偶尔出现' },
+  { id: 'hair_adjust', label: '整理头发', hint: '自然穿插 · 偶尔出现' },
+  { id: 'hands_clasped', label: '双手轻合', hint: '自然穿插 · 较常见的手部变化' },
+  { id: 'lean_forward', label: '轻轻探身', hint: '自然穿插 · 低频出现' },
+  { id: 'shoulder_relax', label: '放松肩膀', hint: '自然穿插 · 较常见的肩颈舒展' },
+  { id: 'playful_sway', label: '轻快摇晃', hint: '自然穿插 · 最低频出现' },
 ]
 const poseStates: { id: CompanionVideoState; label: string; hint: string }[] = [
   { id: 'greeting', label: '打招呼', hint: '可选 · 显示伙伴或开始交谈时' },
@@ -24,7 +33,7 @@ const poseStates: { id: CompanionVideoState; label: string; hint: string }[] = [
   { id: 'yawning', label: '打哈欠', hint: '可选 · 夜间或疲倦语境' },
   { id: 'sleepy', label: '困倦', hint: '可选 · 深夜或休息场景，不参与随机穿插' },
 ]
-const videoStates = [...interactionStates, ...expressionStates, ...poseStates]
+const videoStates = [...interactionStates, ...expressionStates, ...naturalIdleStates, ...poseStates]
 
 type ImportStatus = { tone: 'neutral' | 'working' | 'success' | 'error'; message: string }
 
@@ -109,7 +118,7 @@ export function CompanionPortraitSection() {
       <span className="video-slot-icon">{busy === item.id ? <LoaderCircle className="spin" size={15} /> : assets.length ? <Check size={15} /> : <Film size={15} />}</span>
       <span><strong>{item.label}</strong><small>{assets.length ? `${assets.length} 段素材 · 播放时自动选择` : item.hint}</small></span>
       <label className={busy ? 'disabled' : ''}>{busy === item.id ? '导入中…' : <><Plus size={12} />{assets.length ? '继续添加' : featured ? '选择 WebM' : '添加'}</>}<input type="file" accept="video/webm,.webm" disabled={Boolean(busy)} onChange={(event) => { void importVideo(item.id, event.target.files?.[0]); event.target.value = '' }} /></label>
-      {assets.length > 0 && <div className="video-slot-assets">{assets.map((asset) => <CompanionVideoAssetRow key={asset.id} asset={asset} busy={Boolean(busy)} open={editingAssetId === asset.id} placement={placements[asset.id]} referenceAssets={calibrationAssets} onToggle={() => toggleVideoEditor(asset.id)} onRemove={() => { removeCompanionVideo(item.id, asset.id); setEditingAssetId((current) => current === asset.id ? undefined : current) }} onPlacementChange={(placement) => setCompanionVideoPlacement(asset.id, placement)} />)}</div>}
+      {assets.length > 0 && <div className="video-slot-assets">{assets.map((asset, index) => <CompanionVideoAssetRow key={asset.id} asset={asset} busy={Boolean(busy)} open={editingAssetId === asset.id} placement={placements[asset.id]} roleLabel={item.id === 'idle' ? index === 0 ? '基础 idle' : `变化 idle ${index}` : undefined} referenceAssets={calibrationAssets} onToggle={() => toggleVideoEditor(asset.id)} onRemove={() => { removeCompanionVideo(item.id, asset.id); setEditingAssetId((current) => current === asset.id ? undefined : current) }} onPlacementChange={(placement) => setCompanionVideoPlacement(asset.id, placement)} />)}</div>}
     </div>
   }
 
@@ -135,6 +144,7 @@ export function CompanionPortraitSection() {
       <details className="optional-video-states"><summary>交互状态 <small>{interactionStates.slice(1).filter((item) => clips[item.id]?.length).length} / {interactionStates.length - 1} 已配置</small></summary><div className="companion-video-slots">{interactionStates.slice(1).map((item) => renderVideoSlot(item))}</div></details>
       <details className="optional-video-states"><summary>表情反应 <small>{expressionStates.filter((item) => clips[item.id]?.length).length} / {expressionStates.length} 已配置</small></summary><div className="companion-video-slots">{expressionStates.map((item) => renderVideoSlot(item))}</div></details>
       <details className="optional-video-states"><summary>姿势动作 <small>{poseStates.filter((item) => clips[item.id]?.length).length} / {poseStates.length} 已配置</small></summary><div className="companion-video-slots">{poseStates.map((item) => renderVideoSlot(item))}</div></details>
+      <details className="optional-video-states"><summary>自然待机动作 <small>{naturalIdleStates.filter((item) => clips[item.id]?.length).length} / {naturalIdleStates.length} 已配置</small></summary><div className="companion-video-slots">{naturalIdleStates.map((item) => renderVideoSlot(item))}</div></details>
       <div className="companion-media-cleanup"><button className="ghost-button quiet" disabled={Boolean(busy)} onClick={() => void cleanupUnused()}><Trash2 size={13} />清理未使用文件</button></div>
     </div>}
   </div>
