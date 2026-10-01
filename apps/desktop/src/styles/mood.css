@@ -52,6 +52,12 @@
 .mood-range-switch{display:flex;padding:2px;border:1px solid var(--line);border-radius:9px;background:var(--surface)}
 .mood-range-switch button{padding:5px 12px;border-radius:7px;color:var(--ink-faint);font-size:8px}
 .mood-range-switch button.active{color:var(--accent-strong);background:var(--accent-soft)}
+.mood-history-navigation{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.mood-history-navigation>div{display:flex;align-items:center;gap:6px}
+.mood-history-navigation button{min-width:28px;min-height:28px;padding:5px 8px;border:1px solid var(--line);border-radius:7px;color:var(--ink-soft);background:var(--surface);font-size:9px}
+.mood-history-navigation button:disabled{opacity:.4;cursor:default}
+.mood-history-navigation span{color:var(--ink-soft);font-size:9px}
+.mood-history-navigation input{min-width:0;max-width:150px;padding:5px 8px;border:1px solid var(--line);border-radius:7px;color:var(--ink-soft);background:var(--surface);font:10px var(--serif)}
 .mood-overall-tone{grid-column:1/-1;display:grid;grid-template-columns:minmax(120px,auto) minmax(140px,1fr);align-items:center;gap:15px;padding:12px 14px;border:1px solid color-mix(in srgb,var(--accent) 12%,var(--line));border-radius:12px;background:color-mix(in srgb,var(--surface) 88%,var(--accent-soft))}
 .mood-overall-tone div{min-width:0}
 .mood-overall-tone span,.mood-overall-tone small{display:block}

@@ -3,6 +3,16 @@ import type { LibraryData } from './models'
 import { createSeedLibrary, normalizeLibrary } from './seed'
 
 describe('library compatibility normalization', () => {
+  it('retains mood entries and notes from every month after saving and reloading', () => {
+    const library = createSeedLibrary()
+    library.planner.moodEntries = ['2024-02-29', '2025-12-31', '2026-09-15', '2026-10-01'].map((date) => ({
+      id: date, date, period: 'morning', points: { calm: 5 }, note: `记录 ${date}`,
+      createdAt: `${date}T00:00:00Z`, updatedAt: `${date}T00:00:00Z`,
+    }))
+    const restored = normalizeLibrary(JSON.parse(JSON.stringify(library)))
+    expect(restored.planner.moodEntries).toEqual(library.planner.moodEntries)
+  })
+
   it('adds local wake and voiceprint defaults to older companion voice settings', () => {
     const legacy = createSeedLibrary()
     delete (legacy.companion.voice as Partial<LibraryData['companion']['voice']>).wakeWord
