@@ -19,9 +19,9 @@
 .companion-video-slot span strong,.companion-video-slot span small{display:block}
 .companion-video-slot span strong{font:500 9px var(--serif)}
 .companion-video-slot span small{max-width:340px;margin-top:2px;overflow:hidden;color:var(--ink-faint);font-size:7px;text-overflow:ellipsis;white-space:nowrap}
-.companion-video-slot label{position:relative;display:flex;align-items:center;gap:4px;padding:6px 9px;cursor:pointer;border-radius:8px;color:var(--accent-strong);background:var(--accent-soft);font-size:8px;white-space:nowrap}
-.companion-video-slot label.disabled{cursor:wait;opacity:.55}
-.companion-video-slot input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.companion-video-slot>label{position:relative;display:flex;align-items:center;gap:4px;padding:6px 9px;cursor:pointer;border-radius:8px;color:var(--accent-strong);background:var(--accent-soft);font-size:8px;white-space:nowrap}
+.companion-video-slot>label.disabled{cursor:wait;opacity:.55}
+.companion-video-slot>label>input[type="file"]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 .companion-video-slot>button{width:25px;height:25px;display:grid;place-items:center;color:var(--ink-faint);background:transparent}
 .video-slot-assets{grid-column:2/-1;display:grid;gap:4px}.video-slot-assets>div{min-width:0;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:7px;padding:6px 7px;border-radius:8px;background:color-mix(in srgb,var(--surface-soft) 72%,transparent)}.video-slot-assets>div>span{min-width:0;display:flex;align-items:center;justify-content:space-between;gap:8px;overflow:hidden;font-size:7.5px;text-overflow:ellipsis;white-space:nowrap}.video-slot-assets>div small{flex:0 0 auto;margin:0;color:var(--ink-faint);font-size:6.5px}.video-slot-assets button{width:23px;height:23px;display:grid;place-items:center;border-radius:7px;color:var(--ink-faint);background:transparent}.video-slot-assets button:hover{color:#a34f49;background:color-mix(in srgb,#b75d56 9%,var(--surface))}
 .video-slot-asset-actions{display:flex!important;align-items:center;justify-content:flex-end!important;gap:2px!important;overflow:visible!important}.video-slot-assets>div.editing{padding:10px;border:1px solid color-mix(in srgb,var(--accent) 24%,var(--line));background:color-mix(in srgb,var(--accent-soft) 34%,var(--surface))}.companion-video-preview-editor{grid-column:1/-1;display:grid;grid-template-columns:minmax(260px,340px) minmax(180px,1fr);align-items:start;gap:16px;margin-top:3px;padding-top:11px;border-top:1px solid var(--line)}
