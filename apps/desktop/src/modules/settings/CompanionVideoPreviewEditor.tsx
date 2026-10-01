@@ -191,7 +191,7 @@ export function CompanionVideoPreviewEditor({ asset, placement, referenceAssets,
       <i className="calibration-guide vertical" aria-hidden="true" />
     </div>
     <div className="companion-video-adjustments">
-      <label><span>大小 <b>{Math.round(draft.scale * 100)}%</b></span><input aria-label="视频大小" type="range" min="60" max="180" step="1" value={Math.round(draft.scale * 100)} onChange={(event) => update({ scale: Number(event.target.value) / 100 })} onPointerUp={commit} onKeyUp={commit} onBlur={commit} /></label>
+      <label><span>大小 <b>{(draft.scale * 100).toFixed(1)}%</b></span><input aria-label="视频大小" type="range" min="60" max="180" step="0.1" value={(draft.scale * 100).toFixed(1)} onChange={(event) => update({ scale: Number(event.target.value) / 100 })} onPointerUp={commit} onKeyUp={commit} onBlur={commit} /></label>
       <label><span>水平位置 <b>{displayOffset(draft.x)}</b></span><input aria-label="视频水平位置" type="range" min="-40" max="40" step=".5" value={draft.x} onChange={(event) => update({ x: Number(event.target.value) })} onPointerUp={commit} onKeyUp={commit} onBlur={commit} /></label>
       <label><span>垂直位置 <b>{displayOffset(draft.y)}</b></span><input aria-label="视频垂直位置" type="range" min="-40" max="40" step=".5" value={draft.y} onChange={(event) => update({ y: Number(event.target.value) })} onPointerUp={commit} onKeyUp={commit} onBlur={commit} /></label>
       {reference && <label><span>基底透明度 <b>{referenceOpacity}%</b></span><input aria-label="首帧基底透明度" type="range" min="10" max="80" step="5" value={referenceOpacity} onChange={(event) => setReferenceOpacity(Number(event.target.value))} /></label>}
