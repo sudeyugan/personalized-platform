@@ -98,7 +98,7 @@ describe('App', () => {
     fireEvent.click(await screen.findByRole('button', { name: '帮助中心' }))
     fireEvent.click(await screen.findByText('静态立绘与动态 WebM'))
     expect(screen.getByText(/960×1708/)).toBeInTheDocument()
-    expect(screen.getByText(/十九类位置/)).toBeInTheDocument()
+    expect(screen.getByText(/十八个动作位置/)).toBeInTheDocument()
   })
 
   it('switches between chapters without entering the error boundary', async () => {

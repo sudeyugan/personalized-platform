@@ -6,34 +6,26 @@ import { useLibraryStore } from '../../state/useLibraryStore'
 import { AssetImage } from '../assets/AssetImage'
 import { CompanionVideoAssetRow } from './CompanionVideoAssetRow'
 
-const interactionStates: { id: CompanionVideoState; label: string; hint: string }[] = [
-  { id: 'idle', label: '待机', hint: '必需 · 第 1 段为 10 秒基础 idle，后 3 段为轻变化 idle' },
-  { id: 'listening', label: '倾听', hint: '可选 · 用户说话或音乐播放时' },
-  { id: 'speaking', label: '说话 / 回应', hint: '可选 · 回复生成或 TTS 播放时' },
+const videoStates: { id: CompanionVideoState; label: string; hint: string }[] = [
+  { id: 'idle', label: '待机', hint: '第 1 段为基础 idle，其余为轻变化 idle' },
+  { id: 'listening', label: '倾听', hint: '用户说话时' },
+  { id: 'speaking', label: '说话 / 回应', hint: '回复生成或 TTS 播放时' },
+  { id: 'clothes_adjust', label: '整理衣服', hint: '待机时均衡穿插' },
+  { id: 'hands_behind_sway', label: '双手背后轻摇', hint: '待机时均衡穿插' },
+  { id: 'hair_adjust', label: '整理头发', hint: '待机时均衡穿插' },
+  { id: 'hands_clasped', label: '双手轻合', hint: '待机时均衡穿插' },
+  { id: 'lean_forward', label: '轻轻探身', hint: '待机时均衡穿插' },
+  { id: 'playful_sway', label: '轻快摇晃', hint: '待机时均衡穿插' },
+  { id: 'looking', label: '环顾', hint: '待机时均衡穿插' },
+  { id: 'stretching', label: '伸懒腰 / 拉伸', hint: '待机时均衡穿插' },
+  { id: 'greeting', label: '打招呼', hint: '显示伙伴或开始交谈时' },
+  { id: 'nodding', label: '点头', hint: '表示理解或认可' },
+  { id: 'shy', label: '害羞', hint: '适合的轻松社交语境' },
+  { id: 'celebrating', label: '庆祝', hint: '达成目标或收到好消息时' },
+  { id: 'concerned', label: '担忧 / 关切', hint: '安慰、风险或困难话题' },
+  { id: 'yawning', label: '打哈欠', hint: '夜间穿插，或明确疲倦语境' },
+  { id: 'sleepy', label: '困倦', hint: '深夜少量穿插，或休息场景' },
 ]
-const expressionStates: { id: CompanionVideoState; label: string; hint: string }[] = [
-  { id: 'celebrating', label: '庆祝', hint: '可选 · 达成目标或收到好消息时' },
-  { id: 'concerned', label: '担忧 / 关切', hint: '可选 · 安慰、风险或困难话题' },
-  { id: 'shy', label: '害羞', hint: '可选 · 克制的害羞反应' },
-]
-const naturalIdleStates: { id: CompanionVideoState; label: string; hint: string }[] = [
-  { id: 'clothes_adjust', label: '整理衣服', hint: '自然穿插 · 较常见的细微整理动作' },
-  { id: 'hands_behind_sway', label: '双手背后轻摇', hint: '自然穿插 · 偶尔出现' },
-  { id: 'hair_adjust', label: '整理头发', hint: '自然穿插 · 偶尔出现' },
-  { id: 'hands_clasped', label: '双手轻合', hint: '自然穿插 · 较常见的手部变化' },
-  { id: 'lean_forward', label: '轻轻探身', hint: '自然穿插 · 低频出现' },
-  { id: 'shoulder_relax', label: '放松肩膀', hint: '自然穿插 · 较常见的肩颈舒展' },
-  { id: 'playful_sway', label: '轻快摇晃', hint: '自然穿插 · 最低频出现' },
-]
-const poseStates: { id: CompanionVideoState; label: string; hint: string }[] = [
-  { id: 'greeting', label: '打招呼', hint: '可选 · 显示伙伴或开始交谈时' },
-  { id: 'looking', label: '环顾', hint: '可选 · 待机时偶尔看向周围' },
-  { id: 'nodding', label: '点头', hint: '可选 · 表示理解或认可' },
-  { id: 'stretching', label: '伸懒腰 / 拉伸', hint: '可选 · 待机时偶尔穿插' },
-  { id: 'yawning', label: '打哈欠', hint: '可选 · 夜间或疲倦语境' },
-  { id: 'sleepy', label: '困倦', hint: '可选 · 深夜或休息场景，不参与随机穿插' },
-]
-const videoStates = [...interactionStates, ...expressionStates, ...naturalIdleStates, ...poseStates]
 
 type ImportStatus = { tone: 'neutral' | 'working' | 'success' | 'error'; message: string }
 
@@ -139,12 +131,8 @@ export function CompanionPortraitSection() {
       </div>
       {portrait ? <div className="portrait-settings-preview"><AssetImage asset={portrait} thumbnail={false} alt={data.companion.name + '立绘'} /><span><strong>{portrait.fileName}</strong><small>{portrait.width} × {portrait.height}</small></span></div> : <div className="visual-empty-state"><ImagePlus size={20} /><span>尚未添加静态立绘</span></div>}
     </div> : <div className="visual-editor-panel video-editor-panel">
-      <div className="visual-editor-heading"><span><strong>动态 WebM 动作库</strong><small>同一状态可以添加多段；基础待机会在每段结束后自然轮换。</small></span>{clips.idle?.length && visual.type !== 'video' && <button className="ghost-button" onClick={() => addCompanionVideo('idle', clips.idle![0])}>启用动态形象</button>}</div>
-      <div className="companion-video-slots primary-video-slot">{renderVideoSlot(interactionStates[0], true)}</div>
-      <details className="optional-video-states"><summary>交互状态 <small>{interactionStates.slice(1).filter((item) => clips[item.id]?.length).length} / {interactionStates.length - 1} 已配置</small></summary><div className="companion-video-slots">{interactionStates.slice(1).map((item) => renderVideoSlot(item))}</div></details>
-      <details className="optional-video-states"><summary>表情反应 <small>{expressionStates.filter((item) => clips[item.id]?.length).length} / {expressionStates.length} 已配置</small></summary><div className="companion-video-slots">{expressionStates.map((item) => renderVideoSlot(item))}</div></details>
-      <details className="optional-video-states"><summary>姿势动作 <small>{poseStates.filter((item) => clips[item.id]?.length).length} / {poseStates.length} 已配置</small></summary><div className="companion-video-slots">{poseStates.map((item) => renderVideoSlot(item))}</div></details>
-      <details className="optional-video-states"><summary>自然待机动作 <small>{naturalIdleStates.filter((item) => clips[item.id]?.length).length} / {naturalIdleStates.length} 已配置</small></summary><div className="companion-video-slots">{naturalIdleStates.map((item) => renderVideoSlot(item))}</div></details>
+      <div className="visual-editor-heading"><span><strong>动态 WebM 动作库</strong><small>已上传的自然动作均衡轮换；同一动作也可以添加多段。</small></span>{clips.idle?.length && visual.type !== 'video' && <button className="ghost-button" onClick={() => addCompanionVideo('idle', clips.idle![0])}>启用动态形象</button>}</div>
+      <div className="companion-video-slots">{videoStates.map((item) => renderVideoSlot(item, item.id === 'idle'))}</div>
       <div className="companion-media-cleanup"><button className="ghost-button quiet" disabled={Boolean(busy)} onClick={() => void cleanupUnused()}><Trash2 size={13} />清理未使用文件</button></div>
     </div>}
   </div>

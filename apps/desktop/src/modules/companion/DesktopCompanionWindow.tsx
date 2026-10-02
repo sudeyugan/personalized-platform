@@ -5,7 +5,7 @@ import { availableMonitors, getCurrentWindow, type Monitor } from '@tauri-apps/a
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CompanionVideoState } from '../../domain/models'
 import { companionBlobAssetIds, emptyCompanionDesktopSnapshot, type CompanionDesktopSnapshot } from './companionDesktop'
-import { availableIdleInterludes, chooseDifferentItem, chooseIdleInterlude, chooseNextIdleClip, configuredClipsForState, configuredIdleInterludes, isSustainedVideoState, isTransientVideoState, nextIdleInterludeDelay } from './companionVideoPlayback'
+import { availableIdleInterludes, chooseNextIdleClip, configuredClipsForState, configuredIdleInterludes, createVideoPlaybackRotation, isSustainedVideoState, isTransientVideoState, nextIdleInterludeDelay } from './companionVideoPlayback'
 import { companionVideoPlacementStyle } from './companionVideoPlacement'
 
 type ReadyVisual = { id: string; instanceKey: string; kind: 'image' | 'video'; preview?: boolean; url: string }
@@ -86,7 +86,8 @@ export function DesktopCompanionWindow() {
   const [playbackRevision, setPlaybackRevision] = useState(0)
   const [heldFrameAssetId, setHeldFrameAssetId] = useState<string>()
   const [previewRequest, setPreviewRequest] = useState<PreviewVideoRequest>()
-  const previousIdleInterlude = useRef<CompanionVideoState | undefined>(undefined)
+  const rotation = useRef(createVideoPlaybackRotation())
+  const selectedAction = useRef<CompanionVideoState | undefined>(undefined)
   const pendingReadyId = useRef<string | undefined>(undefined)
   const previewSequence = useRef(0)
   const heldFrameAssetIdRef = useRef<string | undefined>(undefined)
@@ -132,22 +133,23 @@ export function DesktopCompanionWindow() {
     return () => { stopMoved?.(); globalThis.clearTimeout(correctionTimer) }
   }, [])
   const portraitUrl = snapshot.visual.type === 'portrait' && snapshot.visual.assetId ? urls[snapshot.visual.assetId] : undefined
-  const displayedAction = idleInterlude ?? snapshot.action
+  const displayedAction = snapshot.action === 'idle' ? idleInterlude ?? 'idle' : snapshot.action
+  const interludeConfigKey = configuredIdleInterludes(snapshot.visual).join(',')
   const videoCandidates = useMemo(() => clipsForState(snapshot, displayedAction), [displayedAction, snapshot])
   useEffect(() => {
     if (snapshot.visual.type !== 'video') { setSelectedVideoId(undefined); return }
-    setSelectedVideoId((current) => videoCandidates.includes(current ?? '') ? current : displayedAction === 'idle' ? videoCandidates[0] : chooseDifferentItem(videoCandidates, current))
-  }, [displayedAction, snapshot.visual, videoCandidates])
+    if (selectedAction.current === displayedAction && videoCandidates.includes(selectedVideoId ?? '')) return
+    selectedAction.current = displayedAction
+    setSelectedVideoId(displayedAction === 'idle' ? videoCandidates[0] : rotation.current.choose(`clips:${displayedAction}`, videoCandidates))
+  }, [displayedAction, selectedVideoId, snapshot.visual, videoCandidates])
   useEffect(() => {
     if (snapshot.action !== 'idle') { setIdleInterlude(undefined); setIdleInterludeReady(false) }
   }, [snapshot.action])
   useEffect(() => {
-    if (snapshot.visual.type !== 'video' || snapshot.action !== 'idle' || idleInterlude || idleInterludeReady) return
-    const available = availableIdleInterludes(snapshot.visual)
-    if (!available.length) return
+    if (!interludeConfigKey || snapshot.visual.type !== 'video' || snapshot.action !== 'idle' || idleInterlude || idleInterludeReady || previewRequest) return
     const timer = window.setTimeout(() => setIdleInterludeReady(true), nextIdleInterludeDelay())
     return () => window.clearTimeout(timer)
-  }, [idleInterlude, idleInterludeReady, snapshot.action, snapshot.visual])
+  }, [idleInterlude, idleInterludeReady, interludeConfigKey, previewRequest, snapshot.action, snapshot.visual.type])
   const videoId = snapshot.visual.type === 'video' ? selectedVideoId : undefined
   const videoUrl = videoId ? convertFileSrc(videoId, 'yiyu-companion') : undefined
   const normalVisual: ReadyVisual | undefined = videoId && videoUrl
@@ -224,7 +226,7 @@ export function DesktopCompanionWindow() {
       setPreviewRequest((current) => current?.instanceKey === readyVisual.instanceKey ? undefined : current)
       return
     }
-    if (readyVisual.id !== selectedVideoId) return
+    if (readyVisual.instanceKey !== normalVisual?.instanceKey) return
     holdLastVideoFrame(video, readyVisual.id)
     if (idleInterlude === displayedAction) {
       setIdleInterlude(undefined)
@@ -234,23 +236,28 @@ export function DesktopCompanionWindow() {
       void emitTo('main', 'companion:transient-ended', { state: displayedAction })
       return
     }
-    if (displayedAction !== 'idle' || snapshot.visual.type !== 'video') return
+    if (snapshot.visual.type !== 'video') return
+    if (displayedAction !== 'idle') {
+      const next = rotation.current.choose(`clips:${displayedAction}`, videoCandidates)
+      if (next === readyVisual.id) setPlaybackRevision((current) => current + 1)
+      else setSelectedVideoId(next)
+      return
+    }
     if (idleInterludeReady) {
-      const nextInterlude = chooseIdleInterlude(availableIdleInterludes(snapshot.visual), previousIdleInterlude.current)
+      const nextInterlude = rotation.current.choose('interludes', availableIdleInterludes(snapshot.visual))
       setIdleInterludeReady(false)
       if (nextInterlude) {
-        previousIdleInterlude.current = nextInterlude
         setIdleInterlude(nextInterlude)
         return
       }
     }
-    const nextIdle = chooseNextIdleClip(snapshot.visual, readyVisual.id)
+    const nextIdle = chooseNextIdleClip(snapshot.visual, readyVisual.id, Math.random, rotation.current)
     if (!nextIdle) return
     if (nextIdle === readyVisual.id) setPlaybackRevision((current) => current + 1)
     else setSelectedVideoId(nextIdle)
   }
   const hasIdleInterludes = snapshot.visual.type === 'video' && configuredIdleInterludes(snapshot.visual).length > 0
-  const loopVideo = !idleInterlude && isSustainedVideoState(displayedAction) && (displayedAction !== 'idle' || (videoCandidates.length < 2 && !hasIdleInterludes))
+  const loopVideo = !idleInterlude && isSustainedVideoState(displayedAction) && videoCandidates.length < 2 && (displayedAction !== 'idle' || !hasIdleInterludes)
   const visual = <>
     {readyVisual && (readyVisual.kind === 'video'
       ? <video className="desktop-media ready" key={readyVisual.instanceKey} style={videoStyle(readyVisual.id)} src={readyVisual.url} crossOrigin="anonymous" autoPlay loop={readyVisual.preview ? false : loopVideo} muted playsInline draggable={false} onEnded={(event) => advanceVideo(event.currentTarget)} />

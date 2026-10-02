@@ -13,7 +13,7 @@ import type { AgentRuntimeStatus } from './agent'
 import { createSpeechToTextProvider, createTextToSpeechProvider } from '../../infrastructure/companionVoiceProvider'
 import { syncBackgroundRuntime } from '../../infrastructure/backgroundRuntime'
 import { createComputerService } from '../../infrastructure/computerService'
-import { toSpokenText } from './speechText'
+import { createReplySpeechQueue, playAudioBlob } from './companionReplySpeech'
 import type { AgentPermissionRequest } from './agent/types'
 import { assertExternalAiAllowed } from '../trust/trustPolicy'
 import { PrivacySession, type PrivacyReviewRequest } from '../privacy'
@@ -22,37 +22,6 @@ import { usePlannerNotifications } from './usePlannerNotifications'
 const isTauri = () => '__TAURI_INTERNALS__' in window
 const chatWindowWidth = 350
 const chatWindowHeight = 480
-
-function playAudioBlob(blob: Blob, audioRef: { current: HTMLAudioElement | undefined }) {
-  return new Promise<void>((resolve, reject) => {
-    const url = URL.createObjectURL(blob)
-    const audio = new Audio(url)
-    audioRef.current = audio
-    let settled = false
-    const finish = () => {
-      if (settled) return
-      settled = true
-      if (audioRef.current === audio) audioRef.current = undefined
-      URL.revokeObjectURL(url)
-      resolve()
-    }
-    audio.onended = finish
-    audio.onerror = () => {
-      if (settled) return
-      settled = true
-      if (audioRef.current === audio) audioRef.current = undefined
-      URL.revokeObjectURL(url)
-      reject(new Error('VOICE_PLAYBACK_FAILED:语音播放失败'))
-    }
-    void audio.play().catch((error) => {
-      if (settled) return
-      settled = true
-      if (audioRef.current === audio) audioRef.current = undefined
-      URL.revokeObjectURL(url)
-      reject(error)
-    })
-  })
-}
 
 function nearestMonitor(monitors: Monitor[], x: number, y: number) {
   return monitors.reduce<Monitor | undefined>((nearest, monitor) => {
@@ -218,6 +187,7 @@ export function CompanionDesktopBridge() {
       audio?.pause()
       audio?.dispatchEvent(new Event('ended'))
       setVisualState(undefined)
+      setAgentStatus(undefined)
       void emitTo('companion-chat', 'companion:speech-state', { active: false, paused: false })
     }).then((stop) => { stopSpeech = stop })
     void listen<{ paused: boolean }>('companion:speech-pause', (event) => {
@@ -272,49 +242,29 @@ export function CompanionDesktopBridge() {
       const speechProvider = speechEnabled ? createTextToSpeechProvider(voice.tts) : undefined
       const speechPrivacy = new PrivacySession(trust.privateDictionary)
       const speechId = ++speechGeneration.current
-      let speechBuffer = ''
-      let speechQueue = Promise.resolve()
-      let synthesisQueue = Promise.resolve()
-      let spokenCharacters = 0
-      let speechClosed = false
-      let speechNoteSent = false
-      const closeLongSpeech = () => {
-        if (speechClosed) return
-        speechClosed = true
-        if (!speechNoteSent) {
-          speechNoteSent = true
-          void emitTo('companion-chat', 'companion:speech-note', { message: '回答较长，其余内容已静默呈现。' })
+      let responseVisualState: CompanionVideoState | undefined
+      const showResponseVisual = () => {
+        if (turn.signal.aborted || speechId !== speechGeneration.current) return
+        window.clearTimeout(resetStateTimer.current)
+        setAgentStatus(undefined)
+        setVisualState(responseVisualState)
+        if (responseVisualState && responseVisualState !== 'idle') {
+          resetStateTimer.current = window.setTimeout(() => setVisualState(undefined), isTransientVideoState(responseVisualState) ? 15_000 : responseVisualState === 'sleepy' ? 60_000 : 6000)
         }
       }
-      const queueSpeech = (text: string) => {
-        const spoken = toSpokenText(text)
-        if (!speechProvider || !spoken || speechClosed || speechId !== speechGeneration.current) return
-        if (spokenCharacters > 0 && spokenCharacters + spoken.length > speechLimit) { closeLongSpeech(); return }
-        spokenCharacters += spoken.length
-        const provider = speechProvider
-        const protectedText = trust.outboundProtection ? speechPrivacy.sanitize(spoken).text : spoken
-        const synthesis = synthesisQueue.then(() => provider.synthesize(protectedText))
-        synthesisQueue = synthesis.then(() => undefined, () => undefined)
-        speechQueue = speechQueue.then(async () => {
-          if (speechId !== speechGeneration.current) return
-          const blob = await synthesis
-          if (speechId !== speechGeneration.current) return
+      const speechQueue = createReplySpeechQueue({
+        provider: speechProvider,
+        limit: speechLimit,
+        sanitize: (text) => trust.outboundProtection ? speechPrivacy.sanitize(text).text : text,
+        isActive: () => speechId === speechGeneration.current,
+        onLimit: () => { void emitTo('companion-chat', 'companion:speech-note', { message: '回答较长，其余内容已静默呈现。' }) },
+        play: async (blob, spoken) => {
           window.clearTimeout(resetStateTimer.current)
           setVisualState('speaking')
           void emitTo('companion-chat', 'companion:speech-state', { active: true, paused: false, text: spoken })
           await playAudioBlob(blob, spokenAudio)
-        })
-      }
-      const flushSpeech = (final = false) => {
-        let match = speechBuffer.match(/^([\s\S]*?)([。！？!?；;]|\n\n)/)
-        while (match) {
-          queueSpeech(`${match[1]}${match[2]}`)
-          speechBuffer = speechBuffer.slice(match[0].length)
-          if (match[2] === '\n\n') closeLongSpeech()
-          match = speechBuffer.match(/^([\s\S]*?)([。！？!?；;]|\n\n)/)
-        }
-        if (final && speechBuffer.trim()) { queueSpeech(speechBuffer); speechBuffer = '' }
-      }
+        },
+      })
       void sendCompanionTurn(event.payload.message, {
         onStatus: (status) => { if (activeTurn.current === turn) setAgentStatus(status) },
         onTextDelta: (delta) => {
@@ -325,9 +275,7 @@ export function CompanionDesktopBridge() {
         },
         onVisualState: (state) => {
           if (activeTurn.current !== turn) return
-          window.clearTimeout(resetStateTimer.current)
-          setVisualState(state)
-          resetStateTimer.current = window.setTimeout(() => setVisualState(undefined), isTransientVideoState(state) ? 15_000 : state === 'sleepy' ? 60_000 : 6000)
+          responseVisualState = state
         },
         inputMode: event.payload.inputMode ?? 'text',
         voiceReplyLength: event.payload.wake ? 'short' : voice.replyLength,
@@ -361,16 +309,16 @@ export function CompanionDesktopBridge() {
         }
         const taskActive = useLibraryStore.getState().data.companion.tasks.some((task) => ['queued', 'preparing', 'running'].includes(task.status))
         if (taskActive) {
+          setAgentStatus(undefined)
           return
         }
-        speechBuffer = responseText
-        flushSpeech(true)
+        const spokenReply = speechQueue.speak(responseText)
         void emitTo('companion-chat', 'companion:stream-text', { text: '' })
-        if (!speechProvider) return
+        if (!speechProvider) { showResponseVisual(); return }
         setAgentStatus({ phase: 'responding' })
-        return speechQueue
+        return spokenReply
           .catch((error) => emitTo('companion-chat', 'companion:voice-error', { message: error instanceof Error ? error.message : '语音朗读失败' }))
-          .finally(() => { if (speechId === speechGeneration.current) { void emitTo('companion-chat', 'companion:speech-state', { active: false }); setVisualState(undefined); setAgentStatus(undefined) } })
+          .finally(() => { if (speechId === speechGeneration.current) { void emitTo('companion-chat', 'companion:speech-state', { active: false }); showResponseVisual() } })
       }).catch((error) => {
         if (turn.signal.aborted) return
         setAgentStatus({ phase: 'error', message: error instanceof Error ? error.message : '伙伴暂时无法回应' })

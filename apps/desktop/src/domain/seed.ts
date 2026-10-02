@@ -51,6 +51,7 @@ const legacyCompanionVideoStates: Record<string, CompanionVideoState> = {
   sad: 'concerned',
   annoyed: 'concerned',
   agreeing: 'nodding',
+  shoulder_relax: 'stretching',
 }
 const normalizeCompanionVideoState = (value: string): CompanionVideoState | undefined => legacyCompanionVideoStates[value] ?? (companionVideoStateSet.has(value) ? value as CompanionVideoState : undefined)
 const moodKinds: MoodKind[] = ['happy', 'satisfied', 'hopeful', 'relaxed', 'calm', 'empty', 'anxious', 'irritated', 'angry', 'sad', 'lonely', 'tired']

@@ -91,6 +91,21 @@ describe('library compatibility normalization', () => {
     expect(upgraded.settings.trust.outboundReviewMode).toBe('balanced')
     expect(upgraded.settings.trust.privateDictionary).toEqual([])
   })
+  it('merges retired shoulder clips into stretching without losing placement or bindings', () => {
+    const legacy = createSeedLibrary()
+    legacy.companion.desktop.videoAssets = { shoulder_relax: 'shoulder-legacy', stretching: 'stretch' } as unknown as LibraryData['companion']['desktop']['videoAssets']
+    legacy.companion.desktop.videoClips = { shoulder_relax: ['shoulder-1', 'shoulder-2'], stretching: ['stretch', 'shoulder-1'] } as unknown as LibraryData['companion']['desktop']['videoClips']
+    legacy.companion.desktop.visual = { type: 'video', videos: legacy.companion.desktop.videoAssets! }
+    legacy.companion.desktop.videoPlacements = { 'shoulder-1': { scale: 1.001, x: 2, y: -3 } }
+
+    const upgraded = normalizeLibrary(legacy)
+    expect(upgraded.companion.desktop.videoClips).toEqual({ stretching: ['shoulder-legacy', 'shoulder-1', 'shoulder-2', 'stretch'] })
+    expect(upgraded.companion.desktop.videoAssets).not.toHaveProperty('shoulder_relax')
+    expect(upgraded.companion.desktop.visual).toMatchObject({ type: 'video', clips: upgraded.companion.desktop.videoClips })
+    expect(upgraded.companion.desktop.videoPlacements).toEqual(legacy.companion.desktop.videoPlacements)
+    expect(normalizeLibrary(upgraded).companion.desktop.videoClips).toEqual(upgraded.companion.desktop.videoClips)
+  })
+
   it('moves the retired excited mood into empty without dropping its points', () => {
     const legacy = createSeedLibrary()
     legacy.planner.moodEntries = [{
