@@ -1,5 +1,5 @@
 import { ArrowRight, Feather } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { truthQuestions } from './questions'
 import { shuffledTruthDeck } from './truthDeck'
 import './truth.css'
@@ -18,12 +18,45 @@ function ThreadArt() {
 
 export function TruthView() {
   const [round, setRound] = useState(() => ({ deck: shuffledTruthDeck(), position: -1, number: 1 }))
+  const [rotation, setRotation] = useState(0)
+  const [turning, setTurning] = useState(false)
+  const turnLocked = useRef(false)
+  const turnTimers = useRef<number[]>([])
+  useEffect(() => () => turnTimers.current.forEach(window.clearTimeout), [])
   const revealed = round.position >= 0
   const questionIndex = revealed ? round.deck[round.position] : undefined
   const question = questionIndex === undefined ? '' : truthQuestions[questionIndex]
-  const advance = () => setRound((current) => current.position + 1 < current.deck.length
+  const drawNext = () => setRound((current) => current.position + 1 < current.deck.length
     ? { ...current, position: current.position + 1 }
     : { deck: shuffledTruthDeck(current.deck.at(-1)), position: 0, number: current.number + 1 })
+
+  const advance = () => {
+    if (turnLocked.current) return
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) {
+      drawNext()
+      setRotation((current) => current + (revealed ? 360 : 180))
+      return
+    }
+    turnLocked.current = true
+    setTurning(true)
+    turnTimers.current = []
+    if (revealed) {
+      // 先转到背面，再换题并翻回正面；新文字不会出现在旧卡面上。
+      setRotation((current) => current + 180)
+      turnTimers.current.push(window.setTimeout(() => {
+        drawNext()
+        setRotation((current) => current + 180)
+      }, 420))
+    } else {
+      drawNext()
+      setRotation((current) => current + 180)
+    }
+    turnTimers.current.push(window.setTimeout(() => {
+      turnLocked.current = false
+      setTurning(false)
+      turnTimers.current = []
+    }, 850))
+  }
 
   return <main className="truth-view" aria-labelledby="truth-title">
     <div className="truth-atmosphere" aria-hidden="true"><i /><i /><i /></div>
@@ -34,10 +67,10 @@ export function TruthView() {
     </header>
     <section className="truth-salon" aria-label="真心话抽卡">
       <div className="truth-side-note" aria-hidden="true"><span>不必急着回答</span><i /><small>留一点时间给真心</small></div>
-      <div className="truth-deck">
+      <div className="truth-deck" aria-busy={turning}>
         <div className="truth-stacked-card" aria-hidden="true" />
-        <div className={revealed ? 'truth-card turned' : 'truth-card'}>
-          <div className="truth-card-back" aria-hidden={revealed}>
+        <div className={revealed ? 'truth-card turned' : 'truth-card'} style={{ transform: `rotateY(${rotation}deg)`, transitionDuration: rotation > 180 ? '420ms' : undefined }}>
+          <div className="truth-card-back" aria-hidden={rotation % 360 !== 0}>
             <div className="truth-card-border" />
             <span className="truth-card-edition">THE UNSPOKEN · 150</span>
             <ThreadArt />
@@ -45,7 +78,7 @@ export function TruthView() {
             <p>把偶然翻开，把真心留下。</p>
             <span className="truth-card-star">✧</span>
           </div>
-          <div className="truth-card-front" aria-hidden={!revealed}>
+          <div className="truth-card-front" aria-hidden={rotation % 360 === 0}>
             <div className="truth-card-border" />
             <header><span>一张真心话</span><span>{questionIndex === undefined ? '—' : String(questionIndex + 1).padStart(3, '0')}</span></header>
             <span className="truth-front-ornament" aria-hidden="true">✧</span>
@@ -57,11 +90,11 @@ export function TruthView() {
       <div className="truth-side-note truth-side-note-right" aria-hidden="true"><span>只在此刻发生</span><i /><small>不留下回答的痕迹</small></div>
     </section>
     <div className="truth-controls">
-      <button type="button" className="truth-draw" onClick={advance}>{revealed ? '下一张' : '翻开一张'}<ArrowRight size={16} strokeWidth={1.4} aria-hidden="true" /></button>
-      {revealed && <button type="button" className="truth-skip" onClick={advance}>这题先跳过</button>}
+      <button type="button" className="truth-draw" onClick={advance} disabled={turning}>{revealed ? '下一张' : '翻开一张'}<ArrowRight size={16} strokeWidth={1.4} aria-hidden="true" /></button>
+      {revealed && <button type="button" className="truth-skip" onClick={advance} disabled={turning}>这题先跳过</button>}
     </div>
     <p className="truth-progress" role="status">{revealed ? `第 ${round.number} 轮 · 已翻开 ${round.position + 1} / ${truthQuestions.length} 张` : '150 个问题 · 本轮不重复'}</p>
-    <p className="truth-accessible-question" role="status" aria-live="polite" aria-atomic="true">{question}</p>
+    <p className="truth-accessible-question" role="status" aria-live="polite" aria-atomic="true">{turning ? '' : question}</p>
     <footer className="truth-page-footer"><span>适合两个人，也适合一桌朋友。</span><span>不记录回答 · 无需联网</span></footer>
   </main>
 }

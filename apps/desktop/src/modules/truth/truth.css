@@ -50,6 +50,7 @@
 .truth-card-front > footer { position: relative; display: flex; width: 100%; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px solid #a5758226; color: #866975; font: 9px/1.6 var(--serif); letter-spacing: .16em; }
 .truth-controls { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; margin-top: 23px; }
 .truth-controls button { display: inline-flex; align-items: center; justify-content: center; gap: 17px; min-height: 42px; padding: 10px 23px; border-radius: 24px; font: 11px/1.6 var(--serif); letter-spacing: .1em; transition: background .2s, transform .2s; }
+.truth-controls button:disabled { cursor: default; opacity: .6; transform: none; }
 .truth-draw { color: #fff3e5; background: var(--truth-plum); box-shadow: 0 7px 20px #60394b20; }
 .truth-draw:hover { background: #76475c; transform: translateY(-1px); }
 .truth-skip { color: var(--ink-soft); background: color-mix(in srgb, var(--surface) 65%, transparent); border: 1px solid var(--line); }
