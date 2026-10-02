@@ -16,6 +16,7 @@ const settings = {
 
 describe('content backgrounds', () => {
   it('selects the image assigned to each page scene', () => {
+    expect(backgroundSceneForView('truth')).toBe('immersive')
     expect(backgroundSceneForView('home')).toBe('daily')
     expect(resolveContentBackground(settings, 'home').image).toBe('data:image/png;base64,daily')
     expect(resolveContentBackground(settings, 'diary').image).toBe('data:image/png;base64,creation')

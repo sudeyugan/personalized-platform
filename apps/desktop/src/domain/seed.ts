@@ -162,9 +162,10 @@ export function createSeedLibrary(): LibraryData {
         { id: 'music', enabled: true, available: true },
         { id: 'companion', enabled: true, available: true },
         { id: 'answerBook', enabled: true, available: true },
+        { id: 'truth', enabled: true, available: true },
       ],
       layoutProfile: 'writing',
-      navigationOrder: ['home', 'answerBook', 'calendar', 'todos', 'writing', 'diary', 'people', 'places', 'timeline', 'assets', 'music', 'help', 'settings'],
+      navigationOrder: ['home', 'answerBook', 'truth', 'calendar', 'todos', 'writing', 'diary', 'people', 'places', 'timeline', 'assets', 'music', 'help', 'settings'],
       backgrounds: { images: {}, sidebarMode: 'decoration' },
       ai: { providerId: 'mock', endpoint: '', model: 'mock-illustration-v1', stylePreset: '温暖手绘' },
       webSearch: { providerId: 'tencent', fallbackToBing: true },
@@ -211,7 +212,7 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
   const modules = seed.settings.modules.map((defaultModule) => {
     const stored = storedModules.find((module) => module.id === defaultModule.id)
     const merged = stored ? { ...defaultModule, ...stored } : defaultModule
-    return merged.id === 'music' || merged.id === 'companion' || merged.id === 'answerBook' ? { ...merged, available: true } : merged
+    return merged.id === 'music' || merged.id === 'companion' || merged.id === 'answerBook' || merged.id === 'truth' ? { ...merged, available: true } : merged
   })
   const navigationOrder = [...new Set((data.settings.navigationOrder ?? seed.settings.navigationOrder).map((view) => (view as string) === 'journal' ? 'calendar' as const : view))]
   if (!navigationOrder.includes('assets')) navigationOrder.splice(Math.max(0, navigationOrder.indexOf('settings')), 0, 'assets')
@@ -219,6 +220,7 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
   if (!navigationOrder.includes('music')) navigationOrder.splice(Math.max(0, navigationOrder.indexOf('help')), 0, 'music')
   if (!navigationOrder.includes('calendar')) navigationOrder.splice(1, 0, 'calendar')
   if (!navigationOrder.includes('answerBook')) navigationOrder.splice(Math.max(0, navigationOrder.indexOf('home') + 1), 0, 'answerBook')
+  if (!navigationOrder.includes('truth')) navigationOrder.splice(navigationOrder.indexOf('answerBook') + 1, 0, 'truth')
   if (!navigationOrder.includes('diary')) navigationOrder.splice(Math.max(0, navigationOrder.indexOf('people')), 0, 'diary')
   if (!navigationOrder.includes('todos')) navigationOrder.splice(Math.max(2, navigationOrder.indexOf('writing')), 0, 'todos')
   const storedPlanner = data.planner ?? { courses: [], diaryEntries: [], moodEntries: [], todos: [], holidayDates: [], dailyQuestions: [], calendarEvents: [], term: seed.planner.term }

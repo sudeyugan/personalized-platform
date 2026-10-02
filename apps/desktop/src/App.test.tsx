@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import App from './App'
 import { createSeedLibrary } from './domain/seed'
@@ -8,6 +8,23 @@ describe('App', () => {
   beforeEach(() => {
     localStorage.clear()
     useLibraryStore.setState({ data: createSeedLibrary(), ready: false, saveStatus: 'idle', health: null, recoveryDrafts: {}, playback: { playing: false, context: 'global', queue: [] }, temporaryCompanionWorkIds: [] })
+  })
+
+  it('opens truth cards and persists the module switch without collecting answers', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '真心话' }))
+    fireEvent.click(await screen.findByRole('button', { name: '翻开一张' }))
+    expect(document.querySelector('.truth-question blockquote')?.textContent).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '设置' }))
+    fireEvent.click(await screen.findByRole('button', { name: '启用真心话' }))
+    expect(screen.getByRole('button', { name: '启用真心话' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByRole('button', { name: '真心话' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '启用真心话' }))
+    fireEvent.click(screen.getByRole('button', { name: '真心话' }))
+    expect(await screen.findByRole('button', { name: '翻开一张' })).toBeInTheDocument()
+    await act(async () => { useLibraryStore.getState().toggleModule('truth') })
+    expect(useLibraryStore.getState().data.session.activeView).toBe('home')
+    expect(document.querySelector('.truth-view')).not.toBeInTheDocument()
   })
 
   it('opens the quiet home workspace', async () => {

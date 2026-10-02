@@ -8,6 +8,7 @@ import { PlaybackDock } from '../modules/music/PlaybackDock'
 
 const HomeView = lazy(() => import('../modules/home/HomeView').then((module) => ({ default: module.HomeView })))
 const AnswerBookView = lazy(() => import('../modules/answer-book/AnswerBookView').then((module) => ({ default: module.AnswerBookView })))
+const TruthView = lazy(() => import('../modules/truth/TruthView').then((module) => ({ default: module.TruthView })))
 const CalendarScheduleView = lazy(() => import('../modules/planner/CalendarScheduleView').then((module) => ({ default: module.CalendarScheduleView })))
 const DiaryView = lazy(() => import('../modules/planner/DiaryView').then((module) => ({ default: module.DiaryView })))
 const TodoView = lazy(() => import('../modules/planner/TodoView').then((module) => ({ default: module.TodoView })))
@@ -38,7 +39,8 @@ export function AppShell() {
   const writingEnabled = data.settings.modules.find((module) => module.id === 'writing')?.enabled ?? true
   const musicEnabled = data.settings.modules.find((module) => module.id === 'music')?.enabled ?? false
   const answerBookEnabled = data.settings.modules.find((module) => module.id === 'answerBook')?.enabled ?? true
-  const orderedNavigation = data.settings.navigationOrder.map((id) => navigationItems.find((item) => item.id === id)).filter((item) => item && (item.group !== 'writing' || writingEnabled) && (item.id !== 'music' || musicEnabled) && (item.id !== 'answerBook' || answerBookEnabled))
+  const truthEnabled = data.settings.modules.find((module) => module.id === 'truth')?.enabled ?? true
+  const orderedNavigation = data.settings.navigationOrder.map((id) => navigationItems.find((item) => item.id === id)).filter((item) => item && (item.group !== 'writing' || writingEnabled) && (item.id !== 'music' || musicEnabled) && (item.id !== 'answerBook' || answerBookEnabled) && (item.id !== 'truth' || truthEnabled))
   const writingViewActive = navigationItems.some((item) => item.group === 'writing' && item.id === activeView)
   const contentBackground = resolveContentBackground(data.settings, activeView)
   const sidebarBackground = data.settings.backgrounds.images.sidebar
@@ -53,6 +55,7 @@ export function AppShell() {
   const view = (() => {
     if (activeView === 'home') return <HomeView />
     if (activeView === 'answerBook') return <AnswerBookView />
+    if (activeView === 'truth') return truthEnabled ? <TruthView /> : <HomeView />
     if (activeView === 'calendar') return <CalendarScheduleView />
     if (activeView === 'diary') return <DiaryView />
     if (activeView === 'todos') return <TodoView />

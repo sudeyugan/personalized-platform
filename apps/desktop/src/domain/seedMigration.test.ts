@@ -59,7 +59,7 @@ describe('library compatibility normalization', () => {
     const upgraded = normalizeLibrary(legacy)
 
     expect(upgraded.chapters['chapter-welcome'].plainText).toBe(originalText)
-    expect(upgraded.settings.navigationOrder).toEqual(['home', 'answerBook', 'calendar', 'todos', 'writing', 'diary', 'people', 'places', 'timeline', 'assets', 'music', 'help', 'settings'])
+    expect(upgraded.settings.navigationOrder).toEqual(['home', 'answerBook', 'truth', 'calendar', 'todos', 'writing', 'diary', 'people', 'places', 'timeline', 'assets', 'music', 'help', 'settings'])
     expect(upgraded.session.activeView).toBe('calendar')
     expect(upgraded.assets).toEqual([])
     expect(upgraded.aiGenerations).toEqual([])

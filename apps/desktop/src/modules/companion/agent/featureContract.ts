@@ -19,6 +19,7 @@ export interface AgentFeatureContract {
 export const agentFeatureContracts: Record<ViewId, AgentFeatureContract> = {
   home: { id: 'daily', view: 'home', description: '首页、朝问与情绪回望', readScope: 'mood', destinations: ['home', 'mood.reflection'], tools: ['mood.get_day', 'mood.get_summary', 'daily_question.list'] },
   answerBook: { id: 'answer-book', view: 'answerBook', description: '答案之书收藏', readScope: 'answer_book', destinations: ['answer_book'], tools: ['answer_book.list_favorites'] },
+  truth: { id: 'truth', view: 'truth', description: '本地真心话抽卡（不收集回答、不向伙伴开放）', readScope: 'none', destinations: [], tools: [] },
   calendar: { id: 'calendar', view: 'calendar', description: '日历、事务与课表', readScope: 'calendar', destinations: ['calendar.day', 'calendar.schedule'], tools: ['calendar.list_events', 'course.list'] },
   todos: { id: 'todos', view: 'todos', description: '待办与周期任务', readScope: 'todos', destinations: ['todos'], tools: ['todo.list'] },
   writing: { id: 'writing', view: 'writing', description: '作品与章节写作', readScope: 'chapters', destinations: ['writing.chapter'], tools: ['work.get_current', 'chapter.search', 'chapter.get'] },

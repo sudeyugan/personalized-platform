@@ -1,7 +1,7 @@
 import type { JSONContent } from '@tiptap/react'
 
 export type ThemeId = 'warm' | 'light' | 'dark'
-export type ViewId = 'home' | 'answerBook' | 'calendar' | 'todos' | 'writing' | 'diary' | 'people' | 'places' | 'timeline' | 'assets' | 'music' | 'help' | 'settings'
+export type ViewId = 'home' | 'answerBook' | 'truth' | 'calendar' | 'todos' | 'writing' | 'diary' | 'people' | 'places' | 'timeline' | 'assets' | 'music' | 'help' | 'settings'
 export type BackgroundSlot = 'default' | 'daily' | 'creation' | 'immersive' | 'sidebar'
 export type SidebarBackgroundMode = 'soft' | 'decoration'
 
@@ -428,7 +428,7 @@ export interface PersonRelation { id: string; fromPersonId: string; toPersonId: 
 export interface EntityLink { id: string; sourceType: EntityType; sourceId: string; targetType: EntityType; targetId: string; relationType: 'mentions' | 'occurs_at' | 'involves' | 'related'; anchor?: TextAnchor; createdAt: string }
 
 export interface ModuleSetting {
-  id: 'writing' | 'music' | 'companion' | 'answerBook'
+  id: 'writing' | 'music' | 'companion' | 'answerBook' | 'truth'
   enabled: boolean
   available: boolean
 }

@@ -1,0 +1,82 @@
+.truth-view {
+  --truth-plum: #60394b;
+  --truth-gold: #dbc59e;
+  --truth-paper: #fcf5e9;
+  --truth-text: #563b43;
+  position: relative;
+  isolation: isolate;
+  height: 100%;
+  overflow: auto;
+  padding: clamp(26px, 4vh, 50px) clamp(18px, 4vw, 60px) 22px;
+  color: var(--ink);
+  background: radial-gradient(ellipse at 50% 44%, color-mix(in srgb, #bb8690 16%, transparent), transparent 67%);
+}
+.truth-atmosphere { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.truth-atmosphere::before { content: ''; position: absolute; width: 540px; height: 540px; top: 100px; left: calc(50% - 270px); border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, #bf9a83 16%, transparent), transparent 70%); }
+.truth-atmosphere i { position: absolute; width: 690px; height: 690px; left: calc(50% - 345px); top: 60px; border: 1px solid color-mix(in srgb, #a57582 12%, transparent); border-radius: 50%; }
+.truth-atmosphere i:nth-child(2) { width: 760px; height: 760px; left: calc(50% - 380px); top: 25px; }
+.truth-atmosphere i:nth-child(3) { width: 920px; height: 920px; left: calc(50% - 460px); top: -55px; border-style: dashed; opacity: .4; }
+.truth-header { max-width: 900px; margin: 0 auto 26px; text-align: center; }
+.truth-eyebrow { color: var(--ink-soft); font-size: 10px; letter-spacing: .3em; }
+.truth-header h1 { margin: 14px 0 0; font: 400 clamp(30px, 3.5vw, 42px)/1.4 "Songti SC", SimSun, serif; letter-spacing: .22em; }
+.truth-header h1 span { display: block; margin-top: 11px; color: var(--ink-soft); font: 11px/1.8 var(--serif); letter-spacing: .15em; }
+.truth-header > p { margin: 6px 0 0; color: var(--ink-soft); font-size: 10px; letter-spacing: .08em; }
+.truth-salon { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 360px) minmax(0, 1fr); gap: 30px; align-items: center; max-width: 900px; margin: 0 auto; padding: 10px 0 16px; }
+.truth-side-note { display: flex; align-items: center; gap: 18px; justify-self: center; writing-mode: vertical-rl; color: var(--ink-soft); font: 11px/1.5 "Songti SC", SimSun, serif; letter-spacing: .28em; }
+.truth-side-note i { width: 1px; height: 56px; background: linear-gradient(transparent, color-mix(in srgb, #a57582 40%, transparent), transparent); }
+.truth-side-note small { font-size: 9px; opacity: .75; }
+.truth-side-note-right { transform: translateY(30px); }
+.truth-deck { position: relative; width: 100%; perspective: 1400px; }
+.truth-stacked-card { position: absolute; inset: 4px 1px -5px; border: 1px solid color-mix(in srgb, var(--truth-gold) 38%, var(--truth-plum)); border-radius: 19px; background: var(--truth-plum); transform: rotate(-3deg); box-shadow: 0 24px 50px #44273626; }
+.truth-card { position: relative; height: 430px; transform-style: preserve-3d; transition: transform .85s cubic-bezier(.22, .7, .15, 1); }
+.truth-card.turned { transform: rotateY(180deg); }
+.truth-card-back, .truth-card-front { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; overflow: hidden; border-radius: 18px; backface-visibility: hidden; -webkit-backface-visibility: hidden; box-shadow: 0 12px 38px #4427361c; }
+.truth-card-border { position: absolute; inset: 13px; border: 1px solid currentColor; border-radius: 10px; opacity: .28; pointer-events: none; }
+.truth-card-back { color: var(--truth-gold); background: radial-gradient(ellipse at 30% 10%, #98738344, transparent 65%), linear-gradient(145deg, #694253, #422734); }
+.truth-card-back::before, .truth-card-front::before { content: ''; position: absolute; inset: 0; opacity: .18; background: repeating-linear-gradient(112deg, transparent 0 3px, #decbae16 3px 4px); pointer-events: none; }
+.truth-card-edition { position: relative; margin-top: 35px; color: #e1cdb0; font-size: 8px; letter-spacing: .3em; }
+.truth-thread-art { position: absolute; top: 57px; width: 245px; height: 283px; stroke: var(--truth-gold); stroke-width: .7; opacity: .45; }
+.truth-thread-art path { stroke-width: 1; }
+.truth-back-title { position: relative; display: flex; align-items: center; justify-content: center; gap: 22px; flex: 1; padding-top: 8px; font: 400 39px/1.5 "Songti SC", SimSun, serif; text-shadow: 0 2px 15px #311720; }
+.truth-back-title span:nth-child(2) { transform: translateY(21px); }
+.truth-card-back > p { position: relative; margin: 0 0 16px; font: 10px/1.8 var(--serif); letter-spacing: .2em; }
+.truth-card-star { margin-bottom: 30px; font-size: 21px; line-height: 1; }
+.truth-card-front { transform: rotateY(180deg); padding: 32px; color: var(--truth-text); background: radial-gradient(ellipse at 90% 10%, #e7c9ba66, transparent 60%), linear-gradient(145deg, #fffaf0, var(--truth-paper)); }
+.truth-card-front > header { position: relative; display: flex; justify-content: space-between; width: 100%; color: #866975; font: 9px/1.8 var(--serif); letter-spacing: .15em; }
+.truth-card-front > header span:last-child { font: italic 15px Georgia, serif; }
+.truth-front-ornament { position: relative; margin-top: 24px; color: #ac7c88; font-size: 26px; }
+.truth-question { position: relative; display: grid; align-items: center; flex: 1; width: 100%; min-height: 0; animation: truth-ink-in .45s ease-out both; }
+.truth-question blockquote { margin: 12px 0 22px; overflow-wrap: anywhere; text-align: center; text-wrap: pretty; font: 400 clamp(20px, 2vw, 25px)/1.95 "Songti SC", SimSun, serif; letter-spacing: .07em; }
+.truth-card-front > footer { position: relative; display: flex; width: 100%; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px solid #a5758226; color: #866975; font: 9px/1.6 var(--serif); letter-spacing: .16em; }
+.truth-controls { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; margin-top: 23px; }
+.truth-controls button { display: inline-flex; align-items: center; justify-content: center; gap: 17px; min-height: 42px; padding: 10px 23px; border-radius: 24px; font: 11px/1.6 var(--serif); letter-spacing: .1em; transition: background .2s, transform .2s; }
+.truth-draw { color: #fff3e5; background: var(--truth-plum); box-shadow: 0 7px 20px #60394b20; }
+.truth-draw:hover { background: #76475c; transform: translateY(-1px); }
+.truth-skip { color: var(--ink-soft); background: color-mix(in srgb, var(--surface) 65%, transparent); border: 1px solid var(--line); }
+.truth-skip:hover { color: var(--ink); background: var(--surface); }
+.truth-progress { margin: 14px 0 0; text-align: center; color: var(--ink-soft); font-size: 9px; letter-spacing: .14em; }
+.truth-page-footer { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 20px; max-width: 900px; margin: 28px auto 0; color: var(--ink-soft); font-size: 9px; line-height: 1.8; }
+.truth-accessible-question { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.module-icon.truth { color: #936175; background: color-mix(in srgb, #ae7c8d 14%, var(--surface)); }
+:root[data-theme='dark'] .truth-view { --truth-paper: #382e31; --truth-text: #eee1d4; }
+:root[data-theme='dark'] .truth-card-front { background: radial-gradient(ellipse at 90% 10%, #875a6933, transparent 60%), linear-gradient(145deg, #44363d, var(--truth-paper)); }
+:root[data-theme='dark'] .truth-card-front > header, :root[data-theme='dark'] .truth-card-front > footer { color: #c5aab3; }
+:root[data-theme='dark'] .truth-front-ornament { color: #c89ba9; }
+@keyframes truth-ink-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 700px) {
+  .truth-salon { grid-template-columns: minmax(0, 360px); justify-content: center; gap: 0; }
+  .truth-side-note { display: none; }
+  .truth-header { margin-bottom: 20px; }
+}
+@media (max-width: 420px) {
+  .truth-view { padding-inline: 20px; }
+  .truth-card { height: 420px; }
+  .truth-card-front { padding: 29px 25px; }
+  .truth-question blockquote { font-size: 21px; }
+  .truth-controls { gap: 8px; }
+  .truth-controls button { padding-inline: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .truth-card, .truth-controls button { transition: none; }
+  .truth-question { animation: none; }
+}

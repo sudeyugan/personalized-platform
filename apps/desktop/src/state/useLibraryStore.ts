@@ -427,6 +427,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       (moduleId === 'writing' && ['writing', 'diary', 'people', 'places', 'timeline', 'assets'].includes(current.session.activeView))
       || (moduleId === 'music' && current.session.activeView === 'music')
       || (moduleId === 'answerBook' && current.session.activeView === 'answerBook')
+      || (moduleId === 'truth' && current.session.activeView === 'truth')
     )
     const session = hidesActiveView
       ? { ...current.session, activeView: 'home' as const }
