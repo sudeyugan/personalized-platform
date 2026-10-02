@@ -173,6 +173,38 @@ describe('response expression timing', () => {
     await sendEvent('companion:chat-send', { message: '庆祝一下' })
   }
 
+  it('starts listening as soon as wake succeeds even when showing would otherwise greet', async () => {
+    const data = useLibraryStore.getState().data
+    data.companion.desktop.visible = false
+    data.companion.desktop.visual = { type: 'video', videos: { greeting: 'greet', idle: 'base', listening: 'listen' } }
+    await act(async () => { render(<CompanionDesktopBridge />) })
+    expect(lastSnapshot().action).toBe('idle')
+    await sendEvent('companion:voice-show-request')
+    expect(useLibraryStore.getState().data.companion.desktop.visible).toBe(true)
+    expect(lastSnapshot().action).toBe('listening')
+    await sendEvent('companion:voice-session-ended')
+    expect(lastSnapshot().action).toBe('idle')
+  })
+
+  it('clears an old expression timeout on wake and lets speaking take over', async () => {
+    useLibraryStore.getState().data.companion.voice.autoSpeak = false
+    await mountAndSend()
+    expect(lastSnapshot().action).toBe('celebrating')
+    await sendEvent('companion:voice-show-request')
+    await act(async () => vi.advanceTimersByTime(15_000))
+    expect(lastSnapshot().action).toBe('listening')
+    await act(async () => {
+      const data = useLibraryStore.getState().data
+      useLibraryStore.setState({ data: { ...data, companion: { ...data.companion, voice: { ...data.companion.voice, autoSpeak: true } } } })
+    })
+    await sendEvent('companion:chat-send', { message: '请回答' })
+    expect(lastSnapshot().action).toBe('speaking')
+    await sendEvent('companion:voice-session-ended')
+    expect(lastSnapshot().action).toBe('speaking')
+    await act(async () => { audio[0].onended?.() })
+    expect(lastSnapshot().action).toBe('celebrating')
+  })
+
   it('keeps speaking until audio ends, then plays the selected semantic reaction', async () => {
     await mountAndSend()
     expect(lastSnapshot().action).toBe('speaking')

@@ -127,8 +127,14 @@ export function CompanionDesktopBridge() {
       void emitTo('companion-chat', 'companion:speech-state', { active: false, paused: false })
     }
     void listen('companion:hide-request', () => setCompanionDesktop(false)).then((stop) => { stopHide = stop })
-    void listen('companion:voice-show-request', () => { setDesktopModeOverride('interactive'); setCompanionDesktop(true) }).then((stop) => { stopVoiceShow = stop })
+    void listen('companion:voice-show-request', () => {
+      window.clearTimeout(resetStateTimer.current)
+      setVisualState('listening')
+      setDesktopModeOverride('interactive')
+      setCompanionDesktop(true)
+    }).then((stop) => { stopVoiceShow = stop })
     void listen('companion:voice-session-ended', () => {
+      if (visualStateRef.current === 'listening') setVisualState(undefined)
       setDesktopModeOverride(undefined)
       chatVisible.current = false
       void windows().then((pair) => pair.chat?.hide())
@@ -371,7 +377,7 @@ export function CompanionDesktopBridge() {
     const visible = data.companion.desktop.visible
     const becameVisible = visible && !wasDesktopVisible.current
     wasDesktopVisible.current = visible
-    if (becameVisible && Date.now() - lastGreetingAt.current >= 2 * 60 * 60 * 1000 && configuredClipsForState(snapshotRef.current.visual, 'greeting').length > 0) {
+    if (becameVisible && visualStateRef.current !== 'listening' && Date.now() - lastGreetingAt.current >= 2 * 60 * 60 * 1000 && configuredClipsForState(snapshotRef.current.visual, 'greeting').length > 0) {
       lastGreetingAt.current = Date.now()
       window.clearTimeout(resetStateTimer.current)
       setVisualState('greeting')

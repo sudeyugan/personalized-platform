@@ -8,7 +8,7 @@ import { CompanionVideoAssetRow } from './CompanionVideoAssetRow'
 
 const videoStates: { id: CompanionVideoState; label: string; hint: string }[] = [
   { id: 'idle', label: '待机', hint: '第 1 段为基础 idle，其余为轻变化 idle' },
-  { id: 'listening', label: '倾听', hint: '用户说话时' },
+  { id: 'listening', label: '倾听', hint: '唤醒成功或用户说话时' },
   { id: 'speaking', label: '说话 / 回应', hint: '回复生成或 TTS 播放时' },
   { id: 'clothes_adjust', label: '整理衣服', hint: '待机时均衡穿插' },
   { id: 'hands_behind_sway', label: '双手背后轻摇', hint: '待机时均衡穿插' },
