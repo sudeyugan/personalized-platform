@@ -46,6 +46,7 @@ export function createCompanionSlice(get: () => LibraryStore, set: SetStore): Pi
       const current = get().data
       commit({ ...current, companion: { ...current.companion, desktop: {
         ...current.companion.desktop, pixelPetEnabled, visible: pixelPetEnabled || current.companion.desktop.visible,
+        mode: pixelPetEnabled && current.companion.desktop.mode === 'quiet' ? 'interactive' : current.companion.desktop.mode,
       } } }, set)
     },
     setCompanionDesktopMode: (mode) => { const current = get().data; commit({ ...current, companion: { ...current.companion, desktop: { ...current.companion.desktop, mode } } }, set) },

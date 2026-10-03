@@ -11,7 +11,7 @@ interface Props {
   pixelRatio?: number
   active?: boolean
 }
-export function PixelPetRenderer({ pointer, pose = 'right-edge', scale = 2, pixelRatio = 1, active = true }: Props) {
+export function PixelPetRenderer({ pointer, pose = 'right-edge', scale = 1, pixelRatio = 1, active = true }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     const element = canvas.current

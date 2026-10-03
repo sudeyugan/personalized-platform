@@ -6,10 +6,10 @@ type PetWindow = Pick<ReturnType<typeof getCurrentWindow>, 'outerPosition' | 'ou
 export interface PixelLayout { scale: number; pixelRatio: number; ready: boolean }
 export function createPixelWindowLayout(appWindow: PetWindow, monitors = availableMonitors) {
   let original: WindowGeometry | undefined
-  let queue: Promise<PixelLayout> = Promise.resolve({ scale: 2, pixelRatio: 1, ready: false })
+  let queue: Promise<PixelLayout> = Promise.resolve({ scale: 1, pixelRatio: 1, ready: false })
   return {
     apply(enabled: boolean): Promise<PixelLayout> {
-      queue = queue.catch(() => ({ scale: 2, pixelRatio: 1, ready: false })).then(async () => {
+      queue = queue.catch(() => ({ scale: 1, pixelRatio: 1, ready: false })).then(async () => {
         if (!enabled) {
           if (original) {
             const saved = original
@@ -18,7 +18,7 @@ export function createPixelWindowLayout(appWindow: PetWindow, monitors = availab
             await appWindow.setPosition(new PhysicalPosition(saved.position.x, saved.position.y))
             original = undefined
           }
-          return { scale: 2, pixelRatio: 1, ready: false }
+          return { scale: 1, pixelRatio: 1, ready: false }
         }
         const [position, size, all] = await Promise.all([appWindow.outerPosition(), appWindow.outerSize(), monitors()])
         const monitor = nearestPixelMonitor(all, { position, size })

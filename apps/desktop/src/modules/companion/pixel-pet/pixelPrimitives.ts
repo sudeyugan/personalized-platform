@@ -27,9 +27,11 @@ export function polygon(ctx: CanvasRenderingContext2D, color: string, points: re
   }
 }
 export const palette = {
-  outline: '#444653', hairShadow: '#8499b9', hairDeep: '#607b9f', hairMid: '#bbcee2',
-  hair: '#dde6f1', hairLight: '#f6f5fa', skinShadow: '#d9a5ab', skin: '#f5d8d0',
-  skinLight: '#ffe9dd', blush: '#e9b3c1', ink: '#242a38', inkLight: '#495166',
-  white: '#f2f3f8', clothShadow: '#c3d3e5', blue: '#649ccc', blueDeep: '#3f5f99',
-  eye: '#74b7e1', eyeLight: '#b5e5f5', pupil: '#284d7d',
+  outline: '#7f849b', hairShadow: '#a9b6cf', hairDeep: '#8c9fbe', hairMid: '#ccd5e5',
+  hair: '#e5e8f1', hairLight: '#faf7fb', hairGlint: '#ffffff',
+  skinOutline: '#c3a0a9', skinShadow: '#ebc0bf', skin: '#f8dcd0',
+  skinLight: '#ffede0', blush: '#efc2c9', lash: '#594855',
+  ink: '#30313f', inkLight: '#535467', white: '#f7f5fa',
+  clothShadow: '#c7d1e3', clothMid: '#e3e6f1', blue: '#8db8e7', blueDeep: '#5d79b0',
+  eye: '#83bbe8', eyeLight: '#c1e5fa', pupil: '#426591',
 } as const

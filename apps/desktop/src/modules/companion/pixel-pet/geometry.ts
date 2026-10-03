@@ -21,7 +21,7 @@ export function rightEdgeGeometry(monitor: PixelMonitor) {
   const { position, size } = monitor.workArea
   const factor = monitor.scaleFactor > 0 ? monitor.scaleFactor : 1
   // Integral *physical* pixels, even at Windows 125% / 150% scaling.
-  const scale = Math.max(1, Math.min(Math.round(2 * factor), Math.floor(size.width / PIXEL_PET_SIZE.width), Math.floor(size.height / PIXEL_PET_SIZE.height)))
+  const scale = Math.max(1, Math.min(Math.round(factor), Math.floor(size.width / PIXEL_PET_SIZE.width), Math.floor(size.height / PIXEL_PET_SIZE.height)))
   const width = PIXEL_PET_SIZE.width * scale
   const height = PIXEL_PET_SIZE.height * scale
   return { scale, position: { x: position.x + size.width - width, y: position.y + Math.round((size.height - height) * 0.45) }, size: { width, height } }

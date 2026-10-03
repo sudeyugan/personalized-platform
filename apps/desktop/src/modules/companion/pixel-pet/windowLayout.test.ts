@@ -18,7 +18,7 @@ describe('pixel pet reversible window layout', () => {
     const { appWindow, controller } = fixture()
     const enter = controller.apply(true)
     const leave = controller.apply(false)
-    expect(await enter).toEqual({ scale: 3, pixelRatio: 1.25, ready: true })
+    expect(await enter).toEqual({ scale: 1, pixelRatio: 1.25, ready: true })
     expect((await leave).ready).toBe(false)
     expect(appWindow.setPosition).toHaveBeenLastCalledWith(expect.objectContaining({ x: 300, y: 100 }))
     expect(appWindow.setSize).toHaveBeenLastCalledWith(expect.objectContaining({ width: 270, height: 480 }))

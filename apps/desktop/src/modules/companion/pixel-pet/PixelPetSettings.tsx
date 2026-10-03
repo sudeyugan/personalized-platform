@@ -3,16 +3,17 @@ import { useLibraryStore } from '../../../state/useLibraryStore'
 import { PixelPetRenderer } from './PixelPetRenderer'
 
 export function PixelPetSettings() {
-  const { data, setCompanionPixelPet } = useLibraryStore()
+  const { data, setCompanionPixelPet, setCompanionDesktopMode } = useLibraryStore()
   const [previewOpen, setPreviewOpen] = useState(false)
   const enabled = data.companion.desktop.pixelPetEnabled ?? false
   return <div>
     <div className="setting-row companion-shortcut-row">
-      <div><strong>像素桌宠 · 实验原型</strong><span>右侧扒边、鼠标视线追踪；不修改已有立绘和 WebM 素材</span></div>
+      <div><strong>像素桌宠 · 实验原型</strong><span>小尺寸右侧扒边，按住角色拖动；不修改已有立绘和 WebM 素材</span></div>
       <label className="shortcut-picker"><span>渲染模式</span><select aria-label="伙伴渲染模式" value={enabled ? 'pixel-pet' : 'webm'} onChange={(event) => setCompanionPixelPet(event.target.value === 'pixel-pet')}>
         <option value="webm">WebM Mode / 原角色</option><option value="pixel-pet">Pixel Pet Mode</option>
       </select></label>
     </div>
+    {enabled && data.companion.desktop.mode === 'quiet' && <div className="setting-row"><div><strong>当前为安静穿透</strong><span>穿透模式不会接收拖动或点击。</span></div><button className="ghost-button" onClick={() => setCompanionDesktopMode('interactive')}>开启鼠标互动</button></div>}
     {enabled && <details open={previewOpen} onToggle={(event) => setPreviewOpen(event.currentTarget.open)}><summary>查看像素造型</summary>{previewOpen && <div className="pixel-pet-preview"><PixelPetRenderer scale={1} /></div>}<small>此处预览追踪页面内鼠标；桌面版追踪屏幕鼠标。只实现右侧扒边。</small></details>}
   </div>
 }

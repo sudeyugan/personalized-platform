@@ -5,11 +5,18 @@ describe('pixel pet physical screen geometry', () => {
   it('docks to the right of a negative-coordinate secondary monitor at integer scale', () => {
     const monitor = { workArea: { position: { x: -1920, y: -200 }, size: { width: 1920, height: 1040 } }, scaleFactor: 1.25 }
     const value = rightEdgeGeometry(monitor)
-    expect(value.scale).toBe(3)
-    expect(value.size).toEqual({ width: 576, height: 720 })
+    expect(value.scale).toBe(1)
+    expect(value.size).toEqual({ width: 192, height: 240 })
     expect(value.position.x + value.size.width).toBe(0)
     expect(value.position.y).toBeGreaterThanOrEqual(-200)
     expect(value.position.y + value.size.height).toBeLessThanOrEqual(840)
+  })
+  it('halves the old default at integral desktop DPI while retaining crisp pixels', () => {
+    for (const factor of [1, 2]) {
+      const value = rightEdgeGeometry({ workArea: { position: { x: 0, y: 0 }, size: { width: 3840, height: 2160 } }, scaleFactor: factor })
+      expect(value.scale).toBe(factor)
+      expect(value.size).toEqual({ width: 192 * factor, height: 240 * factor })
+    }
   })
   it('selects the display nearest the existing character instead of always the primary', () => {
     const left = { workArea: { position: { x: -1920, y: 0 }, size: { width: 1920, height: 1040 } }, scaleFactor: 1 }

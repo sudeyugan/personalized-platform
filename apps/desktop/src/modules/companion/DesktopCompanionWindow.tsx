@@ -11,7 +11,7 @@ export function DesktopCompanionWindow() {
   const [receivedSnapshot, setReceivedSnapshot] = useState(false)
   const [preview, setPreview] = useState<PreviewVideoRequest>()
   const sequence = useRef(0)
-  const [layout, setLayout] = useState<PixelLayout>({ scale: 2, pixelRatio: 1, ready: false })
+  const [layout, setLayout] = useState<PixelLayout>({ scale: 1, pixelRatio: 1, ready: false })
   const [layoutError, setLayoutError] = useState('')
   const nativeLayout = useMemo(() => createPixelWindowLayout(getCurrentWindow()), [])
   const pixelEnabled = snapshot.pixelPetEnabled && !preview

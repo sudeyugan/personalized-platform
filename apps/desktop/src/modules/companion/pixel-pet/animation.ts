@@ -1,6 +1,6 @@
 import type { PixelPetFrame, PixelPoint } from './types'
 
-export const EYE_CENTER: PixelPoint = { x: 128, y: 78 }
+export const EYE_CENTER: PixelPoint = { x: 130, y: 84 }
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
 export function gazeTarget(pointer: PixelPoint | null): PixelPoint {
