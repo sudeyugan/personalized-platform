@@ -170,7 +170,7 @@ export function createSeedLibrary(): LibraryData {
       backgrounds: { images: {}, sidebarMode: 'decoration' },
       ai: { providerId: 'mock', endpoint: '', model: 'mock-illustration-v1', stylePreset: '温暖手绘' },
       webSearch: { providerId: 'tencent', fallbackToBing: true },
-      backup: { dailyEnabled: true, directory: '', retentionCount: 14 },
+      backup: { dailyEnabled: true, directory: '', intervalDays: 3, retentionCount: 3 },
       security: { autoLockMinutes: 15 },
       trust: { externalAiProcessing: false, shareAuthorizedContext: true, shareRecentConversation: true, retainConversationHistory: true, outboundProtection: true, outboundReviewMode: 'balanced', privateDictionary: [] },
       music: { volume: 0.65, loop: 'all', autoSwitch: false, playerVisible: true },
@@ -324,7 +324,13 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
       backgroundImage: undefined,
       ai: { ...seed.settings.ai, ...data.settings.ai },
       webSearch: { ...seed.settings.webSearch, ...data.settings.webSearch },
-      backup: { ...seed.settings.backup, ...data.settings.backup },
+      backup: {
+        ...seed.settings.backup, ...data.settings.backup,
+        intervalDays: Math.min(30, Math.max(1, Math.round(Number(data.settings.backup?.intervalDays) || 3))),
+        // Migrate only the former default; keep explicitly customized retention.
+        retentionCount: data.settings.backup?.intervalDays == null && data.settings.backup?.retentionCount === 14
+          ? 3 : Math.min(100, Math.max(1, Math.round(Number(data.settings.backup?.retentionCount) || 3))),
+      },
       security: { ...seed.settings.security, ...data.settings.security },
       trust: data.settings.trust
         ? { ...seed.settings.trust, ...data.settings.trust }

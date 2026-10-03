@@ -463,7 +463,7 @@ export interface LibraryData {
     backgroundImage?: string
     ai: { providerId: 'mock' | 'openrouter' | 'custom'; endpoint: string; model: string; stylePreset: string }
     webSearch: { providerId: 'tencent' | 'bocha' | 'bing'; fallbackToBing: boolean }
-    backup: { dailyEnabled: boolean; directory: string; retentionCount: number; lastAutomaticDate?: string; lastAutomaticError?: string }
+    backup: { dailyEnabled: boolean; directory: string; intervalDays: number; retentionCount: number; lastAutomaticDate?: string; lastAutomaticError?: string }
     security: { autoLockMinutes: number }
     trust: {
       externalAiProcessing: boolean

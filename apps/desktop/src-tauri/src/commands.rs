@@ -8,13 +8,15 @@ use tauri::{AppHandle, State, WebviewWindow};
 
 use crate::{
     repositories::{
-        AssetReceipt, AssetRepository, AudioReceipt, AudioRepository, BackupPreview, BackupReceipt,
-        BackupRepository, DiagnosticRepository, ExportFile, LibraryRepository, LibrarySnapshot,
+        AssetReceipt, AssetRepository, AudioReceipt, AudioRepository, DiagnosticRepository, ExportFile, LibraryRepository, LibrarySnapshot,
         RecoveryDraft, RecoveryRepository, SaveReceipt, SearchHit, SecretRepository, StorageStatus,
         TransferRepository, VaultRepository, configure_storage_root, storage_root, storage_status,
     },
     services::LibraryService,
 };
+
+#[path = "backup_commands.rs"] mod backup;
+pub use backup::*;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -680,68 +682,6 @@ pub async fn elevenlabs_speech_to_text(
         .and_then(Value::as_str)
         .map(str::to_owned)
         .ok_or_else(|| "VOICE_RESPONSE_INVALID:语音服务未返回转写文本".into())
-}
-
-#[tauri::command]
-pub fn create_backup(
-    window: WebviewWindow,
-    app: AppHandle,
-    automatic: bool,
-    created_at: String,
-    directory: String,
-) -> Result<BackupReceipt, String> {
-    require_main(&window)?;
-    BackupRepository::with_directory(&app, &directory)?.create(
-        &LibraryRepository::from_app(&app)?,
-        automatic,
-        &created_at,
-    )
-}
-#[tauri::command]
-pub fn ensure_daily_backup(
-    window: WebviewWindow,
-    app: AppHandle,
-    retention: usize,
-    date: String,
-    created_at: String,
-    directory: String,
-) -> Result<Option<BackupReceipt>, String> {
-    require_main(&window)?;
-    BackupRepository::with_directory(&app, &directory)?.ensure_daily(
-        &LibraryRepository::from_app(&app)?,
-        retention,
-        &date,
-        &created_at,
-    )
-}
-#[tauri::command]
-pub fn list_backups(
-    window: WebviewWindow,
-    app: AppHandle,
-    directory: String,
-) -> Result<Vec<BackupReceipt>, String> {
-    require_main(&window)?;
-    BackupRepository::with_directory(&app, &directory)?.list()
-}
-#[tauri::command]
-pub fn preview_backup(
-    window: WebviewWindow,
-    app: AppHandle,
-    bytes: Vec<u8>,
-) -> Result<BackupPreview, String> {
-    require_main(&window)?;
-    BackupRepository::from_app(&app)?.preview(&bytes)
-}
-#[tauri::command]
-pub fn restore_backup(
-    window: WebviewWindow,
-    app: AppHandle,
-    bytes: Vec<u8>,
-    directory: String,
-) -> Result<(), String> {
-    require_main(&window)?;
-    BackupRepository::with_directory(&app, &directory)?
-        .restore(&LibraryRepository::from_app(&app)?, &bytes)
 }
 
 #[tauri::command]

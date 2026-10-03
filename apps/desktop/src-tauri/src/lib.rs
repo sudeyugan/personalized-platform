@@ -146,6 +146,8 @@ pub fn run() {
             commands::list_backups,
             commands::preview_backup,
             commands::restore_backup,
+            commands::preview_saved_backup,
+            commands::restore_saved_backup,
             commands::write_export_bundle,
             commands::create_vault,
             commands::unlock_vault,

@@ -1,0 +1,3 @@
+.backup-list span { flex: 1; }
+.backup-list > div > button { flex-shrink: 0; }
+.backup-list { max-height: 360px; overflow-y: auto; }

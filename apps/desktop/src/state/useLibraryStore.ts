@@ -58,13 +58,13 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
         recoveryDrafts: Object.fromEntries(drafts.map((draft) => [draft.chapterId, draft])),
         playback: { playing: false, context, queue },
       })
-      if (data.settings.backup.dailyEnabled && health.runtime === 'tauri') void backupRepository.ensureDaily(data.settings.backup.retentionCount, data.settings.backup.directory).then(async () => {
+      if (data.settings.backup.dailyEnabled && health.runtime === 'tauri') void backupRepository.ensureAutomatic(data.settings.backup.retentionCount, data.settings.backup.intervalDays, data.settings.backup.directory).then(async (receipt) => {
         const current = get().data
-        const updated = { ...current, settings: { ...current.settings, backup: { ...current.settings.backup, lastAutomaticDate: localDate, lastAutomaticError: undefined } } }
+        const updated = { ...current, settings: { ...current.settings, backup: { ...current.settings.backup, lastAutomaticDate: receipt ? localDate : current.settings.backup.lastAutomaticDate, lastAutomaticError: undefined } } }
         set({ data: updated }); await persist(updated)
       }).catch(async (error) => {
         const current = get().data
-        const updated = { ...current, settings: { ...current.settings, backup: { ...current.settings.backup, lastAutomaticError: error instanceof Error ? error.message : '自动备份失败' } } }
+        const updated = { ...current, settings: { ...current.settings, backup: { ...current.settings.backup, lastAutomaticError: error instanceof Error ? error.message : String(error) } } }
         set({ data: updated }); await persist(updated)
       })
     } catch {

@@ -170,3 +170,26 @@ describe('library compatibility normalization', () => {
     expect(performance.now() - started).toBeLessThan(1_000)
   })
 })
+
+describe('backup policy migration', () => {
+  it('uses three-day snapshots and migrates the former default fourteen copies', () => {
+    expect(createSeedLibrary().settings.backup).toMatchObject({ intervalDays: 3, retentionCount: 3 })
+    const legacy = createSeedLibrary()
+    delete (legacy.settings.backup as Partial<LibraryData['settings']['backup']>).intervalDays
+    legacy.settings.backup.retentionCount = 14
+    expect(normalizeLibrary(legacy).settings.backup).toMatchObject({ intervalDays: 3, retentionCount: 3 })
+  })
+  it('keeps customized retention, disabled backups and target directory', () => {
+    const legacy = createSeedLibrary()
+    delete (legacy.settings.backup as Partial<LibraryData['settings']['backup']>).intervalDays
+    Object.assign(legacy.settings.backup, { retentionCount: 7, dailyEnabled: false, directory: 'D:\\backups' })
+    expect(normalizeLibrary(legacy).settings.backup).toMatchObject({ retentionCount: 7, dailyEnabled: false, directory: 'D:\\backups', intervalDays: 3 })
+  })
+  it('does not remigrate a current explicit fourteen-copy policy and clamps invalid settings', () => {
+    const data = createSeedLibrary()
+    data.settings.backup.retentionCount = 14
+    expect(normalizeLibrary(data).settings.backup.retentionCount).toBe(14)
+    Object.assign(data.settings.backup, { retentionCount: 1000, intervalDays: -5 })
+    expect(normalizeLibrary(data).settings.backup).toMatchObject({ retentionCount: 100, intervalDays: 1 })
+  })
+})
