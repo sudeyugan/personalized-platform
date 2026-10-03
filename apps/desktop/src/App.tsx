@@ -20,8 +20,10 @@ const AgentTaskRuntime = lazy(() => import('./modules/companion/tasks/AgentTaskR
 const CompanionDesktopBridge = lazy(() => import('./modules/companion/CompanionDesktopBridge').then((module) => ({ default: module.CompanionDesktopBridge })))
 const DesktopCompanionWindow = lazy(() => import('./modules/companion/DesktopCompanionWindow').then((module) => ({ default: module.DesktopCompanionWindow })))
 const DesktopCompanionChatWindow = lazy(() => import('./modules/companion/DesktopCompanionChatWindow').then((module) => ({ default: module.DesktopCompanionChatWindow })))
+const PixelPetDebugPage = lazy(() => import('./modules/companion/pixel-pet/PixelPetSettings').then((module) => ({ default: module.PixelPetDebugPage })))
 export default function App() {
   const params = new URLSearchParams(window.location.search)
+  if (params.has('pixel-pet-preview')) return <Suspense fallback={null}><PixelPetDebugPage /></Suspense>
   if (params.has('companion-chat')) return <Suspense fallback={null}><DesktopCompanionChatWindow /></Suspense>
   return params.has('companion') ? <Suspense fallback={null}><DesktopCompanionWindow /></Suspense> : <MainApp />
 }

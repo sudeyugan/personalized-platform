@@ -29,7 +29,7 @@ export function buildCompanionContext(data: LibraryData, temporaryWorkIds: strin
   return { text: parts.join('\n'), summary: parts.length ? parts.map((part) => part.split('：')[0]).join('、') : '未授权任何上下文' }
 }
 
-export function createCompanionSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, 'setCompanionProfile' | 'setCompanionAppearance' | 'setCompanionDesktop' | 'setCompanionDesktopMode' | 'setCompanionShortcut' | 'setCompanionQuietShortcut' | 'setCompanionPortrait' | 'setCompanionVideo' | 'addCompanionVideo' | 'removeCompanionVideo' | 'setCompanionVideoPlacement' | 'setCompanionProvider' | 'setCompanionVoice' | 'setCompanionPermissions' | 'setCompanionComputer' | 'grantTemporaryCompanionWork' | 'addCompanionMessage' | 'addCompanionAudit' | 'clearCompanionMessages' | 'addCompanionMemory' | 'updateCompanionMemory' | 'deleteCompanionMemory' | 'setCompanionGrowthEnabled' | 'setCompanionPersonality' | 'rollbackCompanionGrowth' | 'resetCompanionPersonality'> {
+export function createCompanionSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, 'setCompanionProfile' | 'setCompanionAppearance' | 'setCompanionDesktop' | 'setCompanionPixelPet' | 'setCompanionDesktopMode' | 'setCompanionShortcut' | 'setCompanionQuietShortcut' | 'setCompanionPortrait' | 'setCompanionVideo' | 'addCompanionVideo' | 'removeCompanionVideo' | 'setCompanionVideoPlacement' | 'setCompanionProvider' | 'setCompanionVoice' | 'setCompanionPermissions' | 'setCompanionComputer' | 'grantTemporaryCompanionWork' | 'addCompanionMessage' | 'addCompanionAudit' | 'clearCompanionMessages' | 'addCompanionMemory' | 'updateCompanionMemory' | 'deleteCompanionMemory' | 'setCompanionGrowthEnabled' | 'setCompanionPersonality' | 'rollbackCompanionGrowth' | 'resetCompanionPersonality'> {
   const updatePersonality = (changes: Partial<CompanionPersonality>, reason: string) => {
     const current = get().data
     const before = current.companion.personality
@@ -42,6 +42,12 @@ export function createCompanionSlice(get: () => LibraryStore, set: SetStore): Pi
     setCompanionProfile: (changes) => { const current = get().data; commit({ ...current, companion: { ...current.companion, ...changes } }, set) },
     setCompanionAppearance: (changes) => { const current = get().data; commit({ ...current, companion: { ...current.companion, appearance: { ...current.companion.appearance, ...changes } } }, set) },
     setCompanionDesktop: (visible) => { const current = get().data; commit({ ...current, companion: { ...current.companion, desktop: { ...current.companion.desktop, visible } } }, set) },
+    setCompanionPixelPet: (pixelPetEnabled) => {
+      const current = get().data
+      commit({ ...current, companion: { ...current.companion, desktop: {
+        ...current.companion.desktop, pixelPetEnabled, visible: pixelPetEnabled || current.companion.desktop.visible,
+      } } }, set)
+    },
     setCompanionDesktopMode: (mode) => { const current = get().data; commit({ ...current, companion: { ...current.companion, desktop: { ...current.companion.desktop, mode } } }, set) },
     setCompanionShortcut: (toggleShortcut) => { const current = get().data; commit({ ...current, companion: { ...current.companion, desktop: { ...current.companion.desktop, toggleShortcut } } }, set) },
     setCompanionQuietShortcut: (quietShortcut) => { const current = get().data; commit({ ...current, companion: { ...current.companion, desktop: { ...current.companion.desktop, quietShortcut } } }, set) },

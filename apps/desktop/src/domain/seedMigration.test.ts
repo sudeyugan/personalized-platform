@@ -193,3 +193,19 @@ describe('backup policy migration', () => {
     expect(normalizeLibrary(data).settings.backup).toMatchObject({ retentionCount: 100, intervalDays: 1 })
   })
 })
+
+describe('pixel pet opt-in compatibility', () => {
+  it('defaults to the original renderer and preserves every WebM binding when enabled', () => {
+    const data = createSeedLibrary()
+    const original = { type: 'video' as const, videos: { idle: 'base', listening: 'listen' }, clips: { idle: ['base', 'variant'], listening: ['listen'] } }
+    data.companion.desktop.visual = original
+    data.companion.desktop.videoClips = original.clips
+    const upgraded = normalizeLibrary(data)
+    expect(upgraded.companion.desktop.pixelPetEnabled).toBe(false)
+    upgraded.companion.desktop.pixelPetEnabled = true
+    const reloaded = normalizeLibrary(JSON.parse(JSON.stringify(upgraded)))
+    expect(reloaded.companion.desktop.pixelPetEnabled).toBe(true)
+    expect(reloaded.companion.desktop.visual).toEqual(original)
+    expect(reloaded.companion.desktop.videoClips).toEqual(original.clips)
+  })
+})

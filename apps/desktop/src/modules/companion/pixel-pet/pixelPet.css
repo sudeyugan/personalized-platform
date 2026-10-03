@@ -1,0 +1,9 @@
+.pixel-pet-canvas { display: block; image-rendering: pixelated; background: transparent; flex-shrink: 0; }
+.pixel-pet-window.desktop-companion { display: flex; justify-content: flex-end; align-items: flex-start; padding: 0; animation: none; }
+.pixel-pet-window.mode-quiet { opacity: .8; }
+.pixel-pet-interaction { position: absolute; right: 0; top: 0; width: 68%; height: 100%; border: 0; background: transparent; cursor: pointer; }
+.pixel-pet-interaction:focus-visible { outline: 1px dashed rgba(130,170,215,.65); outline-offset: -3px; }
+.pixel-pet-error { position: absolute; bottom: 0; right: 4px; color: #e0a59e; font-size: 10px; }
+.pixel-pet-preview { display: flex; justify-content: flex-end; overflow: hidden; padding: 10px 0; background: linear-gradient(135deg,rgba(110,148,182,.08),rgba(70,77,96,.14)); border-radius: 10px; margin-top: 10px; }
+.pixel-pet-debug-page { display: grid; grid-template-columns: 1fr auto; gap: 40px; min-height: 100vh; padding: 32px; background: #242a36; color: #dfe7f4; }
+.pixel-pet-debug-page p { max-width: 340px; line-height: 1.8; opacity: .8; }

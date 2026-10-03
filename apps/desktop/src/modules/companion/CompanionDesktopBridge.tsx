@@ -377,7 +377,7 @@ export function CompanionDesktopBridge() {
     const visible = data.companion.desktop.visible
     const becameVisible = visible && !wasDesktopVisible.current
     wasDesktopVisible.current = visible
-    if (becameVisible && visualStateRef.current !== 'listening' && Date.now() - lastGreetingAt.current >= 2 * 60 * 60 * 1000 && configuredClipsForState(snapshotRef.current.visual, 'greeting').length > 0) {
+    if (becameVisible && !snapshotRef.current.pixelPetEnabled && visualStateRef.current !== 'listening' && Date.now() - lastGreetingAt.current >= 2 * 60 * 60 * 1000 && configuredClipsForState(snapshotRef.current.visual, 'greeting').length > 0) {
       lastGreetingAt.current = Date.now()
       window.clearTimeout(resetStateTimer.current)
       setVisualState('greeting')
