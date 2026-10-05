@@ -129,11 +129,11 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
       endConversation()
     }
     const handleUtterance = (value: string) => {
-      if (!armed.current) return
+      if (disposed || !armed.current) return
       const text = value.trim()
       if (!text) return
       bargeInStartedAt.current = undefined
-      const command = resolveVoiceCommand(text)
+      const command = resolveVoiceCommand(text, voice.wakeWord)
       if (command === 'hide') {
         void emitTo('main', 'companion:turn-stop', {})
         void emitTo('main', 'companion:speech-stop', {})
@@ -178,7 +178,7 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
       phase.current = 'committing'
       scheduleConversationWindow(true)
       setSpeechNote(replacing ? '已打断上一条回答，正在处理新问题。' : '听到了，正在处理。')
-      void emitTo('main', 'companion:chat-open-request', {})
+      void emitTo('main', 'companion:chat-open-request', { presentation: 'voice' })
       void emitTo('main', 'companion:chat-send', { message: text, inputMode: 'voice', wake: true, replace: true })
     }
     const connectConversation = async () => {
@@ -205,6 +205,7 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
           },
         })
         connection.on(RealtimeEvents.PARTIAL_TRANSCRIPT, (event) => {
+          if (disposed || !armed.current) return
           const partial = event.text.trim()
           if (!partial) return
           phase.current = 'listening'
@@ -224,11 +225,13 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
         })
         connection.on(RealtimeEvents.COMMITTED_TRANSCRIPT, (event) => handleUtterance(event.text))
         connection.on(RealtimeEvents.ERROR, (event) => {
+          if (disposed) return
           setVoiceActivity(false)
           resumeInterruptedSpeech()
           setSpeechNote(`语音聊天暂不可用：${event.error || '实时转写失败'}`)
         })
         connection.on(RealtimeEvents.CLOSE, () => {
+          if (disposed) return
           setVoiceActivity(false)
           resumeInterruptedSpeech()
           if (cloudConnection.current === connection) cloudConnection.current = undefined
@@ -255,7 +258,7 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
       phase.current = 'listening'
       closingCloud = false
       void emitTo('main', 'companion:voice-show-request', {})
-      void emitTo('main', 'companion:chat-open-request', {})
+      void emitTo('main', 'companion:chat-open-request', { presentation: 'voice' })
       setSpeechNote(`${voice.wakeWord}听到了，请继续说问题。`)
       scheduleConversationWindow()
       window.clearTimeout(sessionTimer.current)
@@ -270,15 +273,17 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
           wakeSensitivity: voice.wakeSensitivity,
           speakerVerification: voice.speakerVerification,
         }, (result) => {
+          if (disposed) return
           if (!result.speakerMatched) {
             setSpeechNote(`听到了“${voice.wakeWord}”，但声纹没有通过。`)
             return
           }
           activateConversation()
         }, (error) => {
+          if (disposed) return
           setSpeechNote(`本地唤醒暂不可用：${error instanceof Error ? error.message.replace(/^[A-Z_]+:/, '') : String(error)}`)
         })
-        if (disposed || armed.current) {
+        if (disposed || armed.current || !monitor.isActive()) {
           monitor.stop()
           return
         }
@@ -288,8 +293,17 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
         if (!disposed) setSpeechNote(`本地唤醒暂不可用：${error instanceof Error ? error.message.replace(/^[A-Z_]+:/, '') : String(error)}`)
       }
     }
+    const endRequested = (event: Event) => {
+      if (!armed.current) return
+      event.preventDefault()
+      void emitTo('main', 'companion:turn-stop')
+      void emitTo('main', 'companion:speech-stop')
+      endConversation()
+    }
+    window.addEventListener('yiyu:voice-end', endRequested)
     void startLocalListening()
     return () => {
+      window.removeEventListener('yiyu:voice-end', endRequested)
       disposed = true
       window.clearTimeout(reconnectTimer)
       window.clearTimeout(followUpTimer.current)

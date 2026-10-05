@@ -6,7 +6,7 @@ import { usePixelPetInteraction } from './usePixelPetInteraction'
 const native = vi.hoisted(() => ({ drag: vi.fn().mockResolvedValue(undefined), emit: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => ({ startDragging: native.drag }) }))
 vi.mock('@tauri-apps/api/event', () => ({ emitTo: native.emit }))
-const target = { setPointerCapture: vi.fn(), hasPointerCapture: vi.fn().mockReturnValue(true), releasePointerCapture: vi.fn() }
+const target = { setPointerCapture: vi.fn(), hasPointerCapture: vi.fn().mockReturnValue(true), releasePointerCapture: vi.fn(), getBoundingClientRect: () => ({ left: 20, top: 30, width: 384, height: 480 }) }
 const pointer = (x = 0, y = 0, button = 0, id = 1) => ({ clientX: x, clientY: y, button, pointerId: id, currentTarget: target }) as unknown as PointerEvent<HTMLButtonElement>
 
 describe('pixel pet click and native window drag', () => {
@@ -38,6 +38,25 @@ describe('pixel pet click and native window drag', () => {
     })
     expect(native.drag).not.toHaveBeenCalled()
     expect(native.emit).not.toHaveBeenCalled()
+  })
+  it('responds on clicks and keyboard activation, never on dragging', () => {
+    const respond = vi.fn()
+    const { result } = renderHook(() => usePixelPetInteraction(respond))
+    act(() => { result.current.onPointerDown(pointer()); result.current.onPointerUp(pointer()) })
+    expect(respond).toHaveBeenCalledTimes(1)
+    act(() => { result.current.onPointerDown(pointer()); result.current.onPointerMove(pointer(20)); result.current.onPointerUp(pointer(20)) })
+    expect(respond).toHaveBeenCalledTimes(1)
+    act(() => result.current.onClick({ detail: 0 } as Parameters<typeof result.current.onClick>[0]))
+    expect(respond).toHaveBeenCalledTimes(2)
+  })
+  it('passes logical coordinates and allows head taps to consume chat, but never a drag', () => {
+    const respond = vi.fn().mockReturnValue(true)
+    const { result } = renderHook(() => usePixelPetInteraction(respond))
+    act(() => { result.current.onPointerDown(pointer(212, 190)); result.current.onPointerUp(pointer(212, 190)) })
+    expect(respond).toHaveBeenCalledExactlyOnceWith({ x: 96, y: 80 })
+    expect(native.emit).not.toHaveBeenCalled()
+    act(() => { result.current.onPointerDown(pointer(212, 190)); result.current.onPointerMove(pointer(240, 190)); result.current.onPointerUp(pointer(240, 190)) })
+    expect(respond).toHaveBeenCalledTimes(1)
   })
   it('reports native drag failures without changing them into clicks', async () => {
     native.drag.mockRejectedValueOnce(new Error('denied'))

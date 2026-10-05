@@ -101,7 +101,7 @@ async function prepareSpeech(task: AgentTask, signal: AbortSignal) {
   if (!speechSteps.length) return new Map<string, PreparedSpeech>()
   const data = useLibraryStore.getState().data
   const voice = data.companion.voice
-  if (voice.tts.providerId === 'none' || !voice.tts.voice) throw new Error('请先在 AI 伙伴设置中配置小鱼的语音合成')
+  if (voice.tts.providerId === 'none' || !voice.tts.voice) throw new Error('请先在 AI 伙伴设置中配置伙伴的语音合成')
   assertExternalAiAllowed(voice.tts.providerId, data.settings.trust, 'voice')
   const provider = createTextToSpeechProvider(voice.tts)
   const privacy = new PrivacySession(data.settings.trust.privateDictionary)
@@ -219,7 +219,7 @@ async function executeTask(task: AgentTask, signal: AbortSignal, audioRef: { cur
       }, false))
       const path = typeof composed.path === 'string' ? composed.path : undefined
       if (!path) throw new Error('音画合成没有返回文件路径')
-      addArtifact(task.id, { type: 'video', label: '带小鱼旁白的视频', path })
+      addArtifact(task.id, { type: 'video', label: '带伙伴旁白的视频', path })
     } else {
       addArtifact(task.id, { type: 'video', label: '任务录屏', path: rawPath })
     }

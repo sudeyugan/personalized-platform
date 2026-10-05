@@ -1,0 +1,9 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "companion-feedback-window",
+  "description": "任务气泡没有通用事件、文件、录音或窗口权限；状态与查看/收起仅通过原生标签守卫的专用Channel和固定请求转发。",
+  "windows": [
+    "companion-feedback"
+  ],
+  "permissions": []
+}

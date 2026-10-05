@@ -17,6 +17,7 @@ export interface AgentFeatureContract {
  * instead of an easy-to-forget follow-up.
  */
 export const agentFeatureContracts: Record<ViewId, AgentFeatureContract> = {
+  fortune: { id: 'fortune', view: 'fortune', description: '本地每日抽签（不向伙伴开放）', readScope: 'none', destinations: [], tools: [] },
   home: { id: 'daily', view: 'home', description: '首页、朝问与情绪回望', readScope: 'mood', destinations: ['home', 'mood.reflection'], tools: ['mood.get_day', 'mood.get_summary', 'daily_question.list'] },
   answerBook: { id: 'answer-book', view: 'answerBook', description: '答案之书收藏', readScope: 'answer_book', destinations: ['answer_book'], tools: ['answer_book.list_favorites'] },
   truth: { id: 'truth', view: 'truth', description: '本地真心话抽卡（不收集回答、不向伙伴开放）', readScope: 'none', destinations: [], tools: [] },

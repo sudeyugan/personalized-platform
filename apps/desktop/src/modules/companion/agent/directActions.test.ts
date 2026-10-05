@@ -56,3 +56,10 @@ describe('direct computer actions', () => {
     expect(detectActionIntent('我刚才打开设置后看到了权限项', [lowRiskTool('app.open')])).toEqual({ expectsTool: false })
   })
 })
+
+it('routes literal current-name addresses and keeps discussion non-mutating', () => {
+  expect(resolveDirectAction('阿璃，打开首页', [lowRiskTool('app.open')], '阿璃')).toMatchObject({ name: 'app.open' })
+  expect(resolveDirectAction('A[1]打开首页', [lowRiskTool('app.open')], 'A[1]')).toMatchObject({ name: 'app.open' })
+  expect(detectActionIntent('阿璃为什么不能录视频介绍自己', [lowRiskTool('task.create')], '阿璃')).toEqual({ expectsTool: false })
+  expect(resolveDirectAction('小鱼打开首页', [lowRiskTool('app.open')], '阿璃')).toBeUndefined()
+})

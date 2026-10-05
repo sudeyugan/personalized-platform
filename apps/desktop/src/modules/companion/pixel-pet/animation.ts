@@ -3,23 +3,28 @@ import type { PixelPetFrame, PixelPoint } from './types'
 export const EYE_CENTER: PixelPoint = { x: 130, y: 84 }
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
-export function gazeTarget(pointer: PixelPoint | null): PixelPoint {
+export function gazeTarget(pointer: PixelPoint | null, eyeCenter: PixelPoint = EYE_CENTER): PixelPoint {
   if (!pointer || !Number.isFinite(pointer.x) || !Number.isFinite(pointer.y)) return { x: 0, y: 0 }
-  const dx = (pointer.x - EYE_CENTER.x) / 85
-  const dy = (pointer.y - EYE_CENTER.y) / 100
+  const dx = (pointer.x - eyeCenter.x) / 85
+  const dy = (pointer.y - eyeCenter.y) / 100
   const distance = Math.max(1, Math.hypot(dx, dy))
   // Elliptical clamp; both eyes use the same target, not independent cross-eyed targets.
   return { x: clamp(dx / distance, -1, 1) * 3.5, y: clamp(dy / distance, -1, 1) * 2 }
 }
 
-export function createPixelPetAnimator(random = Math.random) {
+export function createPixelPetAnimator(random = Math.random, eyeCenter: PixelPoint = EYE_CENTER) {
   let lastTime: number | undefined
   let nextBlink: number | undefined
   let blinkStart: number | undefined
+  let lastResponse = -Infinity
   const frame: PixelPetFrame = { gaze: { x: 0, y: 0 }, eyeOpen: 1, blinkPhase: 'open', breath: 0, head: { x: 0, y: 0 }, hair: { x: 0, y: 0 } }
   const blinkDelay = () => 3200 + clamp(random(), 0, 1) * 4200
   return {
-    update(now: number, pointer: PixelPoint | null, reducedMotion = false): PixelPetFrame {
+    respond(now: number) {
+      if (now - lastResponse < 600 || blinkStart !== undefined) return
+      blinkStart = now; lastResponse = now
+    },
+    update(now: number, pointer: PixelPoint | null, reducedMotion = false, settling = false): PixelPetFrame {
       const delta = lastTime === undefined ? 0 : clamp(now - lastTime, 0, 100)
       lastTime = now
       nextBlink ??= now + blinkDelay()
@@ -35,8 +40,8 @@ export function createPixelPetAnimator(random = Math.random) {
       } else {
         frame.eyeOpen = (elapsed - 130) / 110; frame.blinkPhase = 'opening'
       }
-      const target = gazeTarget(pointer)
-      const easing = 1 - Math.exp(-delta / 110)
+      const target = gazeTarget(pointer, eyeCenter)
+      const easing = 1 - Math.exp(-delta / (settling ? 550 : 110))
       frame.gaze.x += (target.x - frame.gaze.x) * easing
       frame.gaze.y += (target.y - frame.gaze.y) * easing
       frame.breath = reducedMotion ? 0 : Math.sin(now / 1250) * 0.8
@@ -44,7 +49,8 @@ export function createPixelPetAnimator(random = Math.random) {
       const hairEase = 1 - Math.exp(-delta / 320)
       frame.hair.x += (frame.head.x - frame.hair.x) * hairEase
       frame.hair.y += (frame.head.y - frame.hair.y) * hairEase
-      return frame
+      // Return a snapshot; render-time modulation cannot corrupt the next update.
+      return { ...frame, gaze: { ...frame.gaze }, head: { ...frame.head }, hair: { ...frame.hair } }
     },
   }
 }

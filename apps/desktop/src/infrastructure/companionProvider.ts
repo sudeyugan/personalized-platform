@@ -1,3 +1,4 @@
+import { companionIdentityPrompt, normalizeCompanionName } from '../domain/companionIdentity'
 import { Channel, invoke } from '@tauri-apps/api/core'
 import type { AgentMessage, AgentModelProvider, AgentModelRequest, AgentModelResponse, AgentToolResult } from '../modules/companion/agent/types'
 
@@ -75,6 +76,11 @@ class MockCompanionModel implements AgentModelProvider {
       return { type: 'text', text }
     }
     const message = latestUserMessage(request.messages)
+    if (/你(?:叫(?:什么)?|的名字|是谁)|介绍(?:一下)?(?:你自己|自己)/.test(message)) {
+      const text = `我是${normalizeCompanionName(request.context.companion.name)}，在这一隅陪你写作和处理日常事务。`
+      options?.onTextDelta?.(text)
+      return { type: 'text', text }
+    }
     if (message.includes('[network-error]')) throw new Error('NETWORK_ERROR:模拟网络不可用')
     if (/人物|角色|叫.+(?:人物|角色)/.test(message)) {
       return { type: 'tool_call', call: { id: `call-${crypto.randomUUID()}`, name: 'character.search', arguments: { query: queryFromMessage(message) } } }
@@ -116,6 +122,7 @@ class CustomCompanionModel implements AgentModelProvider {
     if (this.id !== 'deepseek') throw new Error('PROVIDER_PROTOCOL_UNCONFIGURED:自定义 Provider 尚未开放联网')
     const toolNames = new Map(request.tools.map((tool) => [tool.name.replaceAll('.', '__'), tool.name]))
     const context = [
+      companionIdentityPrompt(request.context.companion.name),
       `当前北京时间：${request.context.localTime.date} ${request.context.localTime.weekday} ${request.context.localTime.time}（${request.context.localTime.period}）`,
       `当前页面：${request.context.page}`,
       request.context.activeWork ? `当前作品：${request.context.activeWork.title}` : '',

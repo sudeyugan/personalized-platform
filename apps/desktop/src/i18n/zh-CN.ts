@@ -1,6 +1,7 @@
 const messages = {
   'nav.home': '今日一隅', 'nav.home.caption': '回到你的空间',
   'nav.answerBook': '答案之书', 'nav.answerBook.caption': '把问题交给偶然',
+  'nav.fortune': '一隅签', 'nav.fortune.caption': '一纸偶然，照见此刻',
   'nav.truth': '真心话', 'nav.truth.caption': '那些没说出口的事',
   'nav.calendar': '日历与课表', 'nav.calendar.caption': '安排日期与每周课程',
   'nav.diary': '日记', 'nav.diary.caption': '为每一天留下文字',

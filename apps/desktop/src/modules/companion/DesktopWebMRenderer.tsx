@@ -1,8 +1,8 @@
 import { convertFileSrc, invoke } from '@tauri-apps/api/core'
-import { PhysicalPosition } from '@tauri-apps/api/dpi'
 import { emitTo } from '@tauri-apps/api/event'
-import { availableMonitors, getCurrentWindow, type Monitor } from '@tauri-apps/api/window'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNativePetDrag, type NativePetDragHandlers } from './pixel-pet/useNativePetDrag'
 import type { CompanionVideoState } from '../../domain/models'
 import { companionBlobAssetIds, type CompanionDesktopSnapshot } from './companionDesktop'
 import { availableIdleInterludes, chooseNextIdleClip, configuredClipsForState, configuredIdleInterludes, createVideoPlaybackRotation, isSustainedVideoState, isTransientVideoState, nextIdleInterludeDelay } from './companionVideoPlayback'
@@ -15,32 +15,6 @@ function clipsForState(snapshot: CompanionDesktopSnapshot, state: CompanionVideo
   if (clips.length) return clips
   if (state === 'idle') return []
   return clipsForState(snapshot, 'idle')
-}
-
-function nearestMonitor(monitors: Monitor[], x: number, y: number) {
-  return monitors.reduce<Monitor | undefined>((nearest, monitor) => {
-    if (!nearest) return monitor
-    const distance = (candidate: Monitor) => {
-      const area = candidate.workArea
-      const centerX = area.position.x + area.size.width / 2
-      const centerY = area.position.y + area.size.height / 2
-      return Math.hypot(x - centerX, y - centerY)
-    }
-    return distance(monitor) < distance(nearest) ? monitor : nearest
-  }, undefined)
-}
-
-async function keepCompanionVisible() {
-  const window = getCurrentWindow()
-  const [position, size, monitors] = await Promise.all([window.outerPosition(), window.outerSize(), availableMonitors()])
-  const monitor = nearestMonitor(monitors, position.x + size.width / 2, position.y + size.height / 2)
-  if (!monitor) return
-  const area = monitor.workArea
-  const maxX = Math.max(area.position.x, area.position.x + area.size.width - size.width)
-  const maxY = Math.max(area.position.y, area.position.y + area.size.height - size.height)
-  const x = Math.min(maxX, Math.max(area.position.x, position.x))
-  const y = Math.min(maxY, Math.max(area.position.y, position.y))
-  if (x !== position.x || y !== position.y) await window.setPosition(new PhysicalPosition(x, y))
 }
 
 function useDesktopVisualUrls(snapshot: CompanionDesktopSnapshot) {
@@ -76,8 +50,9 @@ function useDesktopVisualUrls(snapshot: CompanionDesktopSnapshot) {
 }
 
 export interface PreviewVideoRequest { assetId: string; instanceKey: string }
-interface Props { snapshot: CompanionDesktopSnapshot; receivedSnapshot: boolean; previewRequest?: PreviewVideoRequest; onPreviewEnd: (instanceKey: string) => void }
-export function DesktopWebMRenderer({ snapshot, receivedSnapshot, previewRequest, onPreviewEnd }: Props) {
+interface Props { drag?: NativePetDragHandlers; snapshot: CompanionDesktopSnapshot; receivedSnapshot: boolean; previewRequest?: PreviewVideoRequest; onPreviewEnd: (instanceKey: string) => void }
+export function DesktopWebMRenderer({ snapshot, receivedSnapshot, previewRequest, onPreviewEnd, drag }: Props) {
+  const beginDrag = useNativePetDrag(drag?.onDragStart, drag?.onDragEnd, drag?.onDragError)
   const [readyVisual, setReadyVisual] = useState<ReadyVisual>()
   const [selectedVideoId, setSelectedVideoId] = useState<string>()
   const [idleInterlude, setIdleInterlude] = useState<CompanionVideoState>()
@@ -101,17 +76,6 @@ export function DesktopWebMRenderer({ snapshot, receivedSnapshot, previewRequest
       appWindow.setAlwaysOnTop(snapshot.desktopMode !== 'normal'),
     ]).catch(() => undefined)
   }, [snapshot.desktopMode])
-  useEffect(() => {
-    const appWindow = getCurrentWindow()
-    let correctionTimer: ReturnType<typeof setTimeout> | undefined
-    void keepCompanionVisible()
-    let stopMoved: (() => void) | undefined
-    void appWindow.onMoved(() => {
-      globalThis.clearTimeout(correctionTimer)
-      correctionTimer = globalThis.setTimeout(() => { void keepCompanionVisible().then(() => emitTo('main', 'companion:moved')) }, 180)
-    }).then((stop) => { stopMoved = stop })
-    return () => { stopMoved?.(); globalThis.clearTimeout(correctionTimer) }
-  }, [])
   const portraitUrl = snapshot.visual.type === 'portrait' && snapshot.visual.assetId ? urls[snapshot.visual.assetId] : undefined
   const displayedAction = snapshot.action === 'idle' ? idleInterlude ?? 'idle' : snapshot.action
   const interludeConfigKey = configuredIdleInterludes(snapshot.visual).join(',')
@@ -260,7 +224,7 @@ export function DesktopWebMRenderer({ snapshot, receivedSnapshot, previewRequest
     const start = pointerStart.current
     if (!start || dragged.current || Math.hypot(event.clientX - start.x, event.clientY - start.y) < 5) return
     dragged.current = true
-    void getCurrentWindow().startDragging()
+    beginDrag()
   }
   const endPointer = (event: React.PointerEvent) => {
     if (pointerId.current !== event.pointerId) return

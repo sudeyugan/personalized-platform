@@ -60,9 +60,9 @@ export function createComputerTools(): AgentTool[] {
     tool({ name: 'file.copy', description: '复制文件', action: 'file_copy', capability: 'file_write', properties: { source: string(), destination: string() }, required: ['source', 'destination'], targetArgument: 'destination' }),
     tool({ name: 'file.move', description: '移动文件', action: 'file_move', capability: 'file_write', properties: { source: string(), destination: string() }, required: ['source', 'destination'], targetArgument: 'destination', destructive: true }),
     tool({ name: 'file.delete', description: '删除文件或空目录', action: 'file_delete', capability: 'file_delete', properties: { path: string() }, required: ['path'], targetArgument: 'path', destructive: true }),
-    tool({ name: 'process.list', description: '列出由小鱼启动并管理的子进程', action: 'process_list', capability: 'process_run', risk: 'read_only' }),
+    tool({ name: 'process.list', description: '列出由伙伴启动并管理的子进程', action: 'process_list', capability: 'process_run', risk: 'read_only' }),
     tool({ name: 'process.run', description: '以结构化参数运行已授权程序，不经过 Shell', action: 'process_run', capability: 'process_run', properties: { program: string(), args: { type: 'array', items: string() }, cwd: string(), timeoutMs: number(1000, 600000), detached: boolean() }, required: ['program'], targetArgument: 'program' }),
-    tool({ name: 'process.stop', description: '停止由小鱼启动的子进程', action: 'process_stop', capability: 'process_stop', properties: { processId: string() }, required: ['processId'], destructive: true }),
+    tool({ name: 'process.stop', description: '停止由伙伴启动的子进程', action: 'process_stop', capability: 'process_stop', properties: { processId: string() }, required: ['processId'], destructive: true }),
     tool({ name: 'shell.run', description: '通过 PowerShell 执行命令；始终需要本次确认', action: 'shell_run', capability: 'shell', risk: 'high', properties: { command: string(), cwd: string(), timeoutMs: number(1000, 600000) }, required: ['command'], destructive: true }),
     tool({ name: 'system.notify', description: '显示本地 Windows 提醒通知', action: 'notify', capability: 'notifications', properties: { title: string(), body: string() }, required: ['title', 'body'] }),
   ]

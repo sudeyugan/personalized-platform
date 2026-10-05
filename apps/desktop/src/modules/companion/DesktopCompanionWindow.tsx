@@ -1,8 +1,11 @@
+import { HeartRateBadge } from '../heart-rate/HeartRateBadge'
+import { normalizeCompanionPetSide } from '../../domain/companionPetStyle'
 import { emitTo, listen } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { emptyCompanionDesktopSnapshot, type CompanionDesktopSnapshot } from './companionDesktop'
 import { DesktopWebMRenderer, type PreviewVideoRequest } from './DesktopWebMRenderer'
+import { useCompanionPlacement } from './pixel-pet/useCompanionPlacement'
 import { PixelPetWindow } from './pixel-pet/PixelPetWindow'
 import { createPixelWindowLayout, type PixelLayout } from './pixel-pet/windowLayout'
 
@@ -14,7 +17,9 @@ export function DesktopCompanionWindow() {
   const [layout, setLayout] = useState<PixelLayout>({ scale: 1, pixelRatio: 1, ready: false })
   const [layoutError, setLayoutError] = useState('')
   const nativeLayout = useMemo(() => createPixelWindowLayout(getCurrentWindow()), [])
+  const drag = useCompanionPlacement(nativeLayout, setLayout, receivedSnapshot)
   const pixelEnabled = snapshot.pixelPetEnabled && !preview
+  const pixelSide = normalizeCompanionPetSide(snapshot.pixelPetSide)
   useEffect(() => {
     let disposed = false
     const stops: (() => void)[] = []
@@ -30,14 +35,21 @@ export function DesktopCompanionWindow() {
     return () => { disposed = true; stops.forEach((stop) => stop()) }
   }, [])
   useEffect(() => {
+    if (!receivedSnapshot) return
     let disposed = false
     setLayoutError('')
-    void nativeLayout.apply(pixelEnabled).then((next) => { if (!disposed) setLayout(next) })
+    void nativeLayout.apply(pixelEnabled, pixelSide).then((next) => { if (!disposed) setLayout(next) })
       .catch((error: unknown) => { if (!disposed) setLayoutError(error instanceof Error ? error.message : String(error)) })
     return () => { disposed = true }
-  }, [nativeLayout, pixelEnabled])
+  }, [nativeLayout, pixelEnabled, pixelSide, receivedSnapshot])
   useEffect(() => () => { void nativeLayout.apply(false).catch(() => undefined) }, [nativeLayout])
-  if (pixelEnabled) return <><PixelPetWindow snapshot={snapshot} layout={layout} />{layoutError && <small className="pixel-pet-error" role="status">{layoutError}</small>}</>
-  return <DesktopWebMRenderer snapshot={snapshot} receivedSnapshot={receivedSnapshot} previewRequest={preview}
-    onPreviewEnd={(key) => setPreview((current) => current?.instanceKey === key ? undefined : current)} />
+  const heartRate = <HeartRateBadge visible={snapshot.desktopVisible && snapshot.desktopMode !== 'quiet'} />
+  if (pixelEnabled) return <>{heartRate}<PixelPetWindow snapshot={snapshot} layout={layout} drag={drag} onPose={async (pose) => {
+    const next = pose === 'float' ? await nativeLayout.float() : await nativeLayout.apply(true, pose, true)
+    setLayout(next)
+    if (pose !== 'float') await emitTo('main', 'companion:pet-menu-action', { kind: 'side', value: pose })
+    await emitTo('main', 'companion:moved')
+  }} />{layoutError && <small className="pixel-pet-error" role="status">{layoutError}</small>}</>
+  return <>{heartRate}<DesktopWebMRenderer drag={drag} snapshot={snapshot} receivedSnapshot={receivedSnapshot} previewRequest={preview}
+    onPreviewEnd={(key) => setPreview((current) => current?.instanceKey === key ? undefined : current)} /></>
 }

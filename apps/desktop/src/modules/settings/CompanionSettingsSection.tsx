@@ -1,3 +1,4 @@
+import { CompanionNameSetting } from './CompanionNameSetting'
 import { CheckCircle2, Globe2, KeyRound, LockKeyhole, Music2, ShieldCheck, Sparkles, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { createCompanionProvider, deleteCompanionKey, hasCompanionKey, storeCompanionKey } from '../../infrastructure/companionProvider'
@@ -119,7 +120,7 @@ export function CompanionSettingsSection({ mode = 'profile' }: CompanionSettings
   return <section className="settings-section intelligence-section">
     <div className="settings-title"><Sparkles /><div><h2>对话与 Agent 模型</h2><p>DeepSeek 用于对话与 Tool Calling；本地 Mock 可离线验证流程。</p></div></div>
     <div className="settings-subsection compact-settings-grid">
-      <label className="setting-row"><div><strong>伙伴称呼</strong><span>最多 20 个字符</span></div><input value={data.companion.name} onChange={(event) => setCompanionProfile({ name: event.target.value.slice(0, 20) })} /></label>
+      <CompanionNameSetting name={data.companion.name} onChange={(name) => setCompanionProfile({ name })} />
       <label className="setting-row"><div><strong>回应气质</strong><span>影响伙伴状态文字</span></div><select value={data.companion.expression} onChange={(event) => setCompanionProfile({ expression: event.target.value as typeof data.companion.expression })}><option value="calm">安静</option><option value="warm">温暖</option><option value="thinking">思考</option></select></label>
     </div>
     <div className="settings-subsection">

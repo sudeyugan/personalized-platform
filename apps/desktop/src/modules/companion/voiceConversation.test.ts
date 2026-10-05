@@ -30,3 +30,10 @@ describe('voice conversation rules', () => {
     expect(isDuplicateUtterance({ text: '继续说', at: 1_000 }, '继续说。', 4_000)).toBe(false)
   })
 })
+
+it('follows the current identity for end/hide commands without keeping an old alias', () => {
+  expect(resolveVoiceCommand('阿璃，先这样。', '阿璃')).toBe('end')
+  expect(resolveVoiceCommand('阿璃，隐藏起来', '阿璃')).toBe('hide')
+  expect(resolveVoiceCommand('小鱼，先这样', '阿璃')).toBeUndefined()
+  expect(resolveVoiceCommand('结束对话', '阿璃')).toBe('end')
+})

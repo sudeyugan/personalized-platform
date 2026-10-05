@@ -1,7 +1,14 @@
+import { useChatPresentationBridge } from './useChatPresentationBridge'
+import { needsTaskConfirmation } from './feedback/taskFeedback'
+import type { ChatPresentation } from './chatPresentation'
+import { positionCompanionChat } from './companionChatLayout'
+import { useTaskFeedbackBridge } from './feedback/useTaskFeedbackBridge'
 import { emitTo, listen } from '@tauri-apps/api/event'
 import { invoke } from '@tauri-apps/api/core'
-import { LogicalSize, PhysicalPosition } from '@tauri-apps/api/dpi'
-import { availableMonitors, getAllWindows, getCurrentWindow, type Monitor, type Window as TauriWindow } from '@tauri-apps/api/window'
+import { getAllWindows, getCurrentWindow } from '@tauri-apps/api/window'
+import { usePetMenuActions } from './pixel-pet/usePetMenuActions'
+import { usePetPoseSync } from './pixel-pet/usePetPoseSync'
+import { usePetModeShortcut } from './pixel-pet/usePetModeShortcut'
 import { register, unregister } from '@tauri-apps/plugin-global-shortcut'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CompanionDesktopMode, CompanionVideoState } from '../../domain/models'
@@ -20,37 +27,6 @@ import { PrivacySession, type PrivacyReviewRequest } from '../privacy'
 import { usePlannerNotifications } from './usePlannerNotifications'
 
 const isTauri = () => '__TAURI_INTERNALS__' in window
-const chatWindowWidth = 350
-const chatWindowHeight = 480
-
-function nearestMonitor(monitors: Monitor[], x: number, y: number) {
-  return monitors.reduce<Monitor | undefined>((nearest, monitor) => {
-    if (!nearest) return monitor
-    const distance = (candidate: Monitor) => {
-      const area = candidate.workArea
-      return Math.hypot(x - (area.position.x + area.size.width / 2), y - (area.position.y + area.size.height / 2))
-    }
-    return distance(monitor) < distance(nearest) ? monitor : nearest
-  }, undefined)
-}
-
-async function positionCompanionChat(portrait: TauriWindow, chat: TauriWindow) {
-  await chat.setSize(new LogicalSize(chatWindowWidth, chatWindowHeight))
-  const [position, size, monitors] = await Promise.all([portrait.outerPosition(), portrait.outerSize(), availableMonitors()])
-  const monitor = nearestMonitor(monitors, position.x + size.width / 2, position.y + size.height / 2)
-  if (!monitor) return
-  const area = monitor.workArea
-  const chatWidth = Math.round(chatWindowWidth * monitor.scaleFactor)
-  const chatHeight = Math.round(chatWindowHeight * monitor.scaleFactor)
-  const opensLeft = position.x - chatWidth >= area.position.x
-  const desiredX = opensLeft ? position.x - chatWidth : position.x + size.width
-  const maxX = Math.max(area.position.x, area.position.x + area.size.width - chatWidth)
-  const maxY = Math.max(area.position.y, area.position.y + area.size.height - chatHeight)
-  await chat.setPosition(new PhysicalPosition(
-    Math.min(maxX, Math.max(area.position.x, desiredX)),
-    Math.min(maxY, Math.max(area.position.y, position.y)),
-  ))
-}
 
 export function CompanionDesktopBridge() {
   const { data, playback, setCompanionDesktop, setCompanionPersonality, clearCompanionMessages } = useLibraryStore()
@@ -62,6 +38,8 @@ export function CompanionDesktopBridge() {
   const wasDesktopVisible = useRef(false)
   const lastGreetingAt = useRef(0)
   const chatVisible = useRef(false)
+  const chatPresentation = useRef<ChatPresentation>('full')
+  useChatPresentationBridge(chatVisible, chatPresentation)
   const chatTogglePending = useRef(false)
   const quietShortcutRestoreMode = useRef<Exclude<CompanionDesktopMode, 'quiet'>>('interactive')
   const permissionRequests = useRef(new Map<string, (allowed: boolean) => void>())
@@ -72,6 +50,10 @@ export function CompanionDesktopBridge() {
   const visualStateRef = useRef<CompanionVideoState | undefined>(undefined)
   visualStateRef.current = visualState
   const [desktopModeOverride, setDesktopModeOverride] = useState<CompanionDesktopMode>()
+  const switchPetMode = useCallback((pixel: boolean) => setDesktopModeOverride(pixel ? 'interactive' : undefined), [])
+  usePetPoseSync()
+  usePetMenuActions()
+  usePetModeShortcut(data.companion.desktop.toggleShortcut, data.companion.desktop.quietShortcut, data.companion.computer.enabled ? data.companion.computer.emergencyShortcut : '', switchPetMode)
   const [agentStatus, setAgentStatus] = useState<AgentRuntimeStatus>()
   const snapshot = useMemo(() => companionDesktopSnapshot(data.companion, data.session.activeView, playback.playing, data.assets, visualState, agentStatus, data.settings.trust.externalAiProcessing, desktopModeOverride), [data.companion, data.session.activeView, playback.playing, data.assets, visualState, agentStatus, data.settings.trust.externalAiProcessing, desktopModeOverride])
   useEffect(() => {
@@ -79,6 +61,8 @@ export function CompanionDesktopBridge() {
       console.warn('Unable to synchronize background voice wake:', error)
     })
   }, [data.companion.voice.wakeEnabled, data.companion.computer.backgroundReminders])
+  const taskDetailsOpened = useCallback(() => { setDesktopModeOverride('interactive'); chatVisible.current = true }, [])
+  useTaskFeedbackBridge(snapshot, taskDetailsOpened)
   const snapshotRef = useRef(snapshot)
   snapshotRef.current = snapshot
   const publish = useCallback(async (nextSnapshot = snapshotRef.current) => {
@@ -99,15 +83,17 @@ export function CompanionDesktopBridge() {
       const all = await getAllWindows()
       return { portrait: all.find((item) => item.label === 'companion'), chat: all.find((item) => item.label === 'companion-chat') }
     }
-    const showChat = async (draft?: string) => {
+    const showChat = async (draft?: string, presentation?: ChatPresentation) => {
+      chatPresentation.current = presentation ?? (snapshotRef.current.pixelPetEnabled ? 'bubble' : 'full')
       setDesktopModeOverride('interactive')
       const pair = await windows()
       if (!pair.portrait || !pair.chat) return
-      await positionCompanionChat(pair.portrait, pair.chat)
+      await positionCompanionChat(pair.portrait, pair.chat, chatPresentation.current)
+      await emitTo('companion-chat', 'companion:chat-presentation', { mode: chatPresentation.current })
       if (draft !== undefined) await emitTo('companion-chat', 'companion:open-chat', { draft })
       await pair.chat.show()
       chatVisible.current = true
-      await pair.chat.setFocus().catch(() => undefined)
+      if (chatPresentation.current === 'full') await pair.chat.setFocus().catch(() => undefined)
     }
     const cancelActiveTurn = () => {
       activeTurn.current?.abort()
@@ -136,6 +122,7 @@ export function CompanionDesktopBridge() {
     void listen('companion:voice-session-ended', () => {
       if (visualStateRef.current === 'listening') setVisualState(undefined)
       setDesktopModeOverride(undefined)
+      if (permissionRequests.current.size || privacyRequests.current.size || (snapshotRef.current.task && needsTaskConfirmation(snapshotRef.current.task))) return
       chatVisible.current = false
       void windows().then((pair) => pair.chat?.hide())
     }).then((stop) => { stopVoiceEnd = stop })
@@ -170,10 +157,10 @@ export function CompanionDesktopBridge() {
         await showChat()
       }).finally(() => { chatTogglePending.current = false })
     }).then((stop) => { stopToggleChat = stop })
-    void listen<{ draft?: string }>('companion:chat-open-request', (event) => { void showChat(event.payload.draft) }).then((stop) => { stopOpenChat = stop })
+    void listen<{ draft?: string; presentation?: ChatPresentation }>('companion:chat-open-request', (event) => { void showChat(event.payload.draft, event.payload.presentation === 'voice' ? 'voice' : undefined) }).then((stop) => { stopOpenChat = stop })
     void listen('companion:moved', () => {
       if (!chatVisible.current) return
-      void windows().then((pair) => pair.portrait && pair.chat ? positionCompanionChat(pair.portrait, pair.chat) : undefined)
+      void windows().then((pair) => pair.portrait && pair.chat ? positionCompanionChat(pair.portrait, pair.chat, chatPresentation.current) : undefined)
     }).then((stop) => { stopMoved = stop })
     void listen<{ requestId: string; allowed: boolean }>('companion:permission-response', (event) => {
       const resolve = permissionRequests.current.get(event.payload.requestId)
@@ -349,11 +336,11 @@ export function CompanionDesktopBridge() {
       const current = useLibraryStore.getState().data
       const voice = current.companion.voice
       try { assertExternalAiAllowed(voice.stt.providerId, current.settings.trust, 'voice') }
-      catch (error) { void emitTo('companion', 'companion:voice-error', { message: error instanceof Error ? error.message : String(error) }); return }
+      catch (error) { void emitTo('companion-chat', 'companion:voice-error', { message: error instanceof Error ? error.message : String(error) }); return }
       setVisualState('listening')
       void createSpeechToTextProvider(voice.stt).transcribe(new Blob([new Uint8Array(event.payload.audio)], { type: event.payload.mimeType }))
-        .then((text) => emitTo('companion', 'companion:voice-transcript', { text }))
-        .catch((error) => emitTo('companion', 'companion:voice-error', { message: error instanceof Error ? error.message : '语音识别失败' }))
+        .then((text) => emitTo('companion-chat', 'companion:voice-transcript', { text }))
+        .catch((error) => emitTo('companion-chat', 'companion:voice-error', { message: error instanceof Error ? error.message : '语音识别失败' }))
         .finally(() => setVisualState(undefined))
     }).then((stop) => { stopVoice = stop })
     void listen<{ requestId: string }>('companion:voice-token-request', (event) => {

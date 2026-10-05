@@ -9,12 +9,12 @@ const native = vi.hoisted(() => ({
   callbacks: new Map<string, (event: { payload: unknown }) => void>(),
   apply: vi.fn().mockResolvedValue({ scale: 2, pixelRatio: 1, ready: true }),
 }))
-vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => ({}) }))
+vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => ({ onMoved: vi.fn().mockResolvedValue(() => undefined) }) }))
 vi.mock('@tauri-apps/api/event', () => ({
   emitTo: vi.fn().mockResolvedValue(undefined),
   listen: vi.fn((name: string, fn: (event: { payload: unknown }) => void) => { native.callbacks.set(name, fn); return Promise.resolve(() => native.callbacks.delete(name)) }),
 }))
-vi.mock('./pixel-pet/windowLayout', () => ({ createPixelWindowLayout: () => ({ apply: native.apply }) }))
+vi.mock('./pixel-pet/windowLayout', () => ({ createPixelWindowLayout: () => ({ apply: native.apply, settle: vi.fn().mockResolvedValue({ ready: false, scale: 1, pixelRatio: 1 }) }) }))
 vi.mock('./pixel-pet/PixelPetWindow', () => ({ PixelPetWindow: () => <div>pixel renderer</div> }))
 vi.mock('./DesktopWebMRenderer', () => ({ DesktopWebMRenderer: ({ snapshot, previewRequest, onPreviewEnd }: { snapshot: CompanionDesktopSnapshot; previewRequest?: PreviewVideoRequest; onPreviewEnd: (key: string) => void }) =>
   <div>original renderer {snapshot.visual.type}{previewRequest && <button onClick={() => onPreviewEnd(previewRequest.instanceKey)}>finish preview</button>}</div> }))
@@ -30,7 +30,7 @@ describe('desktop character renderer isolation', () => {
     expect(screen.queryByText(/original renderer/)).not.toBeInTheDocument()
     sendSnapshot(false)
     expect(screen.getByText('original renderer video')).toBeInTheDocument()
-    await waitFor(() => expect(native.apply).toHaveBeenLastCalledWith(false))
+    await waitFor(() => expect(native.apply).toHaveBeenLastCalledWith(false, 'right-edge'))
   })
   it('temporarily mounts WebM for explicit preview then returns to the pixel renderer', async () => {
     render(<DesktopCompanionWindow />)
@@ -43,7 +43,7 @@ describe('desktop character renderer isolation', () => {
   })
   it('cleans up listeners and restores native window geometry on unmount', async () => {
     const { unmount } = render(<DesktopCompanionWindow />)
-    await waitFor(() => expect(native.callbacks.size).toBe(2))
+    await waitFor(() => expect(native.callbacks.size).toBe(3))
     sendSnapshot(true)
     unmount()
     expect(native.callbacks.size).toBe(0)

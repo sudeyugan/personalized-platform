@@ -4,7 +4,7 @@ export type ContentBackgroundScene = 'default' | 'daily' | 'creation' | 'immersi
 
 const dailyViews: ViewId[] = ['home', 'calendar', 'todos']
 const creationViews: ViewId[] = ['writing', 'diary', 'people', 'places', 'timeline', 'assets']
-const immersiveViews: ViewId[] = ['answerBook', 'truth', 'music']
+const immersiveViews: ViewId[] = ['answerBook', 'truth', 'fortune', 'music']
 
 export function backgroundSceneForView(view: ViewId): ContentBackgroundScene {
   if (dailyViews.includes(view)) return 'daily'

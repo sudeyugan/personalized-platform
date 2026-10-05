@@ -1,5 +1,5 @@
 import { Channel, invoke } from '@tauri-apps/api/core'
-import type { CompanionData } from '../domain/models'
+import { createLocalVoiceMonitor } from './localVoiceMonitor'
 
 export interface LocalVoiceStatus {
   modelsInstalled: boolean
@@ -34,12 +34,6 @@ const installListeners = new Set<(snapshot: LocalVoiceInstallSnapshot) => void>(
 function publishInstallSnapshot(snapshot: LocalVoiceInstallSnapshot) {
   installSnapshot = snapshot
   installListeners.forEach((listener) => listener(snapshot))
-}
-
-interface LocalVoiceDetection {
-  detected: boolean
-  speakerMatched: boolean
-  speakerScore?: number
 }
 
 interface PcmCapture {
@@ -108,6 +102,8 @@ export async function captureSpeakerSample(seconds = 3.4) {
   })
 }
 
+const monitorManager = createLocalVoiceMonitor(invoke, openPcmCapture)
+
 export const localVoice = {
   status: () => invoke<LocalVoiceStatus>('local_voice_status'),
   subscribeInstall: (listener: (snapshot: LocalVoiceInstallSnapshot) => void) => {
@@ -145,50 +141,6 @@ export const localVoice = {
   },
   enroll: (samples: number[][]) => invoke<LocalVoiceStatus>('local_voice_enroll', { samples }),
   deleteProfile: () => invoke<LocalVoiceStatus>('local_voice_delete_profile'),
-  stop: () => invoke<void>('local_voice_stop'),
-  async monitor(config: Pick<CompanionData['voice'], 'wakeWord' | 'wakeSensitivity' | 'speakerVerification'>, onDetection: (result: LocalVoiceDetection) => void, onError: (error: unknown) => void) {
-    await invoke('local_voice_start', { wakeWord: config.wakeWord, sensitivity: config.wakeSensitivity, speakerRequired: config.speakerVerification })
-    let queued: number[] = []
-    let processing = false
-    let stopped = false
-    let capture: PcmCapture | undefined
-    const flush = async () => {
-      if (processing || stopped || queued.length < 3200) return
-      processing = true
-      const chunk = queued.splice(0, Math.min(queued.length, 6400))
-      try {
-        const result = await invoke<LocalVoiceDetection>('local_voice_process_pcm', { samples: chunk })
-        if (result.detected) onDetection(result)
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        if (message.includes('VOICE_SAMPLE_SHORT:')) return
-        stopped = true
-        queued = []
-        capture?.stop()
-        void localVoice.stop().catch(() => undefined)
-        onError(error)
-      } finally {
-        processing = false
-        if (queued.length >= 3200) void flush()
-      }
-    }
-    try {
-      capture = await openPcmCapture((samples) => {
-        queued.push(...samples)
-        if (queued.length > 16_000) queued = queued.slice(-16_000)
-        void flush()
-      })
-    } catch (error) {
-      await localVoice.stop().catch(() => undefined)
-      throw error
-    }
-    return {
-      stop: () => {
-        stopped = true
-        queued = []
-        capture?.stop()
-        void localVoice.stop().catch(() => undefined)
-      },
-    }
-  },
+  stop: monitorManager.stop,
+  monitor: monitorManager.monitor,
 }

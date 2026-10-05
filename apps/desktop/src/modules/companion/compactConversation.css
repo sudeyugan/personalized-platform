@@ -1,0 +1,18 @@
+.compact-conversation{position:absolute;inset:8px;display:flex;flex-direction:column;padding:15px 17px;border:1px solid rgba(139,116,96,.25);border-radius:22px;background:linear-gradient(145deg,rgba(255,251,244,.98),rgba(244,234,224,.96));color:#493e37;box-shadow:0 5px 20px #36231a18;font-family:inherit;overflow:hidden}
+.compact-conversation.voice{background:linear-gradient(145deg,rgba(245,249,255,.98),rgba(232,240,249,.96));border-color:#8ea6c044}
+.compact-conversation header,.compact-conversation footer,.compact-conversation header>span,.compact-conversation footer>span{display:flex;align-items:center;gap:9px}
+.compact-conversation header small{font-size:11px;color:#86796d}
+.compact-conversation header strong{font-size:13px;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.compact-conversation header small{white-space:nowrap;flex-shrink:0}
+.compact-conversation header>span{flex:1;min-width:0}
+.compact-conversation header i{width:5px;height:5px;border-radius:50%;background:#aa9a88;flex-shrink:0}
+.compact-conversation header i.active{background:#739fb6}
+.compact-conversation button{border:0;background:transparent;color:inherit;display:inline-flex;align-items:center;gap:5px;padding:5px;border-radius:7px;cursor:pointer;font-size:11px}
+.compact-conversation button:hover{background:#86756116}
+.compact-conversation button:focus-visible{outline:2px solid #809eb8;outline-offset:1px}
+.compact-caption{flex:1;margin:13px 0 8px;font-size:14px;line-height:1.75;overflow:auto;overflow-wrap:anywhere;white-space:pre-wrap;scrollbar-width:thin}
+.compact-conversation footer{justify-content:space-between;border-top:1px solid #99867520;padding-top:7px}
+.desktop-chat-collapse{margin-left:auto}
+.compact-conversation-note{font-size:10px;color:#897c70;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px;flex-shrink:0}
+.compact-caption{min-height:0}
+@media(prefers-reduced-motion:no-preference){.compact-conversation{animation:compact-appear .15s ease-out}@keyframes compact-appear{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}}

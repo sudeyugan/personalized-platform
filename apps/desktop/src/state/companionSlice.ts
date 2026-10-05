@@ -1,4 +1,6 @@
+import { normalizeCompanionName, supportsNameWake } from '../domain/companionIdentity'
 import type { CompanionPersonality, LibraryData } from '../domain/models'
+import { normalizeCompanionPetSide, normalizeCompanionPetStyle } from '../domain/companionPetStyle'
 import { normalizeCompanionVideoPlacement } from '../modules/companion/companionVideoPlacement'
 import type { LibraryStore } from './libraryStoreTypes'
 import { commitLibraryData, type LibraryStoreSetter } from './persistence'
@@ -29,7 +31,7 @@ export function buildCompanionContext(data: LibraryData, temporaryWorkIds: strin
   return { text: parts.join('\n'), summary: parts.length ? parts.map((part) => part.split('：')[0]).join('、') : '未授权任何上下文' }
 }
 
-export function createCompanionSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, 'setCompanionProfile' | 'setCompanionAppearance' | 'setCompanionDesktop' | 'setCompanionPixelPet' | 'setCompanionDesktopMode' | 'setCompanionShortcut' | 'setCompanionQuietShortcut' | 'setCompanionPortrait' | 'setCompanionVideo' | 'addCompanionVideo' | 'removeCompanionVideo' | 'setCompanionVideoPlacement' | 'setCompanionProvider' | 'setCompanionVoice' | 'setCompanionPermissions' | 'setCompanionComputer' | 'grantTemporaryCompanionWork' | 'addCompanionMessage' | 'addCompanionAudit' | 'clearCompanionMessages' | 'addCompanionMemory' | 'updateCompanionMemory' | 'deleteCompanionMemory' | 'setCompanionGrowthEnabled' | 'setCompanionPersonality' | 'rollbackCompanionGrowth' | 'resetCompanionPersonality'> {
+export function createCompanionSlice(get: () => LibraryStore, set: SetStore): Pick<LibraryStore, 'setCompanionProfile' | 'setCompanionAppearance' | 'setCompanionDesktop' | 'setCompanionPixelPet' | 'setCompanionPetStyle' | 'setCompanionPetSide' | 'setCompanionDesktopMode' | 'setCompanionShortcut' | 'setCompanionQuietShortcut' | 'setCompanionPortrait' | 'setCompanionVideo' | 'addCompanionVideo' | 'removeCompanionVideo' | 'setCompanionVideoPlacement' | 'setCompanionProvider' | 'setCompanionVoice' | 'setCompanionPermissions' | 'setCompanionComputer' | 'grantTemporaryCompanionWork' | 'addCompanionMessage' | 'addCompanionAudit' | 'clearCompanionMessages' | 'addCompanionMemory' | 'updateCompanionMemory' | 'deleteCompanionMemory' | 'setCompanionGrowthEnabled' | 'setCompanionPersonality' | 'rollbackCompanionGrowth' | 'resetCompanionPersonality'> {
   const updatePersonality = (changes: Partial<CompanionPersonality>, reason: string) => {
     const current = get().data
     const before = current.companion.personality
@@ -39,7 +41,13 @@ export function createCompanionSlice(get: () => LibraryStore, set: SetStore): Pi
     commit({ ...current, companion: { ...current.companion, personality: after, growth: { ...current.companion.growth, logs: [...current.companion.growth.logs, log].slice(-100) } } }, set)
   }
   return {
-    setCompanionProfile: (changes) => { const current = get().data; commit({ ...current, companion: { ...current.companion, ...changes } }, set) },
+    setCompanionProfile: (changes) => {
+      const current = get().data
+      const name = normalizeCompanionName(changes.name ?? current.companion.name)
+      commit({ ...current, companion: { ...current.companion, ...changes, name, voice: {
+        ...current.companion.voice, wakeWord: name, wakeEnabled: current.companion.voice.wakeEnabled && supportsNameWake(name),
+      } } }, set)
+    },
     setCompanionAppearance: (changes) => { const current = get().data; commit({ ...current, companion: { ...current.companion, appearance: { ...current.companion.appearance, ...changes } } }, set) },
     setCompanionDesktop: (visible) => { const current = get().data; commit({ ...current, companion: { ...current.companion, desktop: { ...current.companion.desktop, visible } } }, set) },
     setCompanionPixelPet: (pixelPetEnabled) => {
@@ -48,6 +56,14 @@ export function createCompanionSlice(get: () => LibraryStore, set: SetStore): Pi
         ...current.companion.desktop, pixelPetEnabled, visible: pixelPetEnabled || current.companion.desktop.visible,
         mode: pixelPetEnabled && current.companion.desktop.mode === 'quiet' ? 'interactive' : current.companion.desktop.mode,
       } } }, set)
+    },
+    setCompanionPetStyle: (style) => {
+      const current = get().data
+      commit({ ...current, companion: { ...current.companion, desktop: { ...current.companion.desktop, pixelPetStyle: normalizeCompanionPetStyle(style) } } }, set)
+    },
+    setCompanionPetSide: (side) => {
+      const current = get().data
+      commit({ ...current, companion: { ...current.companion, desktop: { ...current.companion.desktop, pixelPetSide: normalizeCompanionPetSide(side) } } }, set)
     },
     setCompanionDesktopMode: (mode) => { const current = get().data; commit({ ...current, companion: { ...current.companion, desktop: { ...current.companion.desktop, mode } } }, set) },
     setCompanionShortcut: (toggleShortcut) => { const current = get().data; commit({ ...current, companion: { ...current.companion, desktop: { ...current.companion.desktop, toggleShortcut } } }, set) },
@@ -92,7 +108,7 @@ export function createCompanionSlice(get: () => LibraryStore, set: SetStore): Pi
     setCompanionVoice: (changes) => {
       const current = get().data
       const voice = current.companion.voice
-      commit({ ...current, companion: { ...current.companion, voice: { ...voice, ...changes, stt: { ...voice.stt, ...changes.stt }, tts: { ...voice.tts, ...changes.tts } } } }, set)
+      commit({ ...current, companion: { ...current.companion, voice: { ...voice, ...changes, wakeWord: current.companion.name, wakeEnabled: (changes.wakeEnabled ?? voice.wakeEnabled) && supportsNameWake(current.companion.name), stt: { ...voice.stt, ...changes.stt }, tts: { ...voice.tts, ...changes.tts } } } }, set)
     },
     setCompanionPermissions: (changes) => { const current = get().data; commit({ ...current, companion: { ...current.companion, permissions: { ...current.companion.permissions, ...changes } } }, set) },
     setCompanionComputer: (changes) => { const current = get().data; commit({ ...current, companion: { ...current.companion, computer: { ...current.companion.computer, ...changes } } }, set) },

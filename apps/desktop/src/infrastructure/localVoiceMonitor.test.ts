@@ -1,0 +1,75 @@
+import { describe, expect, it, vi } from 'vitest'
+import { createLocalVoiceMonitor, type LocalVoiceDetection } from './localVoiceMonitor'
+
+const config = { wakeWord: '小鱼', wakeSensitivity: 'standard' as const, speakerVerification: true }
+const deferred = <T>() => { let resolve!: (value: T) => void; const promise = new Promise<T>((done) => { resolve = done }); return { promise, resolve } }
+const tick = async () => { for (let i = 0; i < 12; i++) await Promise.resolve() }
+
+describe('local wake engine leases', () => {
+  it('does not let a late old microphone stop the new name', async () => {
+    const oldCapture = deferred<{ stop: () => void }>()
+    const oldStop = vi.fn()
+    const newStop = vi.fn()
+    const native = vi.fn().mockResolvedValue(undefined)
+    const capture = vi.fn().mockReturnValueOnce(oldCapture.promise).mockResolvedValueOnce({ stop: newStop })
+    const manager = createLocalVoiceMonitor(native, capture)
+    const pending = manager.monitor(config, vi.fn(), vi.fn())
+    await tick()
+    const newer = await manager.monitor({ ...config, wakeWord: '阿璃' }, vi.fn(), vi.fn())
+    native.mockClear()
+    oldCapture.resolve({ stop: oldStop })
+    const older = await pending
+    older.stop()
+    await tick()
+    expect(oldStop).toHaveBeenCalledOnce()
+    expect(newStop).not.toHaveBeenCalled()
+    expect(native).not.toHaveBeenCalled()
+    newer.stop()
+    await tick()
+    expect(native).toHaveBeenCalledWith('local_voice_stop')
+  })
+  it('drops in-flight PCM detections after stop and serializes native transitions', async () => {
+    const result = deferred<LocalVoiceDetection>()
+    let feed!: (chunk: number[]) => void
+    const native = vi.fn().mockImplementation((command) => command === 'local_voice_process_pcm' ? result.promise : Promise.resolve())
+    const detected = vi.fn()
+    const manager = createLocalVoiceMonitor(native, async (samples) => { feed = samples; return { stop: vi.fn() } })
+    const old = await manager.monitor(config, detected, vi.fn())
+    feed(new Array(3200).fill(0))
+    await tick()
+    old.stop()
+    const pending = manager.monitor({ ...config, wakeWord: '阿璃' }, vi.fn(), vi.fn())
+    await tick()
+    expect(native.mock.calls.filter(([command]) => command === 'local_voice_start')).toHaveLength(1)
+    result.resolve({ detected: true, speakerMatched: true })
+    await pending
+    expect(detected).not.toHaveBeenCalled()
+    expect(native.mock.calls.filter(([command]) => command === 'local_voice_start')).toHaveLength(2)
+    await manager.stop()
+  })
+  it('recovers the operation queue after a failed start', async () => {
+    const native = vi.fn().mockRejectedValueOnce(new Error('bad name')).mockResolvedValue(undefined)
+    const capture = vi.fn().mockResolvedValue({ stop: vi.fn() })
+    const manager = createLocalVoiceMonitor(native, capture)
+    await expect(manager.monitor(config, vi.fn(), vi.fn())).rejects.toThrow('bad name')
+    await expect(manager.monitor(config, vi.fn(), vi.fn())).resolves.toHaveProperty('stop')
+    expect(capture).toHaveBeenCalledOnce()
+    await manager.stop()
+  })
+  it('does not report a stale microphone rejection against the newer listener', async () => {
+    let reject!: (error: Error) => void
+    const failed = new Promise<{ stop: () => void }>((_, fail) => { reject = fail })
+    const native = vi.fn().mockResolvedValue(undefined)
+    const capture = vi.fn().mockReturnValueOnce(failed).mockResolvedValue({ stop: vi.fn() })
+    const manager = createLocalVoiceMonitor(native, capture)
+    const pending = manager.monitor(config, vi.fn(), vi.fn())
+    await tick()
+    await manager.monitor(config, vi.fn(), vi.fn())
+    native.mockClear()
+    reject(new Error('permission denied'))
+    await expect(pending).resolves.toHaveProperty('stop')
+    await tick()
+    expect(native).not.toHaveBeenCalled()
+    await manager.stop()
+  })
+})

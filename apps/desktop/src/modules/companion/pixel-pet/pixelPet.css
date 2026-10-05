@@ -8,3 +8,34 @@
 .pixel-pet-preview { display: flex; justify-content: flex-end; overflow: hidden; padding: 10px 0; background: linear-gradient(135deg,rgba(110,148,182,.08),rgba(70,77,96,.14)); border-radius: 10px; margin-top: 10px; }
 .pixel-pet-debug-page { display: grid; grid-template-columns: 1fr auto; gap: 40px; min-height: 100vh; padding: 32px; background: #242a36; color: #dfe7f4; }
 .pixel-pet-debug-page p { max-width: 340px; line-height: 1.8; opacity: .8; }
+
+.art-pet-smooth { image-rendering: auto; }
+.pet-comparison { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 20px; }
+.pet-comparison figure { position: relative; margin: 0; background: rgba(170,190,210,.07); border-radius: 12px; }
+.pet-comparison figcaption { text-align: center; padding: 10px; font-size: 13px; opacity: .8; }
+.pet-preview-controls { display: flex; gap: 8px; margin-top: 14px; }
+@media (max-width: 800px) { .pixel-pet-debug-page { grid-template-columns: 1fr; gap: 24px; padding: 20px; } }
+
+.pixel-pet-debug-page { grid-template-columns: 320px minmax(0, 1fr); }
+.pixel-pet-debug-page .shortcut-picker select { background: #343e50; color: #edf2fa; border: 1px solid #596477; border-radius: 8px; padding: 8px 10px; font-size: 14px; }
+.pet-preview-controls button { background: #343e50; color: #edf2fa; border: 1px solid #596477; border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+.pet-preview-controls button:hover { background: #42506a; }
+.pet-preview-controls button:focus-visible { outline: 2px solid #9ac7f0; outline-offset: 2px; }
+@media (max-width: 800px) { .pixel-pet-debug-page { grid-template-columns: 1fr; } }
+
+.pixel-pet-window.pose-left-edge { justify-content: flex-start; }
+.pixel-pet-window.pose-left-edge .pixel-pet-interaction { right: auto; left: 0; }
+.pixel-pet-preview.pose-left-edge { justify-content: flex-start; }
+
+.pixel-pet-window.pose-bottom-edge { justify-content: center; align-items: flex-end; }
+.pixel-pet-window.pose-bottom-edge .pixel-pet-interaction { left: 0; right: 0; width: 100%; }
+.pixel-pet-preview.pose-bottom-edge { justify-content: center; padding-bottom: 0; border-bottom: 1px solid rgba(150,185,218,.45); }
+
+
+.pixel-pet-window.pose-float { justify-content: center; }
+.pixel-pet-window.pose-float .pixel-pet-interaction { left: 0; right: 0; width: 100%; }
+.pet-context-menu { position: absolute; z-index: 20; box-sizing: border-box; width: 144px; max-width: calc(100% - 8px); max-height: calc(100% - 8px); overflow: auto; padding: 5px; border-radius: 10px; border: 1px solid rgba(171,198,232,.32); background: rgba(29,37,53,.97); color: #e9effa; box-shadow: 0 6px 18px rgba(0,0,0,.22); user-select: none; }
+.pet-menu-caption { display: block; padding: 4px 7px 5px; font-size: 10px; color: #9fb5d1; }
+.pet-context-menu button { display: flex; justify-content: space-between; align-items: center; width: 100%; height: 28px; padding: 0 7px; border: 0; border-radius: 5px; background: transparent; color: inherit; font: inherit; font-size: 11px; cursor: pointer; text-align: left; }
+.pet-context-menu button:hover, .pet-context-menu button:focus-visible { background: #3a4b66; outline: none; }
+.pet-context-menu button[aria-checked="true"] { color: #a9d2ff; }

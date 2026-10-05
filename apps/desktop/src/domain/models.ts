@@ -1,7 +1,7 @@
 import type { JSONContent } from '@tiptap/react'
 
 export type ThemeId = 'warm' | 'light' | 'dark'
-export type ViewId = 'home' | 'answerBook' | 'truth' | 'calendar' | 'todos' | 'writing' | 'diary' | 'people' | 'places' | 'timeline' | 'assets' | 'music' | 'help' | 'settings'
+export type ViewId = 'home' | 'answerBook' | 'truth' | 'fortune' | 'calendar' | 'todos' | 'writing' | 'diary' | 'people' | 'places' | 'timeline' | 'assets' | 'music' | 'help' | 'settings'
 export type BackgroundSlot = 'default' | 'daily' | 'creation' | 'immersive' | 'sidebar'
 export type SidebarBackgroundMode = 'soft' | 'decoration'
 
@@ -264,17 +264,21 @@ export interface AgentTask {
   completedAt?: string
   error?: string
 }
+export type CompanionPetSide = 'right-edge' | 'left-edge' | 'bottom-edge'
+export type CompanionPetStyle = 'detailed' | 'pixel' | 'chibi'
+
 export interface CompanionData {
   name: string
   expression: 'calm' | 'warm' | 'thinking'
   appearance: { hair: 'ink' | 'short' | 'long'; outfit: 'linen' | 'night' | 'sage'; portraitAssetId?: string }
-  desktop: { visible: boolean; pixelPetEnabled?: boolean; mode: CompanionDesktopMode; visual: CompanionVisual; videoAssets?: Partial<Record<CompanionVideoState, string>>; videoClips?: CompanionVideoLibrary; videoPlacements?: CompanionVideoPlacements; toggleShortcut: string; quietShortcut: string; characterPackage?: CompanionCharacterPackage }
+  desktop: { visible: boolean; pixelPetEnabled?: boolean; pixelPetStyle?: CompanionPetStyle; pixelPetSide?: CompanionPetSide; mode: CompanionDesktopMode; visual: CompanionVisual; videoAssets?: Partial<Record<CompanionVideoState, string>>; videoClips?: CompanionVideoLibrary; videoPlacements?: CompanionVideoPlacements; toggleShortcut: string; quietShortcut: string; characterPackage?: CompanionCharacterPackage }
   provider: { providerId: 'mock' | 'deepseek' | 'custom'; endpoint: string; model: string }
   voice: {
     stt: { providerId: 'none' | 'elevenlabs' | 'custom'; endpoint: string; model: string }
     tts: { providerId: 'none' | 'elevenlabs' | 'custom'; endpoint: string; model: string; voice: string }
     autoSpeak: boolean
     wakeEnabled: boolean
+    /** Compatibility mirror of companion.name; not an independent setting. */
     wakeWord: string
     wakeSensitivity: 'low' | 'standard' | 'high'
     conversationMode: 'single' | 'short' | 'continuous'
@@ -428,7 +432,7 @@ export interface PersonRelation { id: string; fromPersonId: string; toPersonId: 
 export interface EntityLink { id: string; sourceType: EntityType; sourceId: string; targetType: EntityType; targetId: string; relationType: 'mentions' | 'occurs_at' | 'involves' | 'related'; anchor?: TextAnchor; createdAt: string }
 
 export interface ModuleSetting {
-  id: 'writing' | 'music' | 'companion' | 'answerBook' | 'truth'
+  id: 'writing' | 'music' | 'companion' | 'answerBook' | 'truth' | 'fortune'
   enabled: boolean
   available: boolean
 }
@@ -450,6 +454,7 @@ export interface LibraryData {
   companion: CompanionData
   planner: PlannerData
   answerBook: AnswerBookData
+  fortune?: { today?: import('./fortune').FortuneDraw }
   settings: {
     theme: ThemeId
     showRightPanel: boolean

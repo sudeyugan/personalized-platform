@@ -55,3 +55,12 @@ describe('companion provider boundary', () => {
     await deleteCompanionKey()
   })
 })
+
+it('makes self-introduction use current identity both offline and in controlled model context', async () => {
+  const request = { messages: [{ role: 'user' as const, content: '介绍一下你自己' }], context: { page: 'home', companion: { name: '阿璃' }, localTime }, tools: [] }
+  expect(await createCompanionProvider({ providerId: 'mock', endpoint: '', model: 'mock' }).generate(request)).toMatchObject({ type: 'text', text: expect.stringContaining('我是阿璃') })
+  invokeMock.mockImplementationOnce(streamChunks({ choices: [{ delta: { content: '我是阿璃' } }] }))
+  await createCompanionProvider({ providerId: 'deepseek', endpoint: 'https://api.deepseek.com', model: 'deepseek-chat' }).generate(request)
+  const args = invokeMock.mock.calls.at(-1)![1]
+  expect(args.messages[0].content).toContain('唯一伙伴名字是 "阿璃"')
+})

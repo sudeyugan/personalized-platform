@@ -22,6 +22,7 @@ vi.mock('@tauri-apps/api/event', () => ({
   }),
 }))
 vi.mock('@tauri-apps/api/core', () => ({
+  isTauri: () => '__TAURI_INTERNALS__' in window,
   convertFileSrc: (id: string) => `http://yiyu-companion.localhost/${id}`,
   invoke: vi.fn().mockResolvedValue(undefined),
 }))

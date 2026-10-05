@@ -1,3 +1,4 @@
+import { supportsNameWake } from '../../domain/companionIdentity'
 import { Download, Fingerprint, KeyRound, Mic2, Trash2, Volume2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { deleteCompanionVoiceKey, hasCompanionVoiceKey, storeCompanionVoiceKey } from '../../infrastructure/companionVoiceProvider'
@@ -9,6 +10,7 @@ type VoiceProvider = 'none' | 'elevenlabs' | 'custom'
 export function CompanionVoiceSettings() {
   const { data, setCompanionVoice } = useLibraryStore()
   const voice = data.companion.voice
+  const wakeName = data.companion.name
   const [key, setKey] = useState('')
   const [keySaved, setKeySaved] = useState(false)
   const [message, setMessage] = useState('默认关闭；启用后，录音和朗读文本才会发送给所选语音服务。')
@@ -48,7 +50,7 @@ export function CompanionVoiceSettings() {
   const enrollSpeaker = async () => {
     if (!localStatus.modelsInstalled) { setLocalMessage('请先下载本地模型。'); return }
     setLocalBusy(true)
-    const prompts = [`请清楚说“${voice.wakeWord}”`, `请再次说“${voice.wakeWord}”`, '请自然说：今天我想安静地写一点东西', '请再自然说一句你常用的话']
+    const prompts = [`请清楚说“${wakeName}”`, `请再次说“${wakeName}”`, '请自然说：今天我想安静地写一点东西', '请再自然说一句你常用的话']
     try {
       const samples: number[][] = []
       for (let index = 0; index < prompts.length; index += 1) {
@@ -66,6 +68,7 @@ export function CompanionVoiceSettings() {
   }
 
   const toggleWake = () => {
+    if (!voice.wakeEnabled && !supportsNameWake(wakeName)) { setLocalMessage('请将伙伴名字设置为 2～6 个汉字后再开启唤醒。'); return }
     if (!voice.wakeEnabled && (!localStatus.modelsInstalled || (voice.speakerVerification && !localStatus.speakerEnrolled))) {
       setLocalMessage(!localStatus.modelsInstalled ? '请先下载本地模型。' : '请先录入声纹，再开启唤醒。')
       return
@@ -114,7 +117,7 @@ export function CompanionVoiceSettings() {
         <section className="local-voice-settings">
           <header><Fingerprint size={16} /><span><strong>本地唤醒与声纹</strong><small>待机检测完全留在本机，通过后才连接 ElevenLabs</small></span><b>{localStatus.modelsInstalled ? localStatus.speakerEnrolled ? '已就绪' : '待录入' : '未安装'}</b></header>
           <div className="local-voice-grid">
-            <label><span>自定义唤醒词<small>二至六个汉字，避免日常高频词</small></span><input value={voice.wakeWord} maxLength={6} disabled={voice.wakeEnabled} onChange={(event) => setCompanionVoice({ wakeWord: event.target.value.replace(/[^\u4e00-\u9fff]/g, '').slice(0, 6) })} /></label>
+            <label><span>伙伴唤醒名<small>与伙伴名字一致；请在上方“伙伴名字”修改，需 2～6 个汉字</small></span><input value={wakeName} readOnly aria-label="伙伴唤醒名" /></label>
             <label><span>唤醒灵敏度<small>越高越容易唤醒，也更可能误触发</small></span><select value={voice.wakeSensitivity} disabled={voice.wakeEnabled} onChange={(event) => setCompanionVoice({ wakeSensitivity: event.target.value as typeof voice.wakeSensitivity })}><option value="low">低</option><option value="standard">标准</option><option value="high">高</option></select></label>
             <label><span>模型下载源<small>国内优先速度更快；自动模式失败后切全球源</small></span><select value={voice.modelDownloadSource} disabled={modelInstall.active} onChange={(event) => setCompanionVoice({ modelDownloadSource: event.target.value as typeof voice.modelDownloadSource })}><option value="china">国内优先</option><option value="auto">自动切换</option><option value="global">GitHub / Hugging Face</option></select></label>
           </div>
@@ -132,7 +135,7 @@ export function CompanionVoiceSettings() {
           </div>}
           <p>{localMessage}</p>
         </section>
-        <div className="setting-row"><div><strong>语音唤醒「{voice.wakeWord || '未设置'}」</strong><span>开启后关闭主窗口仍在托盘本地监听；只有托盘“退出一隅”才会完全停止</span></div><button aria-pressed={voice.wakeEnabled} className={voice.wakeEnabled ? 'switch on' : 'switch'} onClick={toggleWake}><i /></button></div>
+        <div className="setting-row"><div><strong>语音唤醒「{wakeName || '未设置'}」</strong><span>开启后关闭主窗口仍在托盘本地监听；只有托盘“退出一隅”才会完全停止</span></div><button aria-pressed={voice.wakeEnabled} className={voice.wakeEnabled ? 'switch on' : 'switch'} onClick={toggleWake}><i /></button></div>
         <label className="setting-row"><div><strong>唤醒后的交谈方式</strong><span>短连续会在回答后保留约 8 秒追问，兼顾自然与防误录</span></div><select value={voice.conversationMode} onChange={(event) => setCompanionVoice({ conversationMode: event.target.value as typeof voice.conversationMode })}><option value="single">单轮（每次重新唤醒）</option><option value="short">短连续（推荐）</option><option value="continuous">持续对话（约 15 秒）</option></select></label>
         <label className="setting-row"><div><strong>语音回答长度</strong><span>只影响从麦克风发起的问题</span></div><select value={voice.replyLength} onChange={(event) => setCompanionVoice({ replyLength: event.target.value as 'short' | 'standard' })}><option value="short">精简（3–5 句）</option><option value="standard">标准（通常不超过 8 句）</option></select></label>
         <label className="setting-row"><div><strong>长回答朗读</strong><span>文字始终完整显示；可只朗读前段</span></div><select value={voice.longReplySpeech} onChange={(event) => setCompanionVoice({ longReplySpeech: event.target.value as 'summary' | 'full' })}><option value="summary">只读前段</option><option value="full">完整朗读</option></select></label>

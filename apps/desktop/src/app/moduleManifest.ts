@@ -14,6 +14,7 @@ export interface NavigationItem {
 export const navigationItems: NavigationItem[] = [
   { id: 'home', label: t('nav.home'), caption: t('nav.home.caption'), icon: Home, group: 'main' },
   { id: 'answerBook', label: t('nav.answerBook'), caption: t('nav.answerBook.caption'), icon: BookMarked, group: 'main' },
+  { id: 'fortune', label: t('nav.fortune'), caption: t('nav.fortune.caption'), icon: Sparkles, group: 'main' },
   { id: 'truth', label: t('nav.truth'), caption: t('nav.truth.caption'), icon: Heart, group: 'main' },
   { id: 'calendar', label: t('nav.calendar'), caption: t('nav.calendar.caption'), icon: CalendarDays, group: 'main' },
   { id: 'todos', label: t('nav.todos'), caption: t('nav.todos.caption'), icon: CheckSquare2, group: 'main' },

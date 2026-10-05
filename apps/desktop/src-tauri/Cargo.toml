@@ -37,7 +37,7 @@ tar = "0.4"
 tauri-plugin-single-instance = "2"
 tauri-plugin-notification = "2"
 clipboard-win = "5.4"
-windows = { version = "0.61.3", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell"] }
+windows = { version = "0.61.3", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Devices_Bluetooth", "Devices_Bluetooth_Advertisement", "Devices_Bluetooth_GenericAttributeProfile", "Foundation", "Storage_Streams", "Win32_System_WinRT"] }
 
 [dev-dependencies]
 tempfile = "3"

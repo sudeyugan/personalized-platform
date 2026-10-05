@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nearestPixelMonitor, rightEdgeGeometry, screenToPixel } from './geometry'
+import { edgeGeometry, nearestPixelMonitor, rightEdgeGeometry, screenToPixel } from './geometry'
 
 describe('pixel pet physical screen geometry', () => {
   it('docks to the right of a negative-coordinate secondary monitor at integer scale', () => {
@@ -9,6 +9,13 @@ describe('pixel pet physical screen geometry', () => {
     expect(value.size).toEqual({ width: 192, height: 240 })
     expect(value.position.x + value.size.width).toBe(0)
     expect(value.position.y).toBeGreaterThanOrEqual(-200)
+    expect(value.position.y + value.size.height).toBeLessThanOrEqual(840)
+  })
+  it('docks a mirrored pet to the actual left edge on a negative-coordinate display', () => {
+    const monitor = { workArea: { position: { x: -1920, y: -200 }, size: { width: 1920, height: 1040 } }, scaleFactor: 1.5 }
+    const value = edgeGeometry(monitor, 'left-edge')
+    expect(value.position.x).toBe(-1920)
+    expect(value.scale).toBe(2)
     expect(value.position.y + value.size.height).toBeLessThanOrEqual(840)
   })
   it('halves the old default at integral desktop DPI while retaining crisp pixels', () => {

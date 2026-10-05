@@ -1,3 +1,4 @@
+import { DEFAULT_COMPANION_NAME, stripCompanionAddress } from '../../../domain/companionIdentity'
 import type { AgentToolCall, AgentToolDefinition } from './types'
 
 export interface AgentActionIntent {
@@ -6,10 +7,10 @@ export interface AgentActionIntent {
   requiresTaskPlan?: boolean
 }
 
-const explicitOpenIntent = /^(?:(?:小鱼|你)[，,\s]*)?(?:(?:请|麻烦|帮我|替我|给我|试着|尝试)[，,\s]*)*(?:在(?:默认)?浏览器(?:里|中)?[，,\s]*)?(?:打开|访问|进入)[，,\s]*(?:一下[，,\s]*)?(?:这个[，,\s]*)?(?:网页|网站|链接)?[：:\s]*/i
+const explicitOpenIntent = /^(?:你[，,\s]*)?(?:(?:请|麻烦|帮我|替我|给我|试着|尝试)[，,\s]*)*(?:在(?:默认)?浏览器(?:里|中)?[，,\s]*)?(?:打开|访问|进入)[，,\s]*(?:一下[，,\s]*)?(?:这个[，,\s]*)?(?:网页|网站|链接)?[：:\s]*/i
 const webTarget = /https:\/\/[^\s，。！？；;]+|(?:www\.)?[a-z0-9](?:[a-z0-9-]*\.)+[a-z]{2,24}(?::\d{2,5})?(?:\/[^\s，。！？；;]*)?/i
 const discussionPrefix = /^(?:为什么|为何|怎么|如何|是否|能否|可不可以|可以吗|介绍|解释|说明|讨论|假如|如果|不要|别|无需|不用)/
-const actionVerb = /^(?:(?:小鱼|你)[，,\s]*)?(?:(?:请|麻烦|帮我|替我|给我(?:的)?|试着|尝试|我想让你)[，,\s]*)*(?:把[^，。！？]{0,40})?(?:打开|访问|进入|跳转|切换到|创建|新增|添加|修改|改写|重命名|记录|保存|删除|移除|开始录屏|停止录屏|录制屏幕|录(?:个|制)?视频|截图|截屏|读取剪贴板|查看剪贴板|写入剪贴板|复制到剪贴板|播放音乐|暂停音乐|上一首|下一首|聚焦窗口|关闭窗口|移动窗口|输入文字|点击|运行程序|停止程序|发送通知)/
+const actionVerb = /^(?:你[，,\s]*)?(?:(?:请|麻烦|帮我|替我|给我(?:的)?|试着|尝试|我想让你)[，,\s]*)*(?:把[^，。！？]{0,40})?(?:打开|访问|进入|跳转|切换到|创建|新增|添加|修改|改写|重命名|记录|保存|删除|移除|开始录屏|停止录屏|录制屏幕|录(?:个|制)?视频|截图|截屏|读取剪贴板|查看剪贴板|写入剪贴板|复制到剪贴板|播放音乐|暂停音乐|上一首|下一首|聚焦窗口|关闭窗口|移动窗口|输入文字|点击|运行程序|停止程序|发送通知)/
 const narratedRecording = /(?:录(?:个|制)?视频|录屏).*(?:介绍|讲解|演示)|(?:介绍|讲解|演示).*(?:录(?:个|制)?视频|录屏)|(?:\d+|[一二三四五六七八九十百]+)\s*秒(?:钟)?(?:的)?视频(?:来)?(?:介绍|讲解|演示)/
 
 function hasTool(tools: AgentToolDefinition[], name: string) {
@@ -51,31 +52,31 @@ const pageRoutes: Array<{ pattern: RegExp; destination: string; extras?: Record<
 ]
 
 function resolveKnownAction(message: string, tools: AgentToolDefinition[]) {
-  const command = message.replace(/^(?:(?:小鱼|你)[，,\s]*)?(?:(?:请|麻烦|帮我|替我|给我(?:的)?|试着|尝试)[，,\s]*)*/, '')
+  const command = message.replace(/^(?:你[，,\s]*)?(?:(?:请|麻烦|帮我|替我|给我(?:的)?|试着|尝试)[，,\s]*)*/, '')
   if (hasTool(tools, 'app.open')) {
     const page = pageRoutes.find((route) => route.pattern.test(command))
     if (page) return call('app.open', { destination: page.destination, ...page.extras })
   }
   if (hasTool(tools, 'music.control')) {
-    if (/^(?:小鱼[，,\s]*)?(?:请|帮我|给我)?[，,\s]*(?:播放|暂停)(?:一下)?音乐/.test(command)) return call('music.control', { action: 'play_pause' })
-    if (/^(?:小鱼[，,\s]*)?(?:请|帮我|给我)?[，,\s]*(?:切到|播放)?上一首/.test(command)) return call('music.control', { action: 'previous' })
-    if (/^(?:小鱼[，,\s]*)?(?:请|帮我|给我)?[，,\s]*(?:切到|播放)?下一首/.test(command)) return call('music.control', { action: 'next' })
+    if (/^(?:请|帮我|给我)?[，,\s]*(?:播放|暂停)(?:一下)?音乐/.test(command)) return call('music.control', { action: 'play_pause' })
+    if (/^(?:请|帮我|给我)?[，,\s]*(?:切到|播放)?上一首/.test(command)) return call('music.control', { action: 'previous' })
+    if (/^(?:请|帮我|给我)?[，,\s]*(?:切到|播放)?下一首/.test(command)) return call('music.control', { action: 'next' })
   }
-  if (hasTool(tools, 'clipboard.read') && /^(?:小鱼[，,\s]*)?(?:请|帮我)?[，,\s]*(?:读取|查看|看看|告诉我)(?:一下)?(?:当前)?剪贴板/.test(command)) return call('clipboard.read', {})
-  if (hasTool(tools, 'screen.capture') && /^(?:小鱼[，,\s]*)?(?:请|帮我)?[，,\s]*(?:截图|截屏|截取全屏)/.test(command)) return call('screen.capture', { source: 'desktop' })
-  if (hasTool(tools, 'screen.record_start') && /^(?:小鱼[，,\s]*)?(?:请|帮我)?[，,\s]*(?:开始录屏|录制屏幕|开始录制屏幕)/.test(command)) return call('screen.record_start', { source: 'desktop' })
-  if (hasTool(tools, 'screen.record_status') && /^(?:小鱼[，,\s]*)?(?:请|帮我)?[，,\s]*(?:查看|检查|告诉我)(?:一下)?(?:当前)?录屏状态/.test(command)) return call('screen.record_status', {})
+  if (hasTool(tools, 'clipboard.read') && /^(?:请|帮我)?[，,\s]*(?:读取|查看|看看|告诉我)(?:一下)?(?:当前)?剪贴板/.test(command)) return call('clipboard.read', {})
+  if (hasTool(tools, 'screen.capture') && /^(?:请|帮我)?[，,\s]*(?:截图|截屏|截取全屏)/.test(command)) return call('screen.capture', { source: 'desktop' })
+  if (hasTool(tools, 'screen.record_start') && /^(?:请|帮我)?[，,\s]*(?:开始录屏|录制屏幕|开始录制屏幕)/.test(command)) return call('screen.record_start', { source: 'desktop' })
+  if (hasTool(tools, 'screen.record_status') && /^(?:请|帮我)?[，,\s]*(?:查看|检查|告诉我)(?:一下)?(?:当前)?录屏状态/.test(command)) return call('screen.record_status', {})
   return undefined
 }
 
-export function detectActionIntent(message: string, tools: AgentToolDefinition[]): AgentActionIntent {
-  const normalized = message.trim()
+export function detectActionIntent(message: string, tools: AgentToolDefinition[], name = DEFAULT_COMPANION_NAME): AgentActionIntent {
+  const normalized = stripCompanionAddress(message, name)
   if (!normalized || discussionPrefix.test(normalized)) return { expectsTool: false }
   const directCall = resolveWebOpen(normalized, tools) ?? resolveKnownAction(normalized, tools)
   const requiresTaskPlan = hasTool(tools, 'task.create') && narratedRecording.test(normalized)
   return { expectsTool: requiresTaskPlan || Boolean(directCall) || actionVerb.test(normalized), directCall, ...(requiresTaskPlan ? { requiresTaskPlan: true } : {}) }
 }
 
-export function resolveDirectAction(message: string, tools: AgentToolDefinition[]): AgentToolCall | undefined {
-  return detectActionIntent(message, tools).directCall
+export function resolveDirectAction(message: string, tools: AgentToolDefinition[], name = DEFAULT_COMPANION_NAME): AgentToolCall | undefined {
+  return detectActionIntent(message, tools, name).directCall
 }

@@ -85,7 +85,7 @@ export function ComputerCapabilitySettings() {
         <div>
           <MonitorCog />
           <span><strong>允许操作这台电脑</strong><small>所有操作仍经过能力、目标与风险检查</small></span>
-          <button aria-label="允许小鱼操作电脑" aria-pressed={settings.enabled} className={settings.enabled ? 'switch on' : 'switch'} onClick={() => setCompanionComputer({ enabled: !settings.enabled })}><i /></button>
+          <button aria-label="允许伙伴操作电脑" aria-pressed={settings.enabled} className={settings.enabled ? 'switch on' : 'switch'} onClick={() => setCompanionComputer({ enabled: !settings.enabled })}><i /></button>
         </div>
         {settings.enabled && <>
           <label className="permission-policy-row">
@@ -108,7 +108,7 @@ export function ComputerCapabilitySettings() {
           <div className="computer-section-body">
             <label className="permission-policy-row computer-control-row"><Video /><span><strong>FFmpeg</strong><small>用于截图与录屏，可自动探测 D 盘</small></span><span className="computer-inline"><input value={settings.ffmpegPath} placeholder="D:\\ffmpeg\\bin\\ffmpeg.exe" onChange={(event) => setCompanionComputer({ ffmpegPath: event.target.value })} /><button type="button" onClick={() => void detectFfmpeg()}>自动查找</button></span></label>
             <label className="permission-policy-row computer-control-row"><FolderKey /><span><strong>录制目录</strong><small>留空时保存到“视频\一隅录制”</small></span><input value={settings.recordingDirectory} placeholder="使用默认目录" onChange={(event) => setCompanionComputer({ recordingDirectory: event.target.value })} /></label>
-            <label className="permission-policy-row computer-control-row"><ShieldAlert /><span><strong>紧急停止快捷键</strong><small>中止小鱼启动的录屏和受管程序</small></span><select value={settings.emergencyShortcut} onChange={(event) => setCompanionComputer({ emergencyShortcut: event.target.value })}><option value="CommandOrControl+Alt+Escape">Ctrl + Alt + Esc</option><option value="CommandOrControl+Shift+Escape">Ctrl + Shift + Esc</option><option value="CommandOrControl+Alt+S">Ctrl + Alt + S</option></select></label>
+            <label className="permission-policy-row computer-control-row"><ShieldAlert /><span><strong>紧急停止快捷键</strong><small>中止伙伴启动的录屏和受管程序</small></span><select value={settings.emergencyShortcut} onChange={(event) => setCompanionComputer({ emergencyShortcut: event.target.value })}><option value="CommandOrControl+Alt+Escape">Ctrl + Alt + Esc</option><option value="CommandOrControl+Shift+Escape">Ctrl + Shift + Esc</option><option value="CommandOrControl+Alt+S">Ctrl + Alt + S</option></select></label>
             <button className="computer-stop-button" onClick={() => void stopAll()}><Square size={13} />立即停止电脑操作</button>
           </div>
         </details>

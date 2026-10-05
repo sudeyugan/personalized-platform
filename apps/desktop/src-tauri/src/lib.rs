@@ -1,5 +1,8 @@
 mod commands;
+mod heart_rate;
 mod companion_asset_protocol;
+mod companion_pointer;
+mod companion_feedback;
 mod computer;
 mod local_voice;
 mod repositories;
@@ -34,7 +37,7 @@ fn install_tray(app: &mut tauri::App) -> tauri::Result<()> {
     let interact = MenuItem::with_id(app, "companion-interactive", "显示伙伴并交谈", true, None::<&str>)?;
     let quiet = MenuItem::with_id(app, "companion-quiet", "安静显示（鼠标穿透）", true, None::<&str>)?;
     let hide = MenuItem::with_id(app, "companion-hide", "隐藏伙伴", true, None::<&str>)?;
-    let stop = MenuItem::with_id(app, "computer-stop", "立即停止小鱼操作", true, None::<&str>)?;
+    let stop = MenuItem::with_id(app, "computer-stop", "立即停止伙伴操作", true, None::<&str>)?;
     let open = MenuItem::with_id(app, "open-main", "打开一隅", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "退出一隅", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&interact, &quiet, &hide, &stop, &open, &quit])?;
@@ -78,6 +81,8 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .manage(commands::CompanionAssetScope::default())
         .manage(local_voice::LocalVoiceState::default())
+        .manage(heart_rate::HeartRateRuntime::default())
+        .manage(companion_feedback::CompanionFeedbackRuntime::default())
         .register_asynchronous_uri_scheme_protocol("yiyu-companion", |context, request, responder| {
             let app = context.app_handle().clone();
             let webview_label = context.webview_label().to_string();
@@ -100,6 +105,15 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            companion_pointer::companion_primary_button_down,
+            companion_feedback::companion_feedback_publish,
+            companion_feedback::companion_feedback_subscribe,
+            companion_feedback::companion_feedback_unsubscribe,
+            companion_feedback::companion_feedback_request,
+            heart_rate::heart_rate_scan,
+            heart_rate::heart_rate_connect,
+            heart_rate::heart_rate_disconnect,
+            heart_rate::heart_rate_status,
             commands::health_check,
             commands::get_storage_status,
             commands::configure_storage,

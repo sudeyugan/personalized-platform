@@ -1,3 +1,4 @@
+import { DEFAULT_COMPANION_NAME } from '../../domain/companionIdentity'
 import type { CompanionData } from '../../domain/models'
 
 export type VoiceConversationPhase = 'sleeping' | 'listening' | 'committing' | 'thinking' | 'speaking' | 'interrupted'
@@ -8,10 +9,12 @@ export function normalizeVoiceText(value: string) {
   return value.toLocaleLowerCase().replace(/[，。！？、…,.!?；;：:~～\s]/g, '')
 }
 
-export function resolveVoiceCommand(value: string): VoiceCommand | undefined {
-  const normalized = normalizeVoiceText(value)
-  if (/^(?:小鱼)?(?:藏起来|隐藏起来|休息吧|退下吧)$/.test(normalized)) return 'hide'
-  if (/^(?:小鱼)?(?:先这样|结束对话|不聊了)$/.test(normalized)) return 'end'
+export function resolveVoiceCommand(value: string, name = DEFAULT_COMPANION_NAME): VoiceCommand | undefined {
+  const heard = normalizeVoiceText(value)
+  const prefix = normalizeVoiceText(name)
+  const normalized = prefix && heard.startsWith(prefix) ? heard.slice(prefix.length) : heard
+  if (/^(?:藏起来|隐藏起来|休息吧|退下吧)$/.test(normalized)) return 'hide'
+  if (/^(?:先这样|结束对话|不聊了)$/.test(normalized)) return 'end'
   return undefined
 }
 

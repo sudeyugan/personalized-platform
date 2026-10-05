@@ -13,6 +13,7 @@ import { createMusicSlice, resolvePlaybackContext } from './musicSlice'
 import { createCompanionSlice } from './companionSlice'
 import { createAgentTaskSlice } from './agentTaskSlice'
 import { createPlannerSlice } from './plannerSlice'
+import { createFortuneSlice } from './fortuneSlice'
 import { createAnswerBookSlice } from './answerBookSlice'
 import { formatLocalDate } from '../domain/localDate'
 import { viewForAgentDestination } from '../modules/companion/agent/featureContract'
@@ -364,6 +365,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   ...createAgentTaskSlice(get, set),
   ...createPlannerSlice(get, set),
   ...createAnswerBookSlice(get, set),
+  ...createFortuneSlice(get, set),
 
   setTheme: (theme) => {
     const data = { ...get().data, settings: { ...get().data.settings, theme } }
@@ -428,6 +430,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       || (moduleId === 'music' && current.session.activeView === 'music')
       || (moduleId === 'answerBook' && current.session.activeView === 'answerBook')
       || (moduleId === 'truth' && current.session.activeView === 'truth')
+      || (moduleId === 'fortune' && current.session.activeView === 'fortune')
     )
     const session = hidesActiveView
       ? { ...current.session, activeView: 'home' as const }
