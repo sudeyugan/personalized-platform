@@ -1,10 +1,11 @@
 import type { JSONContent } from '@tiptap/react'
+import type { ExperiencesActions } from './experiencesSlice'
 import type { AgentNavigationIntent, AgentTask, AiGeneration, AnswerBookFavorite, Asset, BackgroundSettings, CalendarEvent, CompanionAgentAuditEntry, CompanionDesktopMode, CompanionMemory, CompanionMessage, CompanionPersonality, CompanionVideoPlacement, CompanionVideoState, Course, DailyQuestion, DiaryEntry, EntityRef, LibraryData, MoodEntry, Person, Place, PlaybackContextKind, RecordType, SaveStatus, TextAnchor, ThemeId, TimelineEvent, TodoItem, Track, ViewId } from '../domain/models'
 import type { HealthStatus, RecoveryDraft } from '../infrastructure/libraryRepository'
 import type { ImportChapter } from '../infrastructure/documentTransfer'
 
-export interface LibraryStore {
-  drawFortune: () => import('../domain/fortune').FortuneDraw
+export interface LibraryStore extends ExperiencesActions {
+  drawFortune: (kind?: import('../domain/fortune').FortuneKind) => import('../domain/fortune').FortuneDraw
   data: LibraryData; ready: boolean; saveStatus: SaveStatus; health: HealthStatus | null; recoveryDrafts: Record<string, RecoveryDraft>; playback: { playing: boolean; context: PlaybackContextKind; queue: string[] }; temporaryCompanionWorkIds: string[]
   hydrate: () => Promise<void>; navigate: (view: ViewId) => void; openAgentDestination: (intent: Omit<AgentNavigationIntent, 'id'>) => void; selectWork: (id: string) => void; selectChapter: (id: string) => void; closeChapter: (id: string) => void
   createWork: () => void; renameWork: (id: string, title: string) => void; trashWork: (id: string) => void
@@ -14,13 +15,13 @@ export interface LibraryStore {
   saveChapter: (id: string, content: JSONContent, plainText: string) => Promise<void>; createManualVersion: (id: string) => Promise<void>; restoreVersion: (chapterId: string, versionId: string) => Promise<void>; toggleVersionPinned: (chapterId: string, versionId: string) => void
   addPerson: () => void; addPlace: () => void; addEvent: () => void; createRecordFromText: (type: RecordType, label: string, chapterId: string, anchor: TextAnchor) => EntityRef
   importAsset: (file: File, context?: { workId?: string; chapterId?: string; purpose?: Asset['purpose'] }) => Promise<Asset>; importCompanionVideo: (file: File, onProgress?: (message: string) => void) => Promise<Asset>; updateAsset: (id: string, changes: Pick<Asset, 'alt' | 'caption'>) => void; trashAsset: (id: string) => void; restoreAsset: (id: string) => void; permanentlyDeleteAsset: (id: string) => Promise<void>; cleanupUnusedCompanionAssets: () => Promise<number>; linkAssetToChapter: (assetId: string, chapterId: string) => void; setChapterImpression: (chapterId: string, assetId: string) => void; recordAiGeneration: (generation: AiGeneration) => void
-  updatePerson: (id: string, changes: Pick<Person, 'name' | 'aliases' | 'summary' | 'importantExperiences' | 'tags' | 'customFields'>) => void
-  updatePlace: (id: string, changes: Pick<Place, 'name' | 'aliases' | 'region' | 'address' | 'relatedPeriod' | 'description' | 'tags' | 'customFields'>) => void
-  updateEvent: (id: string, changes: Pick<TimelineEvent, 'title' | 'displayTime' | 'precision' | 'startDate' | 'endDate' | 'sortTime' | 'description' | 'customFields'>) => void
+  updatePerson: (id: string, changes: Partial<Pick<Person, 'name' | 'aliases' | 'summary' | 'importantExperiences' | 'tags' | 'customFields' | 'usage' | 'workId'>>) => void
+  updatePlace: (id: string, changes: Partial<Pick<Place, 'name' | 'aliases' | 'region' | 'address' | 'relatedPeriod' | 'description' | 'tags' | 'customFields' | 'usage' | 'workId'>>) => void
+  updateEvent: (id: string, changes: Partial<Pick<TimelineEvent, 'title' | 'displayTime' | 'precision' | 'startDate' | 'endDate' | 'sortTime' | 'description' | 'customFields' | 'usage' | 'workId'>>) => void
   trashRecord: (type: RecordType, id: string) => void; restoreRecord: (type: RecordType, id: string) => void; permanentlyDeleteRecord: (type: RecordType, id: string) => void
   setChapterLink: (chapterId: string, target: EntityRef, linked: boolean, anchor?: TextAnchor) => void; setRecordLink: (source: EntityRef, target: EntityRef, linked: boolean) => void; openRecord: (record: EntityRef) => void; pinRecord: (record?: EntityRef) => void
   addPersonRelation: (fromId: string, toId: string, relationType: string, description: string) => void; deletePersonRelation: (id: string) => void; moveEvent: (id: string, direction: -1 | 1) => void
-  setTheme: (theme: ThemeId) => void; toggleRightPanel: () => void; setDailyTarget: (target: number) => void; setLayoutProfile: (profile: LibraryData['settings']['layoutProfile']) => void; setBackgroundImage: (image?: string) => void; setBackgroundSettings: (changes: { images?: Partial<BackgroundSettings['images']>; sidebarMode?: BackgroundSettings['sidebarMode'] }) => void; moveNavigation: (view: ViewId, direction: -1 | 1) => void; toggleModule: (id: LibraryData['settings']['modules'][number]['id']) => void; toggleFocusMode: () => void
+  setTheme: (theme: ThemeId) => void; toggleRightPanel: () => void; setDailyTarget: (target: number) => void; setLayoutProfile: (profile: LibraryData['settings']['layoutProfile']) => void; setBackgroundImage: (image?: string) => void; setBackgroundSettings: (changes: Partial<BackgroundSettings>) => void; moveNavigation: (view: ViewId, direction: -1 | 1) => void; toggleModule: (id: LibraryData['settings']['modules'][number]['id']) => void; toggleFocusMode: () => void
   setAiSettings: (changes: Partial<LibraryData['settings']['ai']>) => void; setWebSearchSettings: (changes: Partial<LibraryData['settings']['webSearch']>) => void; setBackupSettings: (changes: Partial<LibraryData['settings']['backup']>) => void; setSecuritySettings: (changes: Partial<LibraryData['settings']['security']>) => void; setTrustSettings: (changes: Partial<LibraryData['settings']['trust']>) => void
   saveDiaryEntry: (entry: DiaryEntry) => void; addCourse: (course: Omit<Course, 'id'>) => void; updateCourse: (id: string, changes: Partial<Omit<Course, 'id'>>) => void; deleteCourse: (id: string) => void
   saveMoodEntry: (entry: Pick<MoodEntry, 'date' | 'period' | 'points' | 'note'>) => void; deleteMoodEntry: (id: string) => void

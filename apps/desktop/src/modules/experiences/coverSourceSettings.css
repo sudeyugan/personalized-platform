@@ -1,0 +1,12 @@
+.experience-source-settings { margin: 16px 0 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: 9px; background: color-mix(in srgb, var(--surface) 85%, transparent); }
+.experience-source-settings summary { cursor: pointer; font-size: 12px; color: var(--ink-soft); }
+.experience-source-settings p { color: var(--ink-faint); font-size: 11px; line-height: 1.9; overflow-wrap: anywhere; }
+.experience-source-key { margin: 16px 0; }
+.experience-source-key label { display: grid; gap: 6px; font-size: 12px; color: var(--ink-soft); }
+.experience-source-key input { width: 100%; min-width: 0; padding: 9px 10px; font-size: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); }
+.experience-source-key > div { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; font-size: 11px; }
+.experience-source-key button { padding: 6px 10px; background: var(--accent-soft); color: var(--accent-strong); border-radius: 5px; }
+.experience-source-settings a { color: var(--accent-strong); text-decoration: underline; text-underline-offset: 3px; }
+.experience-source-credits { display: flex; flex-wrap: wrap; gap: 15px; font-size: 11px; align-items: center; }
+.experience-source-credits .tmdb-credit { display: inline-flex; align-items: center; gap: 6px; }
+.experience-source-credits .tmdb-credit img { height: 24px; width: auto; max-width: 70px; }

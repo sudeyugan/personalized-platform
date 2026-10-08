@@ -1,0 +1,67 @@
+/* Theme ornaments and the shared wooden signing table. No external images/fonts. */
+.fortune-recipient{display:flex;gap:3px;padding:4px;margin-top:24px;border:1px solid #9b8b682d;border-radius:20px;background:#ffffff35;flex-shrink:0}
+.fortune-recipient button{border:0;border-radius:16px;padding:8px 17px;background:transparent;color:#8b7b65;font:11px var(--sans);cursor:pointer;letter-spacing:.05em}
+.fortune-recipient button[aria-pressed=true]{color:#665b46;background:#fffcf0;box-shadow:0 2px 7px #6c594210}
+.fortune-recipient button:disabled{cursor:default;opacity:.65}
+.fortune-recipient button:focus-visible{outline:2px solid var(--fortune-accent);outline-offset:2px}
+.fortune-recipient-note{flex-shrink:0;max-width:400px;margin:10px 0 0;font-size:10px;line-height:1.8;color:#998a73}
+.fortune-actions .fortune-next-guest{padding:8px 15px;margin-top:12px;font:11px var(--sans);letter-spacing:.05em}
+[data-theme=dark] .fortune-recipient{background:#ffffff05;border-color:#bdb09930}
+[data-theme=dark] .fortune-recipient button,[data-theme=dark] .fortune-recipient-note{color:#bdb099}
+[data-theme=dark] .fortune-recipient button[aria-pressed=true]{color:#ede3cf;background:#555543}
+.fortune-daily{--fortune-accent:#738467;--fortune-soft:#e8eddf;--fortune-label:#e7e5ca;--fortune-seal:#a55d4c}
+.fortune-love{--fortune-accent:#a96370;--fortune-soft:#f1e0de;--fortune-label:#f3ded9;--fortune-seal:#a65d69}
+.fortune-future{--fortune-accent:#557078;--fortune-soft:#e1e9e6;--fortune-label:#dbe6e1;--fortune-seal:#847046}
+.fortune-view.fortune-love{background:radial-gradient(ellipse at 54% 28%,#fffaf5,#f4ece8 53%,#e9e4df)}
+.fortune-view.fortune-future{background:radial-gradient(ellipse at 54% 28%,#fafbf2,#edf0e7 53%,#dce4df)}
+.fortune-cherry{color:#ae7180;opacity:.18}
+.fortune-bamboo{color:#567e76;opacity:.17}
+.fortune-gold-ring{color:#b99a59;opacity:.7}
+.fortune-quiet-branch{opacity:.065}
+.fortune-vessel{position:relative;isolation:isolate;width:128px;height:214px;margin:0 auto}
+.fortune-vessel .fortune-sticks{top:-35px;left:4px;z-index:-1}
+.fortune-cylinder>span{background:repeating-linear-gradient(1deg,transparent 0 2px,#7f624808 3px),var(--fortune-label);border-color:var(--fortune-accent);color:var(--fortune-accent)}
+.fortune-cylinder>span>span{display:block}
+.fortune-cylinder-mark{color:var(--fortune-accent);border-color:var(--fortune-accent)}
+.fortune-cord{position:absolute;top:20px;left:-2px;width:128px;height:60px;fill:none;stroke:#ac5666;stroke-width:2.5;filter:drop-shadow(0 1px 1px #562c3240);pointer-events:none}
+.fortune-bamboo-mark{position:absolute;bottom:43px;left:12px;width:25px;height:60px;fill:none;stroke:#d5c39290;stroke-width:1.2;pointer-events:none}
+.fortune-future .fortune-cylinder{background:repeating-linear-gradient(91deg,transparent 0 8px,#d0dfcb0c 9px,#22383110 10px,transparent 12px),linear-gradient(90deg,#3c524b,#687b6a 25%,#788a72 50%,#536756 80%,#394d46);border-color:#384a3e}
+.fortune-future .fortune-cylinder:before,.fortune-future .fortune-cylinder:after{background:linear-gradient(90deg,#8a7856,#c6b387 46%,#8c7b57)}
+.fortune-love .fortune-cylinder{background:repeating-linear-gradient(91deg,transparent 0 8px,#edcc9c13 9px,#482e2010 10px,transparent 12px),linear-gradient(90deg,#876449,#b08a68 22%,#c29c7c 48%,#a57e60 78%,#7c5b44)}
+.fortune-table{position:relative;flex:0 0 auto;width:min(100%,610px);margin:45px 0 30px;padding:0 12px 24px}
+.fortune-table-caption{font:12px var(--serif);letter-spacing:.18em;color:#8b7b65;margin:0 0 47px}
+.fortune-table-row{position:relative;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;z-index:1}
+.fortune-table-choice{position:relative;display:flex;flex-direction:column;align-items:center;padding:0 4px 13px;border:0;background:none;color:inherit;cursor:pointer;border-radius:4px;transition:transform .2s,background .2s}
+.fortune-table-choice .fortune-vessel{transform:scale(.82);transform-origin:50% 100%;margin-top:-37px;margin-bottom:26px}
+.fortune-table-choice:hover{transform:translateY(-4px)}
+.fortune-table-choice:hover .fortune-choice-state{color:var(--fortune-accent)}
+.fortune-table-choice:focus-visible{outline:2px solid var(--fortune-accent);outline-offset:8px;background:#ffffff30}
+.fortune-choice-title{font:22px var(--serif);letter-spacing:.17em;padding-left:.17em;color:var(--fortune-accent)}
+.fortune-choice-note{font-size:11px;letter-spacing:.09em;margin-top:10px;color:#8b7d69}
+.fortune-choice-state{font-size:10px;margin-top:20px;color:#8a7a64;letter-spacing:.03em}
+.fortune-table-wood{position:absolute;top:242px;left:0;right:0;height:28px;z-index:0;background:repeating-linear-gradient(2deg,transparent 0 3px,#8a66420a 4px),linear-gradient(180deg,#ccb79858,#a88d6147 32%,#c5b18c3b);border-top:1px solid #a28b6840;border-bottom:3px solid #8c75492e;box-shadow:0 14px 25px -14px #79604765;transform:perspective(500px) rotateX(18deg);border-radius:50% 50% 3px 3px/12px 12px 3px 3px;pointer-events:none}
+.fortune-table-hint{font-size:11px;letter-spacing:.08em;color:#998a73;margin:31px 0 0}
+.fortune-paper-caption{color:var(--fortune-accent)}
+.fortune-seal{color:var(--fortune-seal);border-color:var(--fortune-seal);outline-color:var(--fortune-seal);outline-width:1px;background:repeating-linear-gradient(15deg,transparent 0 5px,#a55d4c08 6px)}
+.fortune-paper-meaning{font-size:12px;line-height:2;text-align:left;color:#716750;margin:0 2px 20px}
+.fortune-interpretation{margin:0}
+.fortune-interpretation dt{font-size:10px;letter-spacing:.15em;color:var(--fortune-seal)}
+.fortune-interpretation dd{font-size:12px;line-height:2;color:#716750;margin:8px 0 18px}
+.fortune-interpretation>div:last-child dd{margin-bottom:0}
+.fortune-actions .fortune-back{background:transparent;border:0;box-shadow:none;font:11px var(--sans);letter-spacing:.07em;color:#89785f;margin-top:18px;padding:8px 14px}
+.fortune-actions .fortune-back:disabled{opacity:.45;cursor:default}
+.fortune-actions .fortune-back:hover:not(:disabled){color:var(--fortune-accent);background:#ffffff30}
+[data-theme=dark] .fortune-view.fortune-love{background:radial-gradient(ellipse at 54% 28%,#44383a,#2c282c 85%)}
+[data-theme=dark] .fortune-view.fortune-future{background:radial-gradient(ellipse at 54% 28%,#30423d,#222c2b 85%)}
+[data-theme=dark] .fortune-table-caption,[data-theme=dark] .fortune-table-hint,[data-theme=dark] .fortune-choice-note,[data-theme=dark] .fortune-choice-state,[data-theme=dark] .fortune-actions .fortune-back{color:#bdb099}
+[data-theme=dark] .fortune-choice-title{color:var(--fortune-label)}
+[data-theme=dark] .fortune-table-wood{background:linear-gradient(#88724b40,#5c4e3440);border-color:#9b896b50}
+[data-theme=dark] .fortune-cherry{color:#d896a4}
+[data-theme=dark] .fortune-bamboo{color:#9dbeb0}
+@media(max-width:650px){
+  .fortune-table{padding:0 0 20px;margin-top:32px}.fortune-table-row{gap:6px}.fortune-table-choice{min-width:0;padding-inline:0}
+  .fortune-table-choice .fortune-vessel{transform:scale(.65);margin-top:-75px;margin-bottom:24px}
+  .fortune-table-caption{margin-bottom:48px}.fortune-choice-title{font-size:19px}.fortune-choice-note{font-size:10px}.fortune-choice-state{font-size:9px}
+  .fortune-table-wood{top:200px;height:23px}.fortune-table-hint{margin-top:24px}
+}
+@media(max-width:360px){.fortune-table-choice .fortune-vessel{transform:scale(.56)}.fortune-choice-title{font-size:17px}.fortune-choice-note{letter-spacing:0}}

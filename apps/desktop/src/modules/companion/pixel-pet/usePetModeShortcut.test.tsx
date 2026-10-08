@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { isPetModeShortcut, PET_MODE_SHORTCUT, PET_MODE_STATUS, usePetModeShortcut } from './usePetModeShortcut'
+import { isPetModeShortcut, PET_MODE_REBIND, PET_MODE_SHORTCUT, PET_MODE_STATUS, usePetModeShortcut } from './usePetModeShortcut'
 
 const native = vi.hoisted(() => ({ register: vi.fn(), unregister: vi.fn(), pixel: false, visible: true, toggle: vi.fn(), show: vi.fn() }))
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => true }))
@@ -36,15 +36,15 @@ describe('Ctrl+Alt+Q mode shortcut', () => {
     handler({ state: 'Released' }); handler({ state: 'Pressed' })
     expect(native.toggle).toHaveBeenCalledTimes(2)
   })
-  it('preserves conflicting visibility, quiet and emergency bindings', async () => {
-    const { rerender, unmount } = renderHook(({ bindings }) => usePetModeShortcut(...bindings, vi.fn()), { initialProps: { bindings: ['Alt+Ctrl+Q', '', ''] as [string, string, string] } })
-    expect(localStorage.getItem(PET_MODE_STATUS)).toContain('冲突')
-    rerender({ bindings: ['', 'CommandOrControl+Alt+Q', ''] })
-    rerender({ bindings: ['', '', 'Control+Alt+Q'] })
+  it('keeps Q available for mode switching with legacy duplicate preferences', async () => {
+    const switched = vi.fn()
+    const { unmount } = renderHook(() => usePetModeShortcut('Alt+Ctrl+Q', 'CommandOrControl+Alt+Q', 'Control+Alt+Q', switched))
+    await waitFor(() => expect(localStorage.getItem(PET_MODE_STATUS)).toContain('已启用'))
+    expect(native.register).toHaveBeenCalledExactlyOnceWith(PET_MODE_SHORTCUT, expect.any(Function))
     unmount()
-    await Promise.resolve()
-    expect(native.register).not.toHaveBeenCalled()
-    expect(native.unregister).not.toHaveBeenCalled()
+    await waitFor(() => expect(native.unregister).toHaveBeenCalledExactlyOnceWith(PET_MODE_SHORTCUT))
+    expect(native.show).not.toHaveBeenCalled()
+    expect(native.toggle).not.toHaveBeenCalled()
   })
   it('shows a hidden WebM character when switching out of pixel mode', async () => {
     native.pixel = true; native.visible = false
@@ -76,5 +76,35 @@ describe('Ctrl+Alt+Q mode shortcut', () => {
     unmount()
     await Promise.resolve()
     expect(native.unregister).not.toHaveBeenCalled()
+  })
+  it('retries a failed binding without releasing any unowned key', async () => {
+    native.register.mockRejectedValueOnce(new Error('occupied'))
+    const switched = vi.fn()
+    const { unmount } = renderHook(() => usePetModeShortcut('', '', '', switched))
+    await waitFor(() => expect(localStorage.getItem(PET_MODE_STATUS)).toContain('注册失败'))
+    act(() => window.dispatchEvent(new Event(PET_MODE_REBIND)))
+    await waitFor(() => expect(localStorage.getItem(PET_MODE_STATUS)).toContain('已启用'))
+    expect(native.register).toHaveBeenCalledTimes(2)
+    expect(native.unregister).not.toHaveBeenCalled()
+    unmount()
+    await waitFor(() => expect(native.unregister).toHaveBeenCalledExactlyOnceWith(PET_MODE_SHORTCUT))
+  })
+  it('serializes rebind and ignores the old handler after releasing the key', async () => {
+    const order: string[] = []
+    native.register.mockImplementation(async () => { order.push('register') })
+    native.unregister.mockImplementation(async () => { order.push('unregister') })
+    const switched = vi.fn()
+    const { unmount } = renderHook(() => usePetModeShortcut('', '', '', switched))
+    await waitFor(() => expect(localStorage.getItem(PET_MODE_STATUS)).toContain('已启用'))
+    const oldHandler = native.register.mock.calls[0][1]
+    act(() => window.dispatchEvent(new Event(PET_MODE_REBIND)))
+    await waitFor(() => expect(native.register).toHaveBeenCalledTimes(2))
+    expect(order).toEqual(['register', 'unregister', 'register'])
+    act(() => { oldHandler({ state: 'Pressed' }); native.register.mock.calls[1][1]({ state: 'Pressed' }) })
+    expect(native.toggle).toHaveBeenCalledExactlyOnceWith(true)
+    unmount()
+    await waitFor(() => expect(native.unregister).toHaveBeenCalledTimes(2))
+    act(() => window.dispatchEvent(new Event(PET_MODE_REBIND)))
+    expect(native.register).toHaveBeenCalledTimes(2)
   })
 })

@@ -1,3 +1,6 @@
+import { createListeningNotice, type ListeningInput } from '../../music-companion/listeningNotice'
+import type { CompanionHeartRateInput } from '../../heart-rate/companionHeartRate'
+import { createHeartNotice, heartMarkerPoint } from './heartNotice'
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { CompanionPetStyle } from '../../../domain/models'
 import { normalizeCompanionPetStyle } from '../../../domain/companionPetStyle'
@@ -19,6 +22,8 @@ import { PIXEL_PET_SIZE, type PixelPoint, type PixelPetPose } from './types'
 import './pixelPet.css'
 
 interface Props {
+  listeningInput?: ListeningInput
+  heartInput?: CompanionHeartRateInput
   name?: string
   engaged?: boolean
   dragging?: boolean
@@ -34,9 +39,16 @@ interface Props {
   pixelRatio?: number
   active?: boolean
 }
-export function PixelPetRenderer({ name = '小鱼', engaged = false, dragging = false, dragMotion, restPreview = false, conversation = 'idle', response, headPat, pointer, pose = 'right-edge', style = 'chibi', scale = 1, pixelRatio = 1, active = true }: Props) {
+export function PixelPetRenderer({ name = '小鱼', engaged = false, dragging = false, dragMotion, restPreview = false, conversation = 'idle', response, headPat, pointer, pose = 'right-edge', style = 'chibi', scale = 1, pixelRatio = 1, active = true, heartInput, listeningInput }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const painted = useRef(false)
+  const musicNotice = useRef(createListeningNotice())
+  const musicRef = useRef(listeningInput)
+  musicRef.current = listeningInput
+  useEffect(() => { if (!active) musicNotice.current(performance.now(), false, true) }, [active])
+  const heartNotice = useRef(createHeartNotice())
+  const heartRef = useRef(heartInput)
+  heartRef.current = heartInput
   const previewResponse = useRef(0)
   const previewPat = useRef(0)
   const [error, setError] = useState('')
@@ -49,6 +61,8 @@ export function PixelPetRenderer({ name = '小鱼', engaged = false, dragging = 
     const element = canvas.current, ctx = element?.getContext('2d')
     if (!element || !ctx) return
     const side = pose === 'bottom-edge' ? 'bottom-edge' : pose === 'left-edge' ? 'left-edge' : 'right-edge'
+    const notice = heartNotice.current
+    notice.reset()
     const attention = createPetAttention(pose === 'bottom-edge' || pose === 'float')
     const rest = createPetRest()
     const motion = createPetMotion()
@@ -65,6 +79,7 @@ export function PixelPetRenderer({ name = '小鱼', engaged = false, dragging = 
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')
     const draw = (now: number) => {
       const patRequest = headPat?.current ?? previewPat.current
+      const patChanged = patRequest !== lastPat
       if (patRequest !== lastPat) { lastPat = patRequest; rest.wake(now); personality.pat(now) }
       const request = response?.current ?? previewResponse.current
       if (request !== lastResponse) { lastResponse = request; rest.wake(now); animator.respond(now) }
@@ -75,8 +90,18 @@ export function PixelPetRenderer({ name = '小鱼', engaged = false, dragging = 
       const engaged = behavior.update(conversationRef.current, focus)
       if (engaged.respond) animator.respond(now)
       const reduced = reducedMotion?.matches ?? false
-      const gesture = personality.update(now, sleep > .1 || interaction.engaged || interaction.dragging || conversationRef.current !== 'idle', reduced, Boolean(focus.pointer))
-      const target = sleep > .1 || interaction.dragging ? null : engaged.pointer ?? gesture.pointer
+      const blocked = sleep > .1 || interaction.engaged || interaction.dragging || conversationRef.current !== 'idle'
+      const gesture = personality.update(now, blocked || notice.isLooking(now), reduced, Boolean(focus.pointer))
+      const heart = heartRef.current, marker = heart?.marker.current
+      const looking = notice.update(now, heart?.sample.current ?? null, blocked || reduced || patChanged || Boolean(focus.pointer)
+        || !marker || Boolean(gesture.pointer) || Math.abs(gesture.tilt) > .0001 || gesture.squint > .01)
+      const mark = looking && marker ? heartMarkerPoint(element.getBoundingClientRect(), marker.getBoundingClientRect(), side) : null
+      const noticePointer = mark ? { x: eyeCenter.x + (mark.x - eyeCenter.x) * looking, y: eyeCenter.y + (mark.y - eyeCenter.y) * looking } : null
+      const music = musicRef.current
+      const musicWeight = musicNotice.current(now, music?.playing.current ?? false, blocked || reduced || patChanged || Boolean(focus.pointer) || notice.isLooking(now) || Boolean(gesture.pointer) || Math.abs(gesture.tilt) > .0001 || gesture.squint > .01 || !music?.marker.current)
+      const musicMark = musicWeight && music?.marker.current ? heartMarkerPoint(element.getBoundingClientRect(), music.marker.current.getBoundingClientRect(), side) : null
+      const musicPointer = musicMark ? { x: eyeCenter.x + (musicMark.x - eyeCenter.x) * musicWeight, y: eyeCenter.y + (musicMark.y - eyeCenter.y) * musicWeight } : null
+      const target = sleep > .1 || interaction.dragging ? null : engaged.pointer ?? noticePointer ?? gesture.pointer ?? musicPointer
       const raw = animator.update(now, target, reduced, engaged.settling || sleep > .1)
       const next = motion.update(now, raw, {
         pose, motion: engaged.motion, sleep, reduced,
@@ -101,6 +126,7 @@ export function PixelPetRenderer({ name = '小鱼', engaged = false, dragging = 
       frameId = window.requestAnimationFrame(tick)
     }
     const visibility = () => {
+      if (document.hidden) musicNotice.current(performance.now(), false, true)
       window.cancelAnimationFrame(frameId)
       if (active && !document.hidden) frameId = window.requestAnimationFrame(tick)
     }
@@ -120,7 +146,7 @@ export function PixelPetRenderer({ name = '小鱼', engaged = false, dragging = 
     if (active && !document.hidden) frameId = window.requestAnimationFrame(tick)
     document.addEventListener('visibilitychange', visibility)
     return () => {
-      disposed = true; window.cancelAnimationFrame(frameId)
+      disposed = true; notice.reset(); window.cancelAnimationFrame(frameId)
       document.removeEventListener('pointermove', mouse)
       document.removeEventListener('visibilitychange', visibility)
     }

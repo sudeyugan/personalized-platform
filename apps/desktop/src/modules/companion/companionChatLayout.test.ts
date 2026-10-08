@@ -17,7 +17,7 @@ describe('adaptive companion chat positioning', () => {
     const target = chat()
     await positionCompanionChat(portrait(1088, 200), target as unknown as TauriWindow, 'bubble')
     expect(target.setSize).toHaveBeenCalledWith(expect.objectContaining({ width: 300, height: 210 }))
-    expect(target.setPosition).toHaveBeenCalledWith(expect.objectContaining({ x: 788, y: 200 }))
+    expect(target.setPosition).toHaveBeenCalledWith(expect.objectContaining({ x: 776, y: 219 }))
   })
   it('places bottom-edge dialogue above the pet and keeps it on the work area', async () => {
     const target = chat()
@@ -28,7 +28,8 @@ describe('adaptive companion chat positioning', () => {
     mocks.monitors.mockResolvedValue([{ scaleFactor: 2, workArea: { position: { x: -2560, y: 0 }, size: { width: 2560, height: 1440 } } }])
     const target = chat()
     await positionCompanionChat(portrait(-2560, 100, 384, 480), target as unknown as TauriWindow, 'voice')
-    expect(target.setPosition).toHaveBeenCalledWith(expect.objectContaining({ x: -2176, y: 100 }))
+    expect(target.setPosition).toHaveBeenCalledWith(expect.objectContaining({ x: -2152, y: 138 }))
+    expect(target.setSize).toHaveBeenCalledWith(expect.objectContaining({ width: 560, height: 320 }))
   })
   it('serializes mode resizing and continues after a failed operation', async () => {
     const target = chat()
@@ -38,6 +39,6 @@ describe('adaptive companion chat positioning', () => {
     await expect(first).rejects.toThrow('closed window')
     await second
     expect(target.setPosition).toHaveBeenCalledTimes(1)
-    expect(target.setSize.mock.calls[1][0]).toEqual(expect.objectContaining({ width: 300 }))
+    expect(target.setSize.mock.calls[1][0]).toEqual(expect.objectContaining({ width: 280 }))
   })
 })

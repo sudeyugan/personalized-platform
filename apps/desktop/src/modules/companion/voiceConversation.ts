@@ -37,6 +37,7 @@ function bigrams(value: string) {
 export function isLikelyPlaybackEcho(transcript: string, spokenText: string) {
   const heard = normalizeVoiceText(transcript)
   const spoken = normalizeVoiceText(spokenText)
+  if (heard.length >= 2 && heard === spoken) return true
   if (heard.length < 2 || spoken.length < 4) return false
   if (heard.length >= 4 && (spoken.includes(heard) || heard.includes(spoken))) return true
   const heardPairs = bigrams(heard)

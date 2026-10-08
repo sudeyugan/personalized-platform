@@ -8,7 +8,7 @@ describe('record cards', () => {
   it('edits people, places and timeline events in a stable side panel, then deletes a person', async () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: '创作空间' }))
-    fireEvent.click(await screen.findByRole('button', { name: '人物' }))
+    fireEvent.click(await screen.findByRole('button', { name: '资料' }))
     fireEvent.click(await screen.findByRole('button', { name: '编辑外婆' }))
     expect(document.querySelector('.edit-modal')).not.toBeInTheDocument()
     expect(screen.getByRole('complementary', { name: '外婆资料工作栏' })).toBeInTheDocument()

@@ -8,6 +8,7 @@ const contextNames = { global: '全局', work: '作品', chapter: '章节', focu
 
 export function PlaybackDock({ moduleEnabled = true, showEmptyHint = false }: { moduleEnabled?: boolean; showEmptyHint?: boolean }) {
   const { data, playback, playTrack, togglePlayback, nextTrack, previousTrack, setMusicSettings } = useLibraryStore()
+  const autoContext = useRef<string | undefined>(undefined)
   const audioRef = useRef<HTMLAudioElement>(null)
   const [url, setUrl] = useState('')
   const [emptyHintVisible, setEmptyHintVisible] = useState(true)
@@ -20,7 +21,14 @@ export function PlaybackDock({ moduleEnabled = true, showEmptyHint = false }: { 
     return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl) }
   }, [track])
   useEffect(() => { const audio = audioRef.current; if (!audio || !url) return; audio.volume = data.settings.music.volume; if (playback.playing) void audio.play().catch(() => {}); else audio.pause() }, [url, playback.playing, data.settings.music.volume])
-  useEffect(() => { if (!data.settings.music.autoSwitch) return; const [kind, queue] = resolvePlaybackContext(data); if (queue[0] && (!playback.queue.includes(queue[0]) || data.session.currentTrackId !== queue[0])) playTrack(queue[0], kind) }, [data, playback.queue, playTrack])
+  useEffect(() => {
+    const [kind, queue] = resolvePlaybackContext(data)
+    const scope = kind === 'chapter' ? data.session.activeChapterId : kind === 'work' ? data.session.activeWorkId : kind
+    const signature = JSON.stringify([kind, scope, queue])
+    const changed = autoContext.current !== undefined && autoContext.current !== signature
+    autoContext.current = signature
+    if (data.settings.music.autoSwitch && playback.playing && changed && queue[0]) playTrack(queue[0], kind)
+  }, [data, playback.playing, playTrack])
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
       if (!event.ctrlKey || !event.altKey) return

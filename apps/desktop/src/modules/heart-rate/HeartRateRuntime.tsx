@@ -6,6 +6,11 @@ export function HeartRateRuntime() {
   const enabled = useHeartRateStore((store) => store.enabled)
   const status = useHeartRateStore((store) => store.status)
   useEffect(() => {
+    // Defer until the committed mount; StrictMode's disposable mount must not start Bluetooth.
+    const timer = window.setTimeout(() => void useHeartRateStore.getState().resumeOnStartup(), 0)
+    return () => window.clearTimeout(timer)
+  }, [])
+  useEffect(() => {
     if (!enabled) return
     let disposed = false
     let timer: number | undefined
@@ -22,7 +27,7 @@ export function HeartRateRuntime() {
     void emitTo('companion', 'companion:heart-rate', { enabled, phase: status.phase, bpm: visibleHeartRate({ enabled, ...status }), ageMs: status.ageMs })
   }, [enabled, status])
   useEffect(() => {
-    const clear = () => { if ('__TAURI_INTERNALS__' in window) void useHeartRateStore.getState().disconnect() }
+    const clear = () => { if ('__TAURI_INTERNALS__' in window && useHeartRateStore.getState().enabled) void useHeartRateStore.getState().disconnect() }
     window.addEventListener('beforeunload', clear)
     return () => { window.removeEventListener('beforeunload', clear); clear() }
   }, [])

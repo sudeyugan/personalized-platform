@@ -1,5 +1,6 @@
 const messages = {
   'nav.home': '今日一隅', 'nav.home.caption': '回到你的空间',
+  'nav.experiences': '经历册', 'nav.experiences.caption': '看过的作品，走过的地方',
   'nav.answerBook': '答案之书', 'nav.answerBook.caption': '把问题交给偶然',
   'nav.fortune': '一隅签', 'nav.fortune.caption': '一纸偶然，照见此刻',
   'nav.truth': '真心话', 'nav.truth.caption': '那些没说出口的事',

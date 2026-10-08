@@ -1,20 +1,105 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { emptyCompanionDesktopSnapshot } from './companionDesktop'
 import { DesktopCompanionChatWindow } from './DesktopCompanionChatWindow'
-const events = vi.hoisted(() => ({ handlers: new Map<string, (event: { payload: unknown }) => void>(), emit: vi.fn().mockResolvedValue(undefined) }))
+import type { AgentTask } from '../../domain/models'
+const events = vi.hoisted(() => ({ handlers: new Map<string, Set<(event: { payload: unknown }) => void>>(), emit: vi.fn().mockResolvedValue(undefined) }))
 vi.mock('@tauri-apps/api/event', () => ({
   emitTo: events.emit,
   listen: (name: string, handler: (event: { payload: unknown }) => void) => {
-    events.handlers.set(name, handler)
-    return Promise.resolve(() => events.handlers.delete(name))
+    const handlers = events.handlers.get(name) ?? new Set()
+    handlers.add(handler); events.handlers.set(name, handlers)
+    return Promise.resolve(() => { handlers.delete(handler); if (!handlers.size) events.handlers.delete(name) })
   },
 }))
 vi.mock('./useCompanionVoiceWake', () => ({ useCompanionVoiceWake: () => undefined }))
 vi.mock('./AgentPermissionCard', () => ({ AgentPermissionCard: ({ onDecision }: { onDecision: (allowed: boolean) => void }) => <button onClick={() => onDecision(true)}>明确允许</button> }))
-const send = (event: string, payload: unknown) => act(() => events.handlers.get(event)?.({ payload }))
+const send = (event: string, payload: unknown) => act(() => events.handlers.get(event)?.forEach(handler => handler({ payload })))
+const task = (status: AgentTask['status']): AgentTask => ({ id: 'recording', title: '录制自我介绍', goal: '介绍', status, currentStep: 0, createdAt: '', updatedAt: '', artifacts: [], steps: [{ id: 'step', title: '停止录屏', action: 'wait', durationMs: 100, status: 'completed', failurePolicy: 'stop' }] })
 describe('lightweight conversation', () => {
-  beforeEach(() => { events.handlers.clear(); events.emit.mockClear() })
+  beforeEach(() => { events.handlers.clear(); events.emit.mockClear(); Element.prototype.scrollIntoView = vi.fn(); Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {}, configurable: true }) })
+  afterEach(() => { Reflect.deleteProperty(window, '__TAURI_INTERNALS__') })
+  it('does not pin completed or cancelled tasks when switching to a full WebM chat', async () => {
+    render(<DesktopCompanionChatWindow />)
+    await waitFor(() => expect(events.handlers.has('companion:snapshot')).toBe(true))
+    send('companion:chat-presentation', { mode: 'full' })
+    for (const status of ['completed', 'cancelled'] as const) {
+      send('companion:snapshot', { ...emptyCompanionDesktopSnapshot, task: task(status) })
+      expect(screen.queryByText('录制自我介绍')).not.toBeInTheDocument()
+      expect(screen.getByText('想说什么都可以。')).toBeInTheDocument()
+      expect(screen.getByRole('textbox')).toBeInTheDocument()
+    }
+  })
+  it('removes a running task on completion without clearing conversation messages', async () => {
+    render(<DesktopCompanionChatWindow />)
+    await waitFor(() => expect(events.handlers.has('companion:task-detail')).toBe(true))
+    send('companion:chat-presentation', { mode: 'full' })
+    send('companion:snapshot', { ...emptyCompanionDesktopSnapshot, task: task('running') })
+    expect(screen.getByText('录制自我介绍')).toBeInTheDocument()
+    send('companion:task-detail', { taskId: 'recording' })
+    expect(screen.getByRole('list', { name: '任务步骤' })).toBeInTheDocument()
+    send('companion:snapshot', { ...emptyCompanionDesktopSnapshot, task: task('completed'), messages: [{ id: 'reply', role: 'companion', content: '视频已经录好', createdAt: '' }] })
+    expect(screen.queryByText('录制自我介绍')).not.toBeInTheDocument()
+    expect(screen.getByText('视频已经录好')).toBeInTheDocument()
+  })
+  it('shows a completed result only on explicit detail request, and supports dismiss and ordinary reopen', async () => {
+    render(<DesktopCompanionChatWindow />)
+    await waitFor(() => expect(events.handlers.has('companion:task-detail')).toBe(true))
+    send('companion:chat-presentation', { mode: 'full' })
+    send('companion:snapshot', { ...emptyCompanionDesktopSnapshot, task: task('completed') })
+    send('companion:task-detail', { taskId: 'recording' })
+    expect(screen.getByText('录制自我介绍')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '收起详情' }))
+    expect(screen.queryByText('录制自我介绍')).not.toBeInTheDocument()
+    send('companion:task-detail', { taskId: 'recording' })
+    send('companion:chat-presentation', { mode: 'full' })
+    expect(screen.queryByText('录制自我介绍')).not.toBeInTheDocument()
+    expect(events.emit.mock.calls.some(call => call[1] === 'companion:task-control')).toBe(false)
+  })
+  it('retires an expanded task even when its detail event arrived before the snapshot', async () => {
+    render(<DesktopCompanionChatWindow />)
+    await waitFor(() => expect(events.handlers.has('companion:task-detail')).toBe(true))
+    send('companion:task-detail', { taskId: 'recording' })
+    send('companion:snapshot', { ...emptyCompanionDesktopSnapshot, task: task('running') })
+    expect(screen.getByRole('list', { name: '任务步骤' })).toBeInTheDocument()
+    send('companion:snapshot', { ...emptyCompanionDesktopSnapshot, task: task('completed') })
+    expect(screen.queryByText('录制自我介绍')).not.toBeInTheDocument()
+  })
+  it('keeps failed recovery and mandatory task confirmation actionable', async () => {
+    render(<DesktopCompanionChatWindow />)
+    await waitFor(() => expect(events.handlers.has('companion:snapshot')).toBe(true))
+    send('companion:chat-presentation', { mode: 'full' })
+    send('companion:snapshot', { ...emptyCompanionDesktopSnapshot, task: task('failed') })
+    expect(screen.getByRole('button', { name: '继续' })).toBeInTheDocument()
+    const pending = task('paused'); pending.steps[0] = { ...pending.steps[0], status: 'pending', confirmationRequired: true }
+    send('companion:snapshot', { ...emptyCompanionDesktopSnapshot, task: pending })
+    expect(screen.getByRole('button', { name: '收起为对白' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: '允许此步并继续' }))
+    expect(events.emit).toHaveBeenCalledWith('main', 'companion:task-control', { id: 'recording', action: 'confirm' })
+  })
+  it('previews a long answer without losing the original when expanded', async () => {
+    render(<DesktopCompanionChatWindow />)
+    await waitFor(() => expect(events.handlers.has('companion:snapshot')).toBe(true))
+    const content = '一段很长的回答。'.repeat(45)
+    send('companion:snapshot', { ...emptyCompanionDesktopSnapshot, pixelPetEnabled: true, messages: [{ id: 'long', role: 'companion', content, createdAt: '' }] })
+    expect(screen.queryByText(content)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '展开全文 / 回复' }))
+    expect(screen.getByText(content)).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('textbox')).toHaveFocus())
+  })
+  it('does not claim listening when inactive and does not send the IME confirmation Enter', async () => {
+    render(<DesktopCompanionChatWindow />)
+    await waitFor(() => expect(events.handlers.has('companion:chat-presentation')).toBe(true))
+    send('companion:chat-presentation', { mode: 'voice' })
+    expect(screen.queryByText('我在听')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '展开完整聊天' }))
+    const input = screen.getByRole('textbox')
+    fireEvent.change(input, { target: { value: '正在选字' } })
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true })
+    expect(events.emit.mock.calls.some(call => call[1] === 'companion:chat-send')).toBe(false)
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(events.emit).toHaveBeenCalledWith('main', 'companion:chat-send', expect.objectContaining({ message: '正在选字' }))
+  })
   it('preserves the draft while expanding and collapsing the same conversation', async () => {
     render(<DesktopCompanionChatWindow />)
     await waitFor(() => expect(events.handlers.has('companion:chat-presentation')).toBe(true))

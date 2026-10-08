@@ -3,6 +3,7 @@ mod windows_ble;
 mod measurement;
 
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}},
@@ -56,6 +57,15 @@ fn require_main(label: &str) -> Result<(), String> {
     if label == "main" { Ok(()) } else { Err("WINDOW_CAPABILITY_DENIED:心率设备只能由主窗口管理".into()) }
 }
 
+// Stable for the same advertised address; a scoped identifier, not device authentication.
+// Raw addresses stay native. Connections still require the current scan's allowlist.
+fn device_id(address: u64) -> String {
+    let mut hash = Sha256::new();
+    hash.update(b"yiyu-heart-rate-device-v1");
+    hash.update(address.to_be_bytes());
+    format!("hr-{:x}", hash.finalize())
+}
+
 impl HeartRateRuntime {
     fn update(&self, generation: u64, change: impl FnOnce(&mut Inner)) {
         if let Ok(mut inner) = self.inner.lock() {
@@ -100,7 +110,7 @@ impl HeartRateRuntime {
     fn discover(&self, generation: u64, address: u64, name: String) {
         self.update(generation, |inner| {
             if inner.devices.len() >= 32 && !inner.devices.contains_key(&address) { return; }
-            let id = format!("hr-{generation}-{}", inner.devices.len());
+            let id = device_id(address);
             inner.devices.entry(address).or_insert(Device { id, name, address });
         });
     }
@@ -175,6 +185,24 @@ pub fn heart_rate_disconnect(window: WebviewWindow, runtime: State<'_, HeartRate
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn stable_ids_survive_new_scan_generations_without_exposing_addresses() {
+        let runtime = HeartRateRuntime::default();
+        let (first, _) = runtime.begin("scanning").unwrap();
+        runtime.discover(first, 0x123456789abc, "Same name".into());
+        let id = runtime.status().unwrap().devices[0].id.clone();
+        runtime.update(first, |inner| inner.status.phase = "idle".into());
+        let (second, _) = runtime.begin("scanning").unwrap();
+        runtime.update(second, |inner| inner.devices.clear());
+        runtime.discover(first, 0x987654321abc, "late event".into());
+        assert!(runtime.status().unwrap().devices.is_empty());
+        runtime.discover(second, 0x123456789abc, "renamed".into());
+        assert_eq!(runtime.status().unwrap().devices[0].id, id);
+        assert_ne!(device_id(0x987654321abc), id);
+        assert!(!id.contains("123456789abc"));
+        let json = serde_json::to_string(&runtime.status().unwrap()).unwrap();
+        assert!(!json.contains("address"));
+    }
     #[test]
     fn only_main_can_access_heart_rate() {
         assert!(require_main("main").is_ok());

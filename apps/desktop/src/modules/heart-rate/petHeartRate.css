@@ -1,0 +1,16 @@
+.companion-heart-rate{position:absolute;z-index:12;display:inline-flex;align-items:center;gap:5px;pointer-events:none;user-select:none;color:#4c6f87;font-variant-numeric:tabular-nums;white-space:nowrap}
+.companion-heart-rate[data-live=false]{opacity:.65}
+.companion-heart-rate strong{font-weight:500;line-height:1;letter-spacing:-.02em}
+.companion-heart-symbol{width:12px;height:12px;flex-shrink:0;fill:#92b5d22e;stroke:currentColor;stroke-width:1.6;stroke-linejoin:round}
+.pet-heart-corner{left:8px;bottom:9px;min-width:46px;height:23px;padding:4px 6px;border:1px solid #b6cada70;border-radius:6px;background:#f3f8fced;box-shadow:0 1px 5px #20334618}
+.pet-heart-corner strong{font-size:13px}
+.pet-heart-corner[data-style=pixel]{border-radius:2px;border-color:#89a4bd;box-shadow:1px 1px #2033462b;font-family:monospace}
+.pet-heart-corner[data-style=pixel] .companion-heart-symbol{width:12px;height:11px;fill:#769fcb;stroke:none;shape-rendering:crispEdges}
+.pet-heart-corner[data-pose=left-edge]{left:auto;right:8px}
+.pet-heart-corner[data-pose=bottom-edge]{top:12px;bottom:auto}
+.pet-heart-corner[data-pose=float]{left:8px;bottom:12px}
+.webm-heart-label{left:12px;bottom:14px;gap:7px;padding:5px 7px;background:#f4f8fbc9;border-radius:5px;box-shadow:0 1px 8px #20334612}
+.webm-heart-label .companion-heart-symbol{width:15px;height:15px}
+.webm-heart-label>span{display:flex;align-items:baseline;gap:4px}
+.webm-heart-label strong{font-size:19px;font-weight:400}
+.webm-heart-label small{font-size:8px;color:#748fa3;letter-spacing:.04em}

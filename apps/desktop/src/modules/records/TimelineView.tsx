@@ -7,13 +7,14 @@ import { useLibraryStore } from '../../state/useLibraryStore'
 import { InlineRecordEditor } from './InlineRecordEditor'
 import { RecordLinksPanel } from './RecordLinksPanel'
 import { RecordSidePanel } from './RecordSidePanel'
+import { matchesUsage, usageChanges, usageFields, usageLabel, type RecordFilter } from './recordUsage'
 import { formatCustomFields, parseCustomFields } from './recordFieldFormatting'
 
 const precisionOptions = [...recordText.precisionOptions]
 type PanelState = { id: string; mode: 'edit' | 'links' } | null
 type PendingDeletion = { id: string; title: string; references: number; permanent: boolean } | null
 
-export function TimelineView() {
+export function TimelineView({ filter }: { filter?: RecordFilter } = {}) {
   const { data, addEvent, updateEvent, trashRecord, restoreRecord, permanentlyDeleteRecord, moveEvent } = useLibraryStore()
   const [panel, setPanel] = useState<PanelState>(null)
   const [pendingDeletion, setPendingDeletion] = useState<PendingDeletion>(null)
@@ -23,13 +24,13 @@ export function TimelineView() {
     setPanel(activeRecord?.type === 'event' ? { id: activeRecord.id, mode: 'links' } : null)
   }, [data.session.activeRecord])
 
-  const events = data.events.filter((event) => !event.deletedAt).sort(compareEvents)
+  const events = data.events.filter((event) => !event.deletedAt && matchesUsage(event, filter)).sort(compareEvents)
   const deleted = data.events.filter((event) => event.deletedAt)
   const panelEvent = events.find((event) => event.id === panel?.id)
 
   return (
     <main className="timeline-view scroll-view">
-      <header className="page-header"><div><p className="eyebrow">{recordText.timeline}</p><h1>{recordText.timelineTitle}</h1><p>{recordText.timelineDescription}</p></div><button className="primary-button" onClick={addEvent}><Plus size={16} />{recordText.newEvent}</button></header>
+      <header className="page-header"><div><p className="eyebrow">{recordText.timeline}</p><h1>{recordText.timelineTitle}</h1><p>{recordText.timelineDescription}</p></div><button className="primary-button" onClick={() => { addEvent(); const event = useLibraryStore.getState().data.events.at(-1)!; updateEvent(event.id, { usage: filter?.usage === 'real' || filter?.usage === 'fiction' ? filter.usage : undefined, workId: filter?.workId || undefined }); setPanel({ id: event.id, mode: 'edit' }) }}><Plus size={16} />{recordText.newEvent}</button></header>
       <section className="timeline">
         {events.map((event) => {
           const references = linksFor(data, 'event', event.id)
@@ -39,7 +40,7 @@ export function TimelineView() {
               <div className="timeline-time">{event.displayTime}<small>{precisionOptions.find((item) => item.value === event.precision)?.label}</small></div>
               <div className={panel?.id === event.id ? 'timeline-card selected' : 'timeline-card'}>
                 <div className="record-title"><h2>{event.title}</h2><span><button title="上移同时间段顺序" onClick={() => moveEvent(event.id, -1)}><ArrowUp size={13} /></button><button title="下移同时间段顺序" onClick={() => moveEvent(event.id, 1)}><ArrowDown size={13} /></button><button aria-label={`编辑${event.title}`} onClick={() => setPanel({ id: event.id, mode: 'edit' })}><Pencil size={14} /></button><button aria-label={`删除${event.title}`} onClick={() => setPendingDeletion({ id: event.id, title: event.title, references: references.length, permanent: false })}><Trash2 size={14} /></button></span></div>
-                <p>{event.description}</p>
+                <p>{event.description}</p><div className="record-usage">{usageLabel(event)}</div>
                 <button className="record-expand" onClick={() => setPanel({ id: event.id, mode: 'links' })}><Link2 size={13} />管理关联 · {references.length} 处引用</button>
               </div>
             </article>
@@ -57,10 +58,10 @@ export function TimelineView() {
             ? <RecordLinksPanel record={{ type: 'event', id: panelEvent.id }} />
             : <InlineRecordEditor
                 key={panelEvent.id}
-                fields={[{ key: 'title', label: '事件名称', value: panelEvent.title }, { key: 'precision', label: '时间精度', value: panelEvent.precision, options: precisionOptions }, { key: 'displayTime', label: '原始时间写法', value: panelEvent.displayTime, placeholder: '例如：约 1998 年夏天' }, { key: 'startDate', label: '开始日期/排序日期', value: panelEvent.startDate ?? panelEvent.sortTime ?? '', placeholder: 'YYYY、YYYY-MM 或 YYYY-MM-DD' }, { key: 'endDate', label: '结束日期', value: panelEvent.endDate ?? '' }, { key: 'description', label: '事件描述', value: panelEvent.description, multiline: true }, { key: 'custom', label: '自定义字段', value: formatCustomFields(panelEvent.customFields) }]}
+                fields={[...usageFields(panelEvent, data), { key: 'title', label: '事件名称', value: panelEvent.title }, { key: 'precision', label: '时间精度', value: panelEvent.precision, options: precisionOptions }, { key: 'displayTime', label: '原始时间写法', value: panelEvent.displayTime, placeholder: '例如：约 1998 年夏天' }, { key: 'startDate', label: '开始日期/排序日期', value: panelEvent.startDate ?? panelEvent.sortTime ?? '', placeholder: 'YYYY、YYYY-MM 或 YYYY-MM-DD' }, { key: 'endDate', label: '结束日期', value: panelEvent.endDate ?? '' }, { key: 'description', label: '事件描述', value: panelEvent.description, multiline: true }, { key: 'custom', label: '自定义字段', value: formatCustomFields(panelEvent.customFields) }]}
                 onCancel={() => setPanel(null)}
                 onSave={(values) => {
-                  updateEvent(panelEvent.id, { title: values.title.trim(), precision: values.precision as typeof panelEvent.precision, displayTime: values.displayTime.trim(), startDate: values.startDate.trim() || undefined, endDate: values.endDate.trim() || undefined, sortTime: values.startDate.trim() || undefined, description: values.description.trim(), customFields: parseCustomFields(values.custom) })
+                  updateEvent(panelEvent.id, { ...usageChanges(values), title: values.title.trim(), precision: values.precision as typeof panelEvent.precision, displayTime: values.displayTime.trim(), startDate: values.startDate.trim() || undefined, endDate: values.endDate.trim() || undefined, sortTime: values.startDate.trim() || undefined, description: values.description.trim(), customFields: parseCustomFields(values.custom) })
                   setPanel(null)
                 }}
               />}

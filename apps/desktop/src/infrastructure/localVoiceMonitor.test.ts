@@ -6,6 +6,31 @@ const deferred = <T>() => { let resolve!: (value: T) => void; const promise = ne
 const tick = async () => { for (let i = 0; i < 12; i++) await Promise.resolve() }
 
 describe('local wake engine leases', () => {
+  it('hands off only future verified-session audio without restarting the microphone', async () => {
+    let feed!: (chunk: number[]) => void
+    const stop = vi.fn(), native = vi.fn().mockResolvedValue({ detected: false, speakerMatched: false })
+    const capture = vi.fn(async (samples: (chunk: number[]) => void) => { feed = samples; return { stop } })
+    const manager = createLocalVoiceMonitor(native, capture)
+    const lease = await manager.monitor(config, vi.fn(), vi.fn())
+    feed(Array(1000).fill(0.1))
+    const cloud = vi.fn()
+    lease.handoff(cloud)
+    await tick()
+    expect(cloud).not.toHaveBeenCalled()
+    expect(stop).not.toHaveBeenCalled()
+    expect(capture).toHaveBeenCalledOnce()
+    native.mockClear()
+    const postWake = Array(3200).fill(0.3)
+    feed(postWake)
+    await tick()
+    expect(cloud).toHaveBeenCalledExactlyOnceWith(postWake)
+    expect(native).not.toHaveBeenCalled()
+    lease.stop()
+    feed(postWake)
+    expect(stop).toHaveBeenCalledOnce()
+    expect(cloud).toHaveBeenCalledOnce()
+    await manager.stop()
+  })
   it('does not let a late old microphone stop the new name', async () => {
     const oldCapture = deferred<{ stop: () => void }>()
     const oldStop = vi.fn()

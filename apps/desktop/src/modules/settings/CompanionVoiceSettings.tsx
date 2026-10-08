@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { deleteCompanionVoiceKey, hasCompanionVoiceKey, storeCompanionVoiceKey } from '../../infrastructure/companionVoiceProvider'
 import { captureSpeakerSample, localVoice, type LocalVoiceInstallSnapshot, type LocalVoiceStatus } from '../../infrastructure/localVoice'
 import { useLibraryStore } from '../../state/useLibraryStore'
+import { MicrophoneSettings } from './MicrophoneSettings'
 
 type VoiceProvider = 'none' | 'elevenlabs' | 'custom'
 
@@ -107,6 +108,7 @@ export function CompanionVoiceSettings() {
     <div className="voice-settings-body">
       <label className="setting-row"><div><strong>语音服务</strong><span>同一入口管理语音识别和语音合成</span></div><select value={provider} onChange={(event) => chooseProvider(event.target.value as VoiceProvider)}><option value="none">关闭</option><option value="elevenlabs">ElevenLabs</option><option value="custom">其他 Provider（预留）</option></select></label>
       {provider === 'elevenlabs' && <>
+        <MicrophoneSettings wakeEnabled={voice.wakeEnabled} />
         <label className="setting-row"><div><strong>Voice ID</strong><span>使用 ElevenLabs 声音库中的 Voice ID</span></div><input value={voice.tts.voice} placeholder="例如 JBFqnCBsd6RMkjVDRZzb" onChange={(event) => setCompanionVoice({ tts: { voice: event.target.value.trim() } })} /></label>
         <div className="compact-settings-grid">
           <label className="setting-row"><div><strong><Volume2 size={13} />朗读模型</strong><span>默认低延迟多语言模型</span></div><input value={voice.tts.model} onChange={(event) => setCompanionVoice({ tts: { model: event.target.value.trim() } })} /></label>
@@ -138,7 +140,7 @@ export function CompanionVoiceSettings() {
         <div className="setting-row"><div><strong>语音唤醒「{wakeName || '未设置'}」</strong><span>开启后关闭主窗口仍在托盘本地监听；只有托盘“退出一隅”才会完全停止</span></div><button aria-pressed={voice.wakeEnabled} className={voice.wakeEnabled ? 'switch on' : 'switch'} onClick={toggleWake}><i /></button></div>
         <label className="setting-row"><div><strong>唤醒后的交谈方式</strong><span>短连续会在回答后保留约 8 秒追问，兼顾自然与防误录</span></div><select value={voice.conversationMode} onChange={(event) => setCompanionVoice({ conversationMode: event.target.value as typeof voice.conversationMode })}><option value="single">单轮（每次重新唤醒）</option><option value="short">短连续（推荐）</option><option value="continuous">持续对话（约 15 秒）</option></select></label>
         <label className="setting-row"><div><strong>语音回答长度</strong><span>只影响从麦克风发起的问题</span></div><select value={voice.replyLength} onChange={(event) => setCompanionVoice({ replyLength: event.target.value as 'short' | 'standard' })}><option value="short">精简（3–5 句）</option><option value="standard">标准（通常不超过 8 句）</option></select></label>
-        <label className="setting-row"><div><strong>长回答朗读</strong><span>文字始终完整显示；可只朗读前段</span></div><select value={voice.longReplySpeech} onChange={(event) => setCompanionVoice({ longReplySpeech: event.target.value as 'summary' | 'full' })}><option value="summary">只读前段</option><option value="full">完整朗读</option></select></label>
+        <label className="setting-row"><div><strong>文字聊天的长回答朗读</strong><span>仅文字聊天可只读前段；语音交谈完整读完，追问等待时间不限制朗读时长</span></div><select value={voice.longReplySpeech} onChange={(event) => setCompanionVoice({ longReplySpeech: event.target.value as 'summary' | 'full' })}><option value="summary">只读前段</option><option value="full">完整朗读</option></select></label>
       </>}
       {provider === 'custom' && <p className="voice-provider-note">语音层已按 Provider 接口拆分；接入其他项目时只需增加适配器，无需修改伙伴窗口和对话流程。</p>}
       <p className="voice-provider-note">{message}</p>

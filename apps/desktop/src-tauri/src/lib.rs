@@ -1,13 +1,17 @@
 mod commands;
 mod heart_rate;
+mod music_companion;
+mod lyrics_lookup;
 mod companion_asset_protocol;
 mod companion_pointer;
 mod companion_feedback;
+mod companion_lyrics;
 mod computer;
 mod local_voice;
 mod repositories;
 mod services;
 mod web_search;
+mod experience_covers;
 #[cfg(test)]
 mod spikes;
 
@@ -82,7 +86,11 @@ pub fn run() {
         .manage(commands::CompanionAssetScope::default())
         .manage(local_voice::LocalVoiceState::default())
         .manage(heart_rate::HeartRateRuntime::default())
+        .manage(music_companion::MusicRuntime::default())
+        .manage(lyrics_lookup::LyricsRuntime::default())
+        .manage(experience_covers::CoverRuntime::default())
         .manage(companion_feedback::CompanionFeedbackRuntime::default())
+        .manage(companion_lyrics::CompanionLyricsRuntime::default())
         .register_asynchronous_uri_scheme_protocol("yiyu-companion", |context, request, responder| {
             let app = context.app_handle().clone();
             let webview_label = context.webview_label().to_string();
@@ -110,10 +118,19 @@ pub fn run() {
             companion_feedback::companion_feedback_subscribe,
             companion_feedback::companion_feedback_unsubscribe,
             companion_feedback::companion_feedback_request,
+            companion_lyrics::companion_lyrics_publish,
+            companion_lyrics::companion_lyrics_subscribe,
+            companion_lyrics::companion_lyrics_unsubscribe,
+            companion_lyrics::companion_lyrics_request,
             heart_rate::heart_rate_scan,
             heart_rate::heart_rate_connect,
             heart_rate::heart_rate_disconnect,
             heart_rate::heart_rate_status,
+            music_companion::music_companion_enable,
+            music_companion::music_companion_snapshot,
+            music_companion::music_companion_control,
+            lyrics_lookup::lyrics_lookup_enable,
+            lyrics_lookup::lyrics_lookup,
             commands::health_check,
             commands::get_storage_status,
             commands::configure_storage,
@@ -139,6 +156,9 @@ pub fn run() {
             commands::companion_chat_completion,
             commands::companion_chat_completion_stream,
             web_search::web_search,
+            experience_covers::experience_cover_search,
+            experience_covers::experience_cover_link,
+            experience_covers::experience_cover_image,
             commands::elevenlabs_text_to_speech,
             commands::elevenlabs_speech_to_text,
             commands::elevenlabs_realtime_scribe_token,

@@ -1,6 +1,8 @@
 import { CompactConversation } from './CompactConversation'
 import { needsTaskConfirmation } from './feedback/taskFeedback'
-import { conversationCaption } from './chatPresentation'
+import { useConversationCaption } from './useConversationCaption'
+import { ConversationHistory } from './ConversationHistory'
+import './desktopConversation.css'
 import { useChatPresentation } from './useChatPresentation'
 import { useTaskDetailFocus } from './feedback/useTaskDetailFocus'
 import './feedback/taskFeedback.css'
@@ -9,18 +11,19 @@ import { CommitStrategy, RealtimeConnection, RealtimeEvents, Scribe } from '@ele
 import { CircleStop, Minimize2, MessageSquarePlus, Mic, Pause, Play, Send, VolumeX } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { emptyCompanionDesktopSnapshot, type CompanionDesktopSnapshot } from './companionDesktop'
-import { CompanionRichText } from './CompanionRichText'
 import type { AgentPermissionRequest } from './agent/types'
 import { AgentPermissionCard } from './AgentPermissionCard'
 import type { CompanionMessage } from '../../domain/models'
 import type { PrivacyReviewRequest } from '../privacy'
 import { PrivacyReviewCard } from './PrivacyReviewCard'
 import { useCompanionVoiceWake } from './useCompanionVoiceWake'
-import { AgentTaskCard } from './tasks/AgentTaskCard'
+import { createPlaybackEchoHistory } from './playbackEcho'
+import { readMicrophonePreferences } from '../../infrastructure/microphonePreferences'
+import { ChatTaskPanel } from './tasks/ChatTaskPanel'
 
 export function DesktopCompanionChatWindow() {
   const [snapshot, setSnapshot] = useState(emptyCompanionDesktopSnapshot)
-  const { detailRef, expanded } = useTaskDetailFocus(snapshot.task?.id)
+  const { detailRef, expanded, dismiss } = useTaskDetailFocus(snapshot.task?.id, snapshot.task?.status)
   const [draft, setDraft] = useState('')
   const [recording, setRecording] = useState(false)
   const [streamedReply, setStreamedReply] = useState('')
@@ -32,7 +35,16 @@ export function DesktopCompanionChatWindow() {
   const [sendPending, setSendPending] = useState(false)
   const [speechCaption, setSpeechCaption] = useState('')
   const attention = Boolean(permissionRequest || privacyReview || (snapshot.task && needsTaskConfirmation(snapshot.task)))
-  const { mode, compactMode, choose } = useChatPresentation(attention)
+  const character = snapshot.pixelPetEnabled ? 'pet' : 'webm'
+  const { mode, compactMode, choose } = useChatPresentation(attention, character)
+  const [readingCaption, setReadingCaption] = useState(false)
+  useEffect(() => { setReadingCaption(false) }, [mode])
+  const composer = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    if (mode !== 'full' || attention) return
+    const timer = window.setTimeout(() => composer.current?.focus(), 0)
+    return () => window.clearTimeout(timer)
+  }, [mode, attention])
   useEffect(() => { if (expanded) choose('full') }, [expanded, choose])
   const [transientMessages, setTransientMessages] = useState<CompanionMessage[]>([])
   const voiceDraft = useRef(false)
@@ -44,6 +56,7 @@ export function DesktopCompanionChatWindow() {
   const agentBusy = useRef(false)
   const speechBusy = useRef(false)
   const spokenText = useRef('')
+  const recentSpeech = useRef(createPlaybackEchoHistory())
   const tokenRequests = useRef(new Map<string, { resolve: (token: string) => void; reject: (error: Error) => void }>())
 
   useEffect(() => { agentBusy.current = Boolean(snapshot.agentStatus) }, [snapshot.agentStatus])
@@ -61,7 +74,7 @@ export function DesktopCompanionChatWindow() {
       }, 20_000)
     })
   }, [])
-  useCompanionVoiceWake({ voice: snapshot.voice, agentBusy, speechBusy, spokenText, requestToken: requestVoiceToken, setSpeechNote })
+  useCompanionVoiceWake({ voice: snapshot.voice, agentBusy, speechBusy, spokenText, recentSpeech, requestToken: requestVoiceToken, setSpeechNote })
 
   useEffect(() => {
     const pendingTokenRequests = tokenRequests.current
@@ -93,6 +106,7 @@ export function DesktopCompanionChatWindow() {
     void listen<{ requestId: string; request: AgentPermissionRequest }>('companion:permission-request', (event) => setPermissionRequest(event.payload)).then((value) => { stopPermission = value })
     void listen<{ requestId: string; request: PrivacyReviewRequest }>('companion:privacy-review-request', (event) => setPrivacyReview(event.payload)).then((value) => { stopPrivacy = value })
     void listen<{ active: boolean; paused?: boolean; text?: string }>('companion:speech-state', (event) => {
+      recentSpeech.current.update(event.payload)
       speechBusy.current = event.payload.active
       setSpeechActive(event.payload.active)
       if (event.payload.text !== undefined) setSpeechCaption(event.payload.text)
@@ -200,6 +214,7 @@ export function DesktopCompanionChatWindow() {
           secondaryLanguages: ['en'],
           commitStrategy: CommitStrategy.MANUAL,
           microphone: {
+            deviceId: readMicrophonePreferences().deviceId || undefined,
             echoCancellation: true,
             noiseSuppression: true,
             autoGainControl: true,
@@ -217,7 +232,8 @@ export function DesktopCompanionChatWindow() {
         setRecording(true)
         return
       }
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const deviceId = readMicrophonePreferences().deviceId
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: deviceId ? { deviceId: { exact: deviceId } } : true })
       const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'].find((type) => MediaRecorder.isTypeSupported(type))
       const chunks: Blob[] = []
       const nextRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
@@ -241,19 +257,22 @@ export function DesktopCompanionChatWindow() {
   }
 
   const latestMessages = [...snapshot.messages, ...transientMessages]
-  const caption = conversationCaption(speechCaption, streamedReply, latestMessages)
-  const status = snapshot.agentStatus?.phase === 'error' ? '暂时无法回应' : speechActive ? speechPaused ? '暂停朗读' : '正在说' : snapshot.agentStatus ? '正在想' : snapshot.action === 'listening' || mode === 'voice' ? '我在听' : '在这里陪你'
-  if (mode !== 'full') return <main className="desktop-companion-chat"><CompactConversation mode={mode} name={snapshot.name}
-    caption={caption} note={speechNote}
+  const showTask = snapshot.task && (expanded || !['completed', 'cancelled'].includes(snapshot.task.status))
+  const caption = useConversationCaption({ mode, speech: speechCaption, speaking: speechActive, listening: recording || snapshot.action === 'listening',
+    busy: Boolean(snapshot.agentStatus), stream: streamedReply, messages: latestMessages, reading: readingCaption })
+  const status = snapshot.agentStatus?.phase === 'error' ? '暂时无法回应' : speechActive ? speechPaused ? '暂停朗读' : '正在说' : snapshot.agentStatus ? '正在想' : snapshot.action === 'listening' || recording ? '我在听' : '在这里陪你'
+  if (mode !== 'full') return <main className="desktop-companion-chat" data-character={character} data-pet-style={snapshot.pixelPetStyle}><CompactConversation mode={mode} name={snapshot.name}
+    character={character} style={snapshot.pixelPetStyle} truncated={caption.truncated} onReading={setReadingCaption}
+    caption={caption.text} note={speechNote}
     status={status} busy={Boolean(snapshot.agentStatus)} speaking={speechActive} onExpand={() => choose('full')}
     onStop={() => { stopTurn(); void emitTo('main', 'companion:speech-stop') }} /></main>
-  return <main className="desktop-companion-chat">
+  return <main className="desktop-companion-chat" data-character={character} data-pet-style={snapshot.pixelPetStyle}>
     <section className="desktop-chat-card">
-      <header><span className="desktop-chat-identity"><strong>{snapshot.name}</strong><small>{snapshot.actionLabel}</small></span><span className="desktop-chat-header-actions"><button className="desktop-chat-collapse" title="收起为对白" aria-label="收起为对白" disabled={attention} onClick={() => choose(compactMode)}><Minimize2 size={13} /></button>{snapshot.agentStatus && <button className="turn-stop" title="中止当前回答" aria-label="中止当前回答" onClick={stopTurn}><CircleStop size={13} /></button>}{speechActive && <><button title={speechPaused ? '继续朗读' : '暂停朗读'} aria-label={speechPaused ? '继续朗读' : '暂停朗读'} onClick={() => void emitTo('main', 'companion:speech-pause', { paused: !speechPaused })}>{speechPaused ? <Play size={13} /> : <Pause size={13} />}</button><button title="停止朗读" aria-label="停止朗读" onClick={() => void emitTo('main', 'companion:speech-stop')}><VolumeX size={13} /></button></>}<button disabled={Boolean(snapshot.agentStatus)} title="新对话" aria-label="新对话" onClick={() => { setDraft(''); setTransientMessages([]); void emitTo('main', 'companion:new-chat') }}><MessageSquarePlus size={13} /></button></span></header>
-      <div className="desktop-chat-messages">{snapshot.task && <div ref={detailRef} tabIndex={-1} className="desktop-task-detail"><AgentTaskCard compact expanded={expanded} task={snapshot.task} onPause={() => void emitTo('main', 'companion:task-control', { id: snapshot.task!.id, action: 'pause' })} onResume={() => void emitTo('main', 'companion:task-control', { id: snapshot.task!.id, action: 'resume' })} onConfirm={() => void emitTo('main', 'companion:task-control', { id: snapshot.task!.id, action: 'confirm' })} onCancel={() => void emitTo('main', 'companion:task-control', { id: snapshot.task!.id, action: 'cancel' })} /></div>}{[...snapshot.messages, ...transientMessages].map((message) => <div className={`desktop-chat-message ${message.role}`} key={message.id}><CompanionRichText text={message.content} /></div>)}{streamedReply && <div className="desktop-chat-message companion streaming"><CompanionRichText text={`${streamedReply}▋`} /></div>}{!snapshot.messages.length && !transientMessages.length && !streamedReply && !snapshot.task && <p className="empty">想说什么都可以。</p>}{speechNote && <small className="desktop-speech-note">{speechNote}</small>}</div>
+      <header><span className="desktop-chat-identity"><strong>{snapshot.name}</strong><small>{snapshot.actionLabel}</small></span><span className="desktop-chat-header-actions"><button className="desktop-chat-collapse" title="收起为对白" aria-label="收起为对白" disabled={attention} onClick={() => choose(compactMode)}><Minimize2 size={13} /></button>{snapshot.agentStatus && <button className="turn-stop" title="中止当前回答" aria-label="中止当前回答" onClick={stopTurn}><CircleStop size={13} /></button>}{speechActive && <><button title={speechPaused ? '继续朗读' : '暂停朗读'} aria-label={speechPaused ? '继续朗读' : '暂停朗读'} onClick={() => void emitTo('main', 'companion:speech-pause', { paused: !speechPaused })}>{speechPaused ? <Play size={13} /> : <Pause size={13} />}</button><button title="停止朗读" aria-label="停止朗读" onClick={() => void emitTo('main', 'companion:speech-stop')}><VolumeX size={13} /></button></>}<button disabled={Boolean(snapshot.agentStatus)} title="新对话" aria-label="新对话" onClick={() => { dismiss(); setDraft(''); setTransientMessages([]); void emitTo('main', 'companion:new-chat') }}><MessageSquarePlus size={13} /></button></span></header>
+      <ConversationHistory messages={latestMessages} stream={streamedReply} note={speechNote}>{showTask && <ChatTaskPanel task={snapshot.task} expanded={expanded} detailRef={detailRef} onDismiss={dismiss} />}</ConversationHistory>
       {permissionRequest && <AgentPermissionCard request={permissionRequest.request} onDecision={(allowed) => { void emitTo('main', 'companion:permission-response', { requestId: permissionRequest.requestId, allowed }); setPermissionRequest(undefined) }} />}
       {privacyReview && <PrivacyReviewCard request={privacyReview.request} onDecision={(allowed) => { void emitTo('main', 'companion:privacy-review-response', { requestId: privacyReview.requestId, allowed }); setPrivacyReview(undefined) }} />}
-      <div className="desktop-chat-compose"><button className={recording ? 'recording' : ''} disabled={!snapshot.voice.sttEnabled || snapshot.voice.wakeEnabled} title={snapshot.voice.wakeEnabled ? `语音唤醒已接管麦克风，请说“${snapshot.name}”` : snapshot.voice.sttEnabled ? recording ? '停止录音并转写' : snapshot.agentStatus || speechActive ? '按一下并打断当前回答' : '按一下开始录音' : '请先在 AI 伙伴设置中配置语音服务'} onClick={() => void toggleRecording()}><Mic size={14} /></button><textarea rows={2} value={draft} onChange={(event) => { voiceDraft.current = false; setDraft(event.target.value) }} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); send() } }} placeholder="说点什么…" /><button disabled={!draft.trim() || sendPending} title={sendPending ? '正在发送' : snapshot.agentStatus ? '中止当前回答并发送这条消息' : '发送'} onClick={send}><Send size={14} /></button></div>
+      <div className="desktop-chat-compose"><button className={recording ? 'recording' : ''} disabled={!snapshot.voice.sttEnabled || snapshot.voice.wakeEnabled} title={snapshot.voice.wakeEnabled ? `语音唤醒已接管麦克风，请说“${snapshot.name}”` : snapshot.voice.sttEnabled ? recording ? '停止录音并转写' : snapshot.agentStatus || speechActive ? '按一下并打断当前回答' : '按一下开始录音' : '请先在 AI 伙伴设置中配置语音服务'} onClick={() => void toggleRecording()}><Mic size={14} /></button><textarea ref={composer} aria-label="消息" rows={2} value={draft} onChange={(event) => { voiceDraft.current = false; setDraft(event.target.value) }} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); send() } }} placeholder="说点什么…" /><button disabled={!draft.trim() || sendPending} title={sendPending ? '正在发送' : snapshot.agentStatus ? '中止当前回答并发送这条消息' : '发送'} onClick={send}><Send size={14} /></button></div>
     </section>
   </main>
 }

@@ -22,6 +22,33 @@ const sendSnapshot = (pixelPetEnabled: boolean) => act(() => native.callbacks.ge
 
 describe('desktop character renderer isolation', () => {
   beforeEach(() => { native.callbacks.clear(); native.apply.mockClear() })
+  it('yields listening display to active conversations but not a completed error', async () => {
+    render(<DesktopCompanionWindow />)
+    await waitFor(() => expect(native.callbacks.has('companion:listening')).toBe(true))
+    const snapshot = { ...emptyCompanionDesktopSnapshot, desktopVisible: true }
+    const song = { title: '伴听测试歌', artist: '测试歌手', album: '', playing: true, positionMs: 1000, durationMs: 3000, canPlay: false, canPause: true, canNext: false, canPrevious: false }
+    act(() => {
+      native.callbacks.get('companion:snapshot')?.({ payload: snapshot })
+      native.callbacks.get('companion:listening')?.({ payload: { enabled: true, controls: false, key: 'track', song, lyric: '' } })
+    })
+    expect(screen.getByText('伴听测试歌')).toBeInTheDocument()
+    act(() => native.callbacks.get('companion:snapshot')?.({ payload: { ...snapshot, agentStatus: { phase: 'thinking' } } }))
+    expect(screen.queryByText('伴听测试歌')).not.toBeInTheDocument()
+    act(() => native.callbacks.get('companion:snapshot')?.({ payload: { ...snapshot, agentStatus: { phase: 'error', message: '已结束' } } }))
+    expect(screen.getByText('伴听测试歌')).toBeInTheDocument()
+  })
+  it('shows live heart readings in quiet mode and removes them when the companion hides', async () => {
+    render(<DesktopCompanionWindow />)
+    await waitFor(() => expect(native.callbacks.has('companion:heart-rate')).toBe(true))
+    const quiet = { ...emptyCompanionDesktopSnapshot, desktopVisible: true, desktopMode: 'quiet' as const, pixelPetEnabled: true }
+    act(() => native.callbacks.get('companion:snapshot')?.({ payload: quiet }))
+    act(() => native.callbacks.get('companion:heart-rate')?.({ payload: { enabled: true, phase: 'connected', bpm: 72, ageMs: 0 } }))
+    await waitFor(() => expect(screen.getByRole('status', { name: '心率 72 次每分钟' })).toHaveClass('pet-heart-corner'))
+    act(() => native.callbacks.get('companion:snapshot')?.({ payload: { ...quiet, pixelPetEnabled: false } }))
+    expect(screen.getByRole('status', { name: '心率 72 次每分钟' })).toHaveClass('webm-heart-label')
+    act(() => native.callbacks.get('companion:snapshot')?.({ payload: { ...quiet, desktopVisible: false } }))
+    expect(screen.queryByRole('status', { name: '心率 72 次每分钟' })).not.toBeInTheDocument()
+  })
   it('mounts only the selected renderer and retains the WebM configuration across switches', async () => {
     render(<DesktopCompanionWindow />)
     await waitFor(() => expect(native.callbacks.has('companion:snapshot')).toBe(true))
@@ -43,7 +70,7 @@ describe('desktop character renderer isolation', () => {
   })
   it('cleans up listeners and restores native window geometry on unmount', async () => {
     const { unmount } = render(<DesktopCompanionWindow />)
-    await waitFor(() => expect(native.callbacks.size).toBe(3))
+    await waitFor(() => expect([...native.callbacks.keys()].sort()).toEqual(['companion:heart-rate', 'companion:listening', 'companion:preview-video', 'companion:snapshot']))
     sendSnapshot(true)
     unmount()
     expect(native.callbacks.size).toBe(0)

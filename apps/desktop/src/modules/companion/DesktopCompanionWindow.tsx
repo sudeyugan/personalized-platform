@@ -1,3 +1,7 @@
+import type { CompanionHeartRateInput } from '../heart-rate/companionHeartRate'
+import type { ListeningInput } from '../music-companion/listeningNotice'
+import { needsTaskConfirmation } from './feedback/taskFeedback'
+import { ListeningBadge } from '../music-companion/ListeningBadge'
 import { HeartRateBadge } from '../heart-rate/HeartRateBadge'
 import { normalizeCompanionPetSide } from '../../domain/companionPetStyle'
 import { emitTo, listen } from '@tauri-apps/api/event'
@@ -14,6 +18,8 @@ export function DesktopCompanionWindow() {
   const [receivedSnapshot, setReceivedSnapshot] = useState(false)
   const [preview, setPreview] = useState<PreviewVideoRequest>()
   const sequence = useRef(0)
+  const listeningInput = useMemo<ListeningInput>(() => ({ playing: { current: false }, marker: { current: null } }), [])
+  const heartInput = useMemo<CompanionHeartRateInput>(() => ({ sample: { current: null }, marker: { current: null } }), [])
   const [layout, setLayout] = useState<PixelLayout>({ scale: 1, pixelRatio: 1, ready: false })
   const [layoutError, setLayoutError] = useState('')
   const nativeLayout = useMemo(() => createPixelWindowLayout(getCurrentWindow()), [])
@@ -43,13 +49,15 @@ export function DesktopCompanionWindow() {
     return () => { disposed = true }
   }, [nativeLayout, pixelEnabled, pixelSide, receivedSnapshot])
   useEffect(() => () => { void nativeLayout.apply(false).catch(() => undefined) }, [nativeLayout])
-  const heartRate = <HeartRateBadge visible={snapshot.desktopVisible && snapshot.desktopMode !== 'quiet'} />
-  if (pixelEnabled) return <>{heartRate}<PixelPetWindow snapshot={snapshot} layout={layout} drag={drag} onPose={async (pose) => {
+  const heartRate = <HeartRateBadge visible={snapshot.desktopVisible && (!pixelEnabled || layout.ready)}
+    variant={pixelEnabled ? 'pixel' : 'webm'} style={snapshot.pixelPetStyle} input={heartInput} pose={drag.dragging ? 'float' : layout.pose ?? layout.side ?? pixelSide} />
+  const listening = <ListeningBadge input={listeningInput} visible={snapshot.desktopVisible && (!pixelEnabled || layout.ready)} pixel={pixelEnabled} side={drag.dragging ? 'float' : layout.pose ?? layout.side ?? pixelSide} quiet={snapshot.desktopMode === 'quiet'} busy={drag.dragging || Boolean(snapshot.agentStatus && snapshot.agentStatus.phase !== 'error') || ['listening', 'speaking'].includes(snapshot.action) || ['running', 'preparing'].includes(snapshot.task?.status ?? '') || Boolean(snapshot.task && needsTaskConfirmation(snapshot.task))} />
+  if (pixelEnabled) return <>{heartRate}{listening}<PixelPetWindow snapshot={snapshot} layout={layout} drag={drag} heartInput={heartInput} listeningInput={listeningInput} onPose={async (pose) => {
     const next = pose === 'float' ? await nativeLayout.float() : await nativeLayout.apply(true, pose, true)
     setLayout(next)
     if (pose !== 'float') await emitTo('main', 'companion:pet-menu-action', { kind: 'side', value: pose })
     await emitTo('main', 'companion:moved')
   }} />{layoutError && <small className="pixel-pet-error" role="status">{layoutError}</small>}</>
-  return <>{heartRate}<DesktopWebMRenderer drag={drag} snapshot={snapshot} receivedSnapshot={receivedSnapshot} previewRequest={preview}
+  return <>{heartRate}{listening}<DesktopWebMRenderer drag={drag} snapshot={snapshot} receivedSnapshot={receivedSnapshot} previewRequest={preview}
     onPreviewEnd={(key) => setPreview((current) => current?.instanceKey === key ? undefined : current)} /></>
 }

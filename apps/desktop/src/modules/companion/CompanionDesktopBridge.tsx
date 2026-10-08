@@ -8,7 +8,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { getAllWindows, getCurrentWindow } from '@tauri-apps/api/window'
 import { usePetMenuActions } from './pixel-pet/usePetMenuActions'
 import { usePetPoseSync } from './pixel-pet/usePetPoseSync'
-import { usePetModeShortcut } from './pixel-pet/usePetModeShortcut'
+import { isPetModeShortcut, usePetModeShortcut } from './pixel-pet/usePetModeShortcut'
 import { register, unregister } from '@tauri-apps/plugin-global-shortcut'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CompanionDesktopMode, CompanionVideoState } from '../../domain/models'
@@ -20,11 +20,12 @@ import type { AgentRuntimeStatus } from './agent'
 import { createSpeechToTextProvider, createTextToSpeechProvider } from '../../infrastructure/companionVoiceProvider'
 import { syncBackgroundRuntime } from '../../infrastructure/backgroundRuntime'
 import { createComputerService } from '../../infrastructure/computerService'
-import { createReplySpeechQueue, playAudioBlob } from './companionReplySpeech'
+import { createReplySpeechQueue, playAudioBlob, replySpeechLimit } from './companionReplySpeech'
 import type { AgentPermissionRequest } from './agent/types'
 import { assertExternalAiAllowed } from '../trust/trustPolicy'
 import { PrivacySession, type PrivacyReviewRequest } from '../privacy'
 import { usePlannerNotifications } from './usePlannerNotifications'
+import { useLyricsWindowBridge } from '../music-companion/lyrics-window/useLyricsWindowBridge'
 
 const isTauri = () => '__TAURI_INTERNALS__' in window
 
@@ -39,7 +40,6 @@ export function CompanionDesktopBridge() {
   const lastGreetingAt = useRef(0)
   const chatVisible = useRef(false)
   const chatPresentation = useRef<ChatPresentation>('full')
-  useChatPresentationBridge(chatVisible, chatPresentation)
   const chatTogglePending = useRef(false)
   const quietShortcutRestoreMode = useRef<Exclude<CompanionDesktopMode, 'quiet'>>('interactive')
   const permissionRequests = useRef(new Map<string, (allowed: boolean) => void>())
@@ -63,8 +63,10 @@ export function CompanionDesktopBridge() {
   }, [data.companion.voice.wakeEnabled, data.companion.computer.backgroundReminders])
   const taskDetailsOpened = useCallback(() => { setDesktopModeOverride('interactive'); chatVisible.current = true }, [])
   useTaskFeedbackBridge(snapshot, taskDetailsOpened)
+  useLyricsWindowBridge(snapshot)
   const snapshotRef = useRef(snapshot)
   snapshotRef.current = snapshot
+  useChatPresentationBridge(chatVisible, chatPresentation, snapshotRef)
   const publish = useCallback(async (nextSnapshot = snapshotRef.current) => {
     await invoke('set_companion_asset_scope', { ids: companionVisualAssetIds(nextSnapshot) })
     await Promise.all([
@@ -88,7 +90,7 @@ export function CompanionDesktopBridge() {
       setDesktopModeOverride('interactive')
       const pair = await windows()
       if (!pair.portrait || !pair.chat) return
-      await positionCompanionChat(pair.portrait, pair.chat, chatPresentation.current)
+      await positionCompanionChat(pair.portrait, pair.chat, chatPresentation.current, snapshotRef.current.pixelPetEnabled ? 'pet' : 'webm')
       await emitTo('companion-chat', 'companion:chat-presentation', { mode: chatPresentation.current })
       if (draft !== undefined) await emitTo('companion-chat', 'companion:open-chat', { draft })
       await pair.chat.show()
@@ -160,7 +162,7 @@ export function CompanionDesktopBridge() {
     void listen<{ draft?: string; presentation?: ChatPresentation }>('companion:chat-open-request', (event) => { void showChat(event.payload.draft, event.payload.presentation === 'voice' ? 'voice' : undefined) }).then((stop) => { stopOpenChat = stop })
     void listen('companion:moved', () => {
       if (!chatVisible.current) return
-      void windows().then((pair) => pair.portrait && pair.chat ? positionCompanionChat(pair.portrait, pair.chat, chatPresentation.current) : undefined)
+      void windows().then((pair) => pair.portrait && pair.chat ? positionCompanionChat(pair.portrait, pair.chat, chatPresentation.current, snapshotRef.current.pixelPetEnabled ? 'pet' : 'webm') : undefined).catch(() => undefined)
     }).then((stop) => { stopMoved = stop })
     void listen<{ requestId: string; allowed: boolean }>('companion:permission-response', (event) => {
       const resolve = permissionRequests.current.get(event.payload.requestId)
@@ -231,7 +233,7 @@ export function CompanionDesktopBridge() {
       }
       const externalVoiceAllowed = voice.tts.providerId === 'none' || trust.externalAiProcessing
       const speechEnabled = externalVoiceAllowed && (voice.autoSpeak || event.payload.wake) && voice.tts.providerId !== 'none' && Boolean(voice.tts.voice)
-      const speechLimit = voice.longReplySpeech === 'full' ? Number.POSITIVE_INFINITY : 220
+      const speechLimit = replySpeechLimit(voice.longReplySpeech, event.payload.inputMode ?? 'text', event.payload.wake)
       const speechProvider = speechEnabled ? createTextToSpeechProvider(voice.tts) : undefined
       const speechPrivacy = new PrivacySession(trust.privateDictionary)
       const speechId = ++speechGeneration.current
@@ -271,7 +273,7 @@ export function CompanionDesktopBridge() {
           responseVisualState = state
         },
         inputMode: event.payload.inputMode ?? 'text',
-        voiceReplyLength: event.payload.wake ? 'short' : voice.replyLength,
+        voiceReplyLength: voice.replyLength,
         signal: turn.signal,
         requestPermission: (request: AgentPermissionRequest) => new Promise((resolve) => {
           const requestId = crypto.randomUUID()
@@ -393,6 +395,7 @@ export function CompanionDesktopBridge() {
       window.localStorage.setItem('yiyu:companion-shortcut-status', message)
       window.dispatchEvent(new CustomEvent('yiyu:companion-shortcut-status', { detail: message }))
     }
+    if (isPetModeShortcut(shortcut)) { report('Ctrl+Alt+Q 已保留给桌宠 / WebM 切换，请为显隐另选组合。'); return }
     void unregister(shortcut).catch(() => undefined).then(() => {
       if (disposed) return
       return register(shortcut, (event) => {
@@ -420,6 +423,7 @@ export function CompanionDesktopBridge() {
       window.localStorage.removeItem('yiyu:companion-quiet-shortcut-status')
       return
     }
+    if (isPetModeShortcut(shortcut)) { report('Ctrl+Alt+Q 已保留给桌宠 / WebM 切换，请为安静穿透另选组合。'); return }
     if (shortcut === visibilityShortcut) {
       report('与显示 / 隐藏快捷键冲突，请更换组合。')
       return
@@ -452,6 +456,7 @@ export function CompanionDesktopBridge() {
     if (!isTauri() || !data.companion.computer.enabled) return
     const shortcut = data.companion.computer.emergencyShortcut
     if (!shortcut) return
+    if (isPetModeShortcut(shortcut)) { window.localStorage.setItem('yiyu:computer-shortcut-status', 'Ctrl+Alt+Q 已保留给桌宠 / WebM 切换，请为紧急停止另选组合。'); return }
     if ([data.companion.desktop.toggleShortcut, data.companion.desktop.quietShortcut].includes(shortcut)) {
       window.localStorage.setItem('yiyu:computer-shortcut-status', '紧急停止快捷键与伙伴快捷键冲突。')
       return

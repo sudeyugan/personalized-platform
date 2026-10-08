@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { emptyHeartRate, useHeartRateStore } from './heartRate'
 import { visibleHeartRate } from './display'
+import { emptyConnectionPreferences } from './connectionPreferences'
 const ipc = vi.hoisted(() => ({ invoke: vi.fn() }))
 vi.mock('@tauri-apps/api/core', () => ({ invoke: ipc.invoke }))
 describe('local heart rate lifecycle', () => {
   beforeEach(() => {
+    localStorage.clear()
     Object.defineProperty(window, '__TAURI_INTERNALS__', { configurable: true, value: {} })
-    useHeartRateStore.setState({ enabled: false, status: emptyHeartRate, revision: 0 })
+    useHeartRateStore.setState({ enabled: false, status: emptyHeartRate, revision: 0, preferences: { ...emptyConnectionPreferences }, initialized: false, preferencesSaved: true, reconnectTarget: null, pendingDevice: null, retryAt: null, retryAttempt: 0 })
     ipc.invoke.mockReset()
   })
   afterEach(() => { delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ })

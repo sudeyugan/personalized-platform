@@ -11,10 +11,16 @@ vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => ({ setIgnoreC
 vi.mock('@tauri-apps/api/event', () => ({ emitTo: native.emit }))
 vi.mock('./usePixelPetPointer', () => ({ usePixelPetPointer: () => ({ pointer: { current: null }, error: '' }) }))
 vi.mock('./usePixelPetInteraction', () => ({ usePixelPetInteraction: () => ({ error: '', onPointerDown: native.down }) }))
-vi.mock('./PixelPetRenderer', () => ({ PixelPetRenderer: ({ pose }: { pose: string }) => <div data-testid="pet-pose">{pose}</div> }))
+vi.mock('./PixelPetRenderer', () => ({ PixelPetRenderer: ({ pose, heartInput }: { pose: string; heartInput?: unknown }) => <div data-testid="pet-pose" data-heart-input={Boolean(heartInput)}>{pose}</div> }))
 const snapshot = { ...emptyCompanionDesktopSnapshot, pixelPetEnabled: true, desktopVisible: true, desktopMode: 'interactive' as const }
 const layout = { scale: 1, pixelRatio: 1, ready: true, side: 'right-edge' as const, pose: 'float' as const }
 describe('pet window menu integration', () => {
+  it('keeps the local heart input in quiet mode without changing cursor passthrough', () => {
+    const heartInput = { sample: { current: null }, marker: { current: null } }
+    render(<PixelPetWindow snapshot={{ ...snapshot, desktopMode: 'quiet' }} layout={layout} heartInput={heartInput} />)
+    expect(screen.getByTestId('pet-pose')).toHaveAttribute('data-heart-input', 'true')
+    expect(native.ignore).toHaveBeenLastCalledWith(true)
+  })
   it('dismisses menu on pet click without beginning a drag or chat gesture', () => {
     native.down.mockClear()
     render(<PixelPetWindow snapshot={snapshot} layout={layout} />)

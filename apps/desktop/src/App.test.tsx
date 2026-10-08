@@ -16,6 +16,8 @@ describe('App', () => {
     fireEvent.click(await screen.findByRole('button', { name: '翻开一张' }))
     expect(document.querySelector('.truth-question blockquote')?.textContent).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: '设置' }))
+    // The first settings visit loads its UI chunk; cold Windows workers may exceed the DOM default 1s.
+    fireEvent.click(await screen.findByRole('button', { name: /功能与导航/ }, { timeout: 3_000 }))
     fireEvent.click(await screen.findByRole('button', { name: '启用真心话' }))
     expect(screen.getByRole('button', { name: '启用真心话' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.queryByRole('button', { name: '真心话' })).not.toBeInTheDocument()
@@ -54,8 +56,9 @@ describe('App', () => {
   it('shows a styled background picker with image guidance', async () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: '设置' }))
-    expect(await screen.findByText(/内容背景推荐 16:9、1920 × 1080/)).toBeInTheDocument()
-    expect(await screen.findByText('通用背景')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: '壁纸 · 连续铺满' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '插画 · 完整摆放' })).toBeInTheDocument()
+    expect(screen.getByRole('slider', { name: '纸张保护' })).toBeInTheDocument()
   })
 
   it('opens the built-in help center without a mandatory checklist', async () => {
@@ -83,7 +86,8 @@ describe('App', () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: '设置' }))
     fireEvent.click(screen.getAllByRole('button', { name: /AI 伙伴/ })[0])
-    expect(await screen.findByText('形象与显示')).toBeInTheDocument()
+    expect(await screen.findByText('记忆与性格', { selector: 'summary strong' })).toBeInTheDocument()
+    expect(screen.getByText('语音与唤醒')).toBeInTheDocument()
     expect(screen.getByText('模型服务')).toBeInTheDocument()
     expect(screen.getByText('权限与记录')).toBeInTheDocument()
     fireEvent.click(screen.getByText('模型服务'))
@@ -91,6 +95,25 @@ describe('App', () => {
     expect(screen.queryByText('HTTPS Endpoint')).not.toBeInTheDocument()
     fireEvent.click(screen.getByText('权限与记录'))
     expect(screen.getByRole('button', { name: '允许伙伴读取资料概览' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('groups desktop identity, pet appearance and heart rate without altering permissions', async () => {
+    render(<App />)
+    fireEvent.click(await screen.findByRole('button', { name: '设置' }))
+    fireEvent.click(await screen.findByRole('button', { name: /桌面伙伴桌宠/ }))
+    expect(screen.getByRole('heading', { name: '实时心率' })).toBeInTheDocument()
+    const name = screen.getByRole('textbox', { name: '伙伴名字' })
+    fireEvent.change(name, { target: { value: '小月' } })
+    fireEvent.blur(name)
+    expect(useLibraryStore.getState().data.companion.name).toBe('小月')
+    fireEvent.change(screen.getByRole('combobox', { name: '伙伴渲染模式' }), { target: { value: 'pixel-pet' } })
+    fireEvent.click(screen.getByRole('button', { name: '选择Q 版造型' }))
+    expect(useLibraryStore.getState().data.companion.desktop.pixelPetStyle).toBe('chibi')
+    expect(screen.getByRole('button', { name: '选择Q 版造型' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('WebM 与立绘素材').closest('details')).not.toHaveAttribute('open')
+    expect(screen.getByRole('button', { name: '启用实时心率' })).toHaveAttribute('aria-pressed', 'false')
+    expect(useLibraryStore.getState().data.companion.permissions.records).toBe(false)
+    expect(localStorage.getItem('yiyu.settings.activeTab')).toBe('desktop')
   })
 
   it('documents the static portrait and transparent WebM workflow in the help center', async () => {
@@ -129,7 +152,10 @@ describe('App', () => {
   it('opens the M7 music library and keeps companion access denied by default', async () => {
     render(<App />)
     expect(screen.queryByText(/声音会在页面间继续/)).not.toBeInTheDocument()
-    fireEvent.click(await screen.findByRole('button', { name: '音乐' }))
+    expect(screen.queryByRole('button', { name: '音乐' })).not.toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: '设置' }))
+    fireEvent.click(await screen.findByRole('button', { name: /数据管理/ }))
+    fireEvent.click(await screen.findByRole('button', { name: '打开曲库' }))
     expect(await screen.findByRole('heading', { name: '让声音留在写作之间' })).toBeInTheDocument()
     expect(screen.getByText(/自动切歌默认关闭/)).toBeInTheDocument()
     expect(screen.getByText(/声音会在页面间继续/)).toBeInTheDocument()

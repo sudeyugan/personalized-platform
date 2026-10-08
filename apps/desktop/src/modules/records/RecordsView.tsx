@@ -9,11 +9,12 @@ import { InlineRecordEditor } from './InlineRecordEditor'
 import { RecordLinksPanel } from './RecordLinksPanel'
 import { RecordSidePanel } from './RecordSidePanel'
 import { formatCustomFields, parseCustomFields, parseList } from './recordFieldFormatting'
+import { matchesUsage, usageChanges, usageFields, usageLabel, type RecordFilter } from './recordUsage'
 
 type PanelState = { id: string; mode: 'edit' | 'links' } | null
 type PendingDeletion = { id: string; name: string; references: number; permanent: boolean } | null
 
-export function RecordsView({ type }: { type: 'people' | 'places' }) {
+export function RecordsView({ type, filter }: { type: 'people' | 'places'; filter?: RecordFilter }) {
   const { data, addPerson, addPlace, updatePerson, updatePlace, trashRecord, restoreRecord, permanentlyDeleteRecord } = useLibraryStore()
   const isPeople = type === 'people'
   const recordType = isPeople ? 'person' : 'place'
@@ -26,7 +27,7 @@ export function RecordsView({ type }: { type: 'people' | 'places' }) {
     setPanel(activeRecord?.type === recordType ? { id: activeRecord.id, mode: 'links' } : null)
   }, [data.session.activeRecord, recordType])
 
-  const active = records.filter((record) => !record.deletedAt)
+  const active = records.filter((record) => !record.deletedAt && matchesUsage(record, filter))
   const deleted = records.filter((record) => record.deletedAt)
   const panelRecord = active.find((record) => record.id === panel?.id)
 
@@ -34,7 +35,13 @@ export function RecordsView({ type }: { type: 'people' | 'places' }) {
     <main className="records-view scroll-view">
       <header className="page-header">
         <div><p className="eyebrow">{recordText.library}</p><h1>{isPeople ? recordText.people : recordText.places}</h1><p>{isPeople ? recordText.personDescription : recordText.placeDescription}</p></div>
-        <button className="primary-button" onClick={isPeople ? addPerson : addPlace}><Plus size={16} />{isPeople ? recordText.newPerson : recordText.newPlace}</button>
+        <button className="primary-button" onClick={() => {
+          if (isPeople) addPerson(); else addPlace()
+          const record = (isPeople ? useLibraryStore.getState().data.people : useLibraryStore.getState().data.places).at(-1)!
+          const changes = { usage: filter?.usage === 'real' || filter?.usage === 'fiction' ? filter.usage : undefined, workId: filter?.workId || undefined }
+          if (isPeople) updatePerson(record.id, changes); else updatePlace(record.id, changes)
+          setPanel({ id: record.id, mode: 'edit' })
+        }}><Plus size={16} />{isPeople ? recordText.newPerson : recordText.newPlace}</button>
       </header>
 
       <section className="record-grid">
@@ -52,6 +59,7 @@ export function RecordsView({ type }: { type: 'people' | 'places' }) {
                   </span>
                 </div>
                 <p>{'summary' in record ? record.summary : record.description}</p>
+                <div className="record-usage">{usageLabel(record)}{record.workId && ' · ' + (data.works.find(work => work.id === record.workId)?.title ?? '原作品')}</div>
                 {record.aliases.map((alias) => <span className="record-tag" key={alias}>别名 · {alias}</span>)}
                 {'region' in record && <span className="record-tag"><MapPin size={12} />{record.region}</span>}
                 {record.tags.map((tag) => <span className="record-tag" key={tag}><Tag size={12} />{tag}</span>)}
@@ -72,11 +80,12 @@ export function RecordsView({ type }: { type: 'people' | 'places' }) {
             ? <RecordLinksPanel record={{ type: recordType, id: panelRecord.id } as EntityRef} />
             : <InlineRecordEditor
                 key={panelRecord.id}
-                fields={isPeople
+                fields={[...usageFields(panelRecord, data), ...(isPeople
                   ? [{ key: 'name', label: '姓名', value: panelRecord.name }, { key: 'aliases', label: '别名（逗号分隔）', value: panelRecord.aliases.join(', ') }, { key: 'summary', label: '简介', value: 'summary' in panelRecord ? panelRecord.summary : '', multiline: true }, { key: 'experiences', label: '重要经历', value: 'importantExperiences' in panelRecord ? panelRecord.importantExperiences : '', multiline: true }, { key: 'tags', label: '标签', value: panelRecord.tags.join(', ') }, { key: 'custom', label: '自定义字段（字段：内容；字段：内容）', value: formatCustomFields(panelRecord.customFields) }]
-                  : [{ key: 'name', label: '名称', value: panelRecord.name }, { key: 'aliases', label: '别名', value: panelRecord.aliases.join(', ') }, { key: 'region', label: '区域', value: 'region' in panelRecord ? panelRecord.region : '' }, { key: 'address', label: '地址', value: 'address' in panelRecord ? panelRecord.address : '' }, { key: 'period', label: '相关时间段', value: 'relatedPeriod' in panelRecord ? panelRecord.relatedPeriod : '' }, { key: 'description', label: '描述', value: 'description' in panelRecord ? panelRecord.description : '', multiline: true }, { key: 'tags', label: '标签', value: panelRecord.tags.join(', ') }, { key: 'custom', label: '自定义字段', value: formatCustomFields(panelRecord.customFields) }]}
+                  : [{ key: 'name', label: '名称', value: panelRecord.name }, { key: 'aliases', label: '别名', value: panelRecord.aliases.join(', ') }, { key: 'region', label: '区域', value: 'region' in panelRecord ? panelRecord.region : '' }, { key: 'address', label: '地址', value: 'address' in panelRecord ? panelRecord.address : '' }, { key: 'period', label: '相关时间段', value: 'relatedPeriod' in panelRecord ? panelRecord.relatedPeriod : '' }, { key: 'description', label: '描述', value: 'description' in panelRecord ? panelRecord.description : '', multiline: true }, { key: 'tags', label: '标签', value: panelRecord.tags.join(', ') }, { key: 'custom', label: '自定义字段', value: formatCustomFields(panelRecord.customFields) }])]}
                 onCancel={() => setPanel(null)}
                 onSave={(values) => {
+                  if (isPeople) updatePerson(panelRecord.id, usageChanges(values)); else updatePlace(panelRecord.id, usageChanges(values))
                   if (isPeople) updatePerson(panelRecord.id, { name: values.name.trim(), aliases: parseList(values.aliases), summary: values.summary.trim(), importantExperiences: values.experiences.trim(), tags: parseList(values.tags), customFields: parseCustomFields(values.custom) })
                   else updatePlace(panelRecord.id, { name: values.name.trim(), aliases: parseList(values.aliases), region: values.region.trim(), address: values.address.trim(), relatedPeriod: values.period.trim(), description: values.description.trim(), tags: parseList(values.tags), customFields: parseCustomFields(values.custom) })
                   setPanel(null)

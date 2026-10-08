@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "companion-lyrics",
+  "description": "Current-song-only lyrics channel; dragging is the sole window permission",
+  "windows": ["companion-lyrics"],
+  "permissions": ["core:window:allow-start-dragging"]
+}

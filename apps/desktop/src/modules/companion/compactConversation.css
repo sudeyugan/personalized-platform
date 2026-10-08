@@ -16,3 +16,13 @@
 .compact-conversation-note{font-size:10px;color:#897c70;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px;flex-shrink:0}
 .compact-caption{min-height:0}
 @media(prefers-reduced-motion:no-preference){.compact-conversation{animation:compact-appear .15s ease-out}@keyframes compact-appear{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}}
+.compact-conversation[data-character=pet]{padding:12px 14px;border-radius:15px;border-color:#9fb6d255;background:linear-gradient(150deg,#fbfdfffa,#eaf2fbf5);color:#43546c}
+.compact-conversation[data-character=pet][data-pet-style=pixel]{border-radius:4px;border-color:#97abc6;box-shadow:3px 3px 0 #4e6b8b22}
+.compact-conversation[data-character=webm]{border-radius:20px;padding:13px 16px;background:linear-gradient(145deg,#fffdf8fa,#f3ece2f5)}
+.compact-conversation.voice{padding-top:10px;padding-bottom:10px}
+.compact-conversation.voice .compact-caption{font-size:15px;line-height:1.65;margin:8px 0;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;flex-shrink:0}
+.compact-conversation.bubble .compact-caption{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden}
+.compact-conversation header{flex-shrink:0}
+.compact-conversation footer{flex-shrink:0}
+.compact-conversation header small{color:inherit;opacity:.65}
+.compact-conversation-note{color:inherit;opacity:.75}

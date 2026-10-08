@@ -4,18 +4,21 @@ import { navigationItems } from './moduleManifest'
 import { resolveContentBackground } from './backgrounds'
 import { useLibraryStore } from '../state/useLibraryStore'
 import { libraryRepository, type SearchHit } from '../infrastructure/libraryRepository'
+import { BackgroundArt } from '../modules/backgrounds/BackgroundArt'
+import { backgroundPresentation } from '../modules/backgrounds/backgroundPresentation'
+import { useBackgroundImage } from '../modules/backgrounds/useBackgroundImage'
 import { PlaybackDock } from '../modules/music/PlaybackDock'
 
 const HomeView = lazy(() => import('../modules/home/HomeView').then((module) => ({ default: module.HomeView })))
 const AnswerBookView = lazy(() => import('../modules/answer-book/AnswerBookView').then((module) => ({ default: module.AnswerBookView })))
 const FortuneView = lazy(() => import('../modules/fortune/FortuneView').then((module) => ({ default: module.FortuneView })))
+const ExperiencesView = lazy(() => import('../modules/experiences').then((module) => ({ default: module.ExperiencesView })))
 const TruthView = lazy(() => import('../modules/truth/TruthView').then((module) => ({ default: module.TruthView })))
 const CalendarScheduleView = lazy(() => import('../modules/planner/CalendarScheduleView').then((module) => ({ default: module.CalendarScheduleView })))
 const DiaryView = lazy(() => import('../modules/planner/DiaryView').then((module) => ({ default: module.DiaryView })))
 const TodoView = lazy(() => import('../modules/planner/TodoView').then((module) => ({ default: module.TodoView })))
 const WritingView = lazy(() => import('../modules/writing/WritingView').then((module) => ({ default: module.WritingView })))
-const RecordsView = lazy(() => import('../modules/records/RecordsView').then((module) => ({ default: module.RecordsView })))
-const TimelineView = lazy(() => import('../modules/records/TimelineView').then((module) => ({ default: module.TimelineView })))
+const RecordsHub = lazy(() => import('../modules/records/RecordsHub').then((module) => ({ default: module.RecordsHub })))
 const AssetsView = lazy(() => import('../modules/assets/AssetsView').then((module) => ({ default: module.AssetsView })))
 const MusicView = lazy(() => import('../modules/music/MusicView').then((module) => ({ default: module.MusicView })))
 const HelpView = lazy(() => import('../modules/help/HelpView').then((module) => ({ default: module.HelpView })))
@@ -42,10 +45,12 @@ export function AppShell() {
   const answerBookEnabled = data.settings.modules.find((module) => module.id === 'answerBook')?.enabled ?? true
   const truthEnabled = data.settings.modules.find((module) => module.id === 'truth')?.enabled ?? true
   const fortuneEnabled = data.settings.modules.find((module) => module.id === 'fortune')?.enabled ?? true
-  const orderedNavigation = data.settings.navigationOrder.map((id) => navigationItems.find((item) => item.id === id)).filter((item) => item && (item.group !== 'writing' || writingEnabled) && (item.id !== 'music' || musicEnabled) && (item.id !== 'answerBook' || answerBookEnabled) && (item.id !== 'truth' || truthEnabled) && (item.id !== 'fortune' || fortuneEnabled))
+  const experiencesEnabled = data.settings.modules.find((module) => module.id === 'experiences')?.enabled ?? true
+  const orderedNavigation = data.settings.navigationOrder.map((id) => navigationItems.find((item) => item.id === id)).filter((item) => item && !item.secondary && (item.group !== 'writing' || writingEnabled) && (item.id !== 'music' || musicEnabled) && (item.id !== 'answerBook' || answerBookEnabled) && (item.id !== 'truth' || truthEnabled) && (item.id !== 'fortune' || fortuneEnabled) && (item.id !== 'experiences' || experiencesEnabled))
   const writingViewActive = navigationItems.some((item) => item.group === 'writing' && item.id === activeView)
   const contentBackground = resolveContentBackground(data.settings, activeView)
-  const sidebarBackground = data.settings.backgrounds.images.sidebar
+  const sidebarBackground = useBackgroundImage(data.settings.backgrounds.images.sidebar)
+  const backgroundStyle = backgroundPresentation(data.settings.backgrounds).style
 
   const toggleWritingNavigation = () => {
     setWritingNavigationOpen((current) => {
@@ -58,14 +63,13 @@ export function AppShell() {
     if (activeView === 'home') return <HomeView />
     if (activeView === 'answerBook') return <AnswerBookView />
     if (activeView === 'fortune') return fortuneEnabled ? <FortuneView /> : <HomeView />
+    if (activeView === 'experiences') return experiencesEnabled ? <ExperiencesView /> : <HomeView />
     if (activeView === 'truth') return truthEnabled ? <TruthView /> : <HomeView />
     if (activeView === 'calendar') return <CalendarScheduleView />
     if (activeView === 'diary') return <DiaryView />
     if (activeView === 'todos') return <TodoView />
     if (activeView === 'writing') return <WritingView key={activeChapterId || 'empty'} />
-    if (activeView === 'people') return <RecordsView type="people" />
-    if (activeView === 'places') return <RecordsView type="places" />
-    if (activeView === 'timeline') return <TimelineView />
+    if (activeView === 'people' || activeView === 'places' || activeView === 'timeline') return <RecordsHub />
     if (activeView === 'assets') return <AssetsView />
     if (activeView === 'music') return <MusicView />
     if (activeView === 'help') return <HelpView />
@@ -73,7 +77,8 @@ export function AppShell() {
   })()
 
   return (
-    <div className={data.session.focusMode ? 'app-frame focus-mode' : 'app-frame'}>
+    <div className={'app-frame' + (data.session.focusMode ? ' focus-mode' : '') + (contentBackground.image ? ' has-unified-background' : '')} style={backgroundStyle}>
+      <BackgroundArt source={contentBackground.image} settings={data.settings.backgrounds} />
       <aside className={`primary-sidebar sidebar-background-${data.settings.backgrounds.sidebarMode}${sidebarBackground ? ' has-sidebar-background' : ''}`}>
         {sidebarBackground && <div aria-hidden="true" className="sidebar-background-art"><img alt="" src={sidebarBackground} /></div>}
         <div className="brand-lockup">
@@ -97,7 +102,7 @@ export function AppShell() {
                 if (!item) return null
                 const Icon = item.icon
                 return (
-                  <button className={activeView === item.id ? 'nav-item active' : 'nav-item'} key={item.id} onClick={() => navigate(item.id)} type="button">
+                  <button className={(activeView === item.id || item.id === 'people' && ['places', 'timeline'].includes(activeView)) ? 'nav-item active' : 'nav-item'} key={item.id} onClick={() => navigate(item.id)} type="button">
                     <Icon size={18} strokeWidth={1.7} />
                     <span>{item.label}</span>
                   </button>
@@ -113,8 +118,7 @@ export function AppShell() {
         </div>
       </aside>
 
-      <section className="workspace">
-        {contentBackground.image && <div aria-hidden="true" className="workspace-background" key={`${contentBackground.scene}-${contentBackground.image.length}-${contentBackground.image.slice(-12)}`}><img alt="" src={contentBackground.image} /></div>}
+      <section className={`workspace${activeView !== 'writing' || !openChapterIds.length ? ' workspace-fortune' : ''}`}>
         <header className="window-toolbar">
           {saveStatus === 'error' ? <div className="offline-chip save-error" role="alert">保存失败，请重试后再关闭应用</div> : null}
           <div className="toolbar-spacer" />
@@ -140,7 +144,7 @@ export function AppShell() {
         <div className="view-stage"><Suspense fallback={<main className="launch-screen"><p>正在打开这一页…</p></main>}>{view}</Suspense></div>
       </section>
       {searchOpen && <div className="search-overlay" onMouseDown={() => setSearchOpen(false)}><section onMouseDown={(event) => event.stopPropagation()}><header><Search size={18} /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索章节标题和正文…" /><button onClick={() => setSearchOpen(false)}><X size={17} /></button></header><div className="search-results">{searchResults.map((hit) => <button key={hit.chapterId} onClick={() => { selectChapter(hit.chapterId); setSearchOpen(false) }}><FileText size={16} /><span><strong>{hit.title}</strong><small>{hit.excerpt}</small></span></button>)}{query && searchResults.length === 0 && <p>没有找到相关内容</p>}</div></section></div>}
-      {(musicEnabled || Boolean(data.session.currentTrackId)) && <PlaybackDock moduleEnabled={musicEnabled} showEmptyHint={activeView === 'music'} />}
+      {(activeView === 'music' || Boolean(data.session.currentTrackId)) && <PlaybackDock moduleEnabled={musicEnabled} showEmptyHint={activeView === 'music'} />}
     </div>
   )
 }

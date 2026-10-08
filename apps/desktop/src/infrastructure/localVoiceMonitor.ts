@@ -2,13 +2,17 @@ import type { CompanionData } from '../domain/models'
 
 export interface LocalVoiceDetection { detected: boolean; speakerMatched: boolean; speakerScore?: number }
 interface Capture { stop: () => void }
+export interface LocalVoiceLease extends Capture {
+  isActive: () => boolean
+  handoff: (consumer: (samples: number[]) => void) => void
+}
 type Config = Pick<CompanionData['voice'], 'wakeWord' | 'wakeSensitivity' | 'speakerVerification'>
 type NativeInvoke = <T>(command: string, args?: Record<string, unknown>) => Promise<T>
 
 // Native KWS has one engine. Serialize access and give each microphone a lease:
 // stale capture/PCM completions must never stop or notify a newer listener.
 export function createLocalVoiceMonitor(invoke: NativeInvoke, openCapture: (samples: (chunk: number[]) => void) => Promise<Capture>) {
-  let current: { stop: () => void } | undefined
+  let current: LocalVoiceLease | undefined
   let operations: Promise<unknown> = Promise.resolve()
   const enqueue = <T>(operation: () => Promise<T>) => {
     const next = operations.then(operation)
@@ -25,11 +29,21 @@ export function createLocalVoiceMonitor(invoke: NativeInvoke, openCapture: (samp
     let queued: number[] = []
     let processing = false
     let stopped = false
+    let consumer: ((samples: number[]) => void) | undefined
     const active = () => !stopped && current === lease
-    const lease = { isActive: active, stop: () => {
+    const detecting = () => active() && !consumer
+    const lease: LocalVoiceLease = { isActive: active, handoff: (next) => {
+      if (!active()) return
+      // Discard ALL standby samples. Only future samples, captured after the
+      // caller has verified wake + speaker, may reach the cloud consumer.
+      queued = []
+      consumer = next
+      void enqueue(async () => { if (active() && consumer) await invoke('local_voice_stop') }).catch((error) => { if (active()) { lease.stop(); onError(error) } })
+    }, stop: () => {
       if (stopped) return
       stopped = true
       queued = []
+      consumer = undefined
       capture?.stop()
       if (current !== lease) return
       current = undefined
@@ -37,20 +51,20 @@ export function createLocalVoiceMonitor(invoke: NativeInvoke, openCapture: (samp
     } }
     current = lease
     const flush = async () => {
-      if (!active() || processing || queued.length < 3200) return
+      if (!detecting() || processing || queued.length < 3200) return
       processing = true
       const samples = queued.splice(0, Math.min(queued.length, 6400))
       try {
-        const result = await enqueue(async () => active() ? invoke<LocalVoiceDetection>('local_voice_process_pcm', { samples }) : undefined)
-        if (active() && result?.detected) onDetection(result)
+        const result = await enqueue(async () => detecting() ? invoke<LocalVoiceDetection>('local_voice_process_pcm', { samples }) : undefined)
+        if (detecting() && result?.detected) onDetection(result)
       } catch (error) {
-        if (active() && !String(error).includes('VOICE_SAMPLE_SHORT:')) {
+        if (detecting() && !String(error).includes('VOICE_SAMPLE_SHORT:')) {
           lease.stop()
           onError(error)
         }
       } finally {
         processing = false
-        if (active() && queued.length >= 3200) void flush()
+        if (detecting() && queued.length >= 3200) void flush()
       }
     }
     try {
@@ -60,6 +74,7 @@ export function createLocalVoiceMonitor(invoke: NativeInvoke, openCapture: (samp
       if (!active()) return lease
       capture = await openCapture((samples) => {
         if (!active()) return
+        if (consumer) { consumer(samples); return }
         queued.push(...samples)
         if (queued.length > 16_000) queued = queued.slice(-16_000)
         void flush()

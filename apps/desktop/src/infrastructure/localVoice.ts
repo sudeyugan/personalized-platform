@@ -1,5 +1,6 @@
 import { Channel, invoke } from '@tauri-apps/api/core'
 import { createLocalVoiceMonitor } from './localVoiceMonitor'
+import { readMicrophonePreferences } from './microphonePreferences'
 
 export interface LocalVoiceStatus {
   modelsInstalled: boolean
@@ -55,30 +56,42 @@ function resample(input: Float32Array, inputRate: number, outputRate = 16_000) {
   return output
 }
 
-async function openPcmCapture(onSamples: (samples: number[]) => void): Promise<PcmCapture> {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false })
-  const context = new AudioContext()
-  const source = context.createMediaStreamSource(stream)
-  const processor = context.createScriptProcessor(4096, 1, 1)
-  const silent = context.createGain()
-  silent.gain.value = 0
-  processor.onaudioprocess = (event) => {
-    onSamples(resample(event.inputBuffer.getChannelData(0), context.sampleRate))
-    event.outputBuffer.getChannelData(0).fill(0)
-  }
-  source.connect(processor)
-  processor.connect(silent)
-  silent.connect(context.destination)
-  await context.resume()
-  return {
-    stop: () => {
-      processor.onaudioprocess = null
-      source.disconnect()
-      processor.disconnect()
-      silent.disconnect()
-      stream.getTracks().forEach((track) => track.stop())
-      void context.close()
-    },
+export async function openPcmCapture(onSamples: (samples: number[]) => void): Promise<PcmCapture> {
+  const { deviceId, gain } = readMicrophonePreferences()
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { deviceId: deviceId ? { exact: deviceId } : undefined, echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false })
+  let stopContext: (() => void) | undefined
+  try {
+    const context = new AudioContext()
+    stopContext = () => { void context.close() }
+    const source = context.createMediaStreamSource(stream)
+    const processor = context.createScriptProcessor(4096, 1, 1)
+    const silent = context.createGain()
+    silent.gain.value = 0
+    processor.onaudioprocess = (event) => {
+      onSamples(resample(event.inputBuffer.getChannelData(0), context.sampleRate).map((sample) => Math.max(-1, Math.min(1, sample * gain))))
+      event.outputBuffer.getChannelData(0).fill(0)
+    }
+    source.connect(processor)
+    processor.connect(silent)
+    silent.connect(context.destination)
+    await context.resume()
+    let stopped = false
+    return {
+      stop: () => {
+        if (stopped) return
+        stopped = true
+        processor.onaudioprocess = null
+        source.disconnect()
+        processor.disconnect()
+        silent.disconnect()
+        stream.getTracks().forEach((track) => track.stop())
+        void context.close()
+      },
+    }
+  } catch (error) {
+    stream.getTracks().forEach((track) => track.stop())
+    stopContext?.()
+    throw error
   }
 }
 

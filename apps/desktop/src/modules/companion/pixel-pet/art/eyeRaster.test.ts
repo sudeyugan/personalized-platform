@@ -9,7 +9,7 @@ describe('clipped eyelash source fallback', () => {
     const data = new Uint8ClampedArray(576 * 720 * 4)
     for (let p = 0; p < data.length; p += 4) data.set([255, 218, 200, 255], p)
     const fit = artPlacement(profile), cx = (fit.x + artEye.x * fit.scale) * 3, cy = (fit.y + artEye.y * fit.scale) * 3
-    const radius = Math.ceil(Math.hypot(artEye.rx * fit.scale * 3, artEye.ry * fit.scale * 3) + 12)
+    const radius = Math.ceil(Math.hypot(artEye.rx * fit.scale * 3 * 1.65, artEye.ry * fit.scale * 3 * 2) + 12)
     const x = Math.floor(cx - radius), y = Math.floor(cy - radius)
     data.set([70, 120, 220, 255], (y * 576 + x) * 4)
     const mock = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({

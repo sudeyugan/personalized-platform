@@ -1,0 +1,55 @@
+.listening-current { display:flex; gap:16px; align-items:center; padding:20px; border:1px solid var(--line); border-radius:14px; background:linear-gradient(125deg, var(--panel-solid), var(--surface-soft)); box-shadow:0 4px 16px #00000004 }
+.listening-current img,.listening-current > i { width:62px; height:62px; border-radius:10px; object-fit:cover; display:grid; place-content:center; background:var(--accent-soft); font-size:27px }
+.listening-current > div { min-width:0; display:grid; gap:5px }
+.listening-current strong { overflow-wrap:anywhere; font-size:16px }
+.listening-current small,.listening-current span { color:var(--ink-soft); font-size:11px }
+.listening-settings progress { width:100%; height:3px; accent-color:var(--accent); display:block; margin:12px 0 }
+.listening-lyric { text-align:center; font:13px/1.9 var(--serif); color:var(--ink-soft); padding:16px 10px }
+.lyric-sheet { --lyric-ink:var(--ink); --lyric-muted:var(--ink-soft); color:var(--lyric-ink); padding:18px 22px; text-align:center; border:1px solid var(--line); border-radius:12px; background:color-mix(in srgb, var(--surface) 85%, transparent); overflow-wrap:anywhere }
+.lyric-sheet p { margin:0; }
+.lyric-context { color:var(--lyric-muted); font:12px/1.8 var(--serif); min-height:22px; max-height:44px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; opacity:.65 }
+.lyric-focus { padding:12px 0; font:500 19px/1.8 var(--serif); letter-spacing:.03em; animation:lyric-arrive .28s ease-out }
+.lyric-focus.lyric-waiting { font-size:13px; color:var(--lyric-muted); letter-spacing:.08em }
+.lyric-sheet.paused .lyric-focus { animation:none }
+.lyric-sheet.compact { margin-top:6px; padding:8px 11px; border-radius:3px 10px 10px 10px; text-align:left }
+.lyric-sheet.compact .lyric-focus { padding:0; font-size:13px; letter-spacing:.015em; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden }
+.listening-buttons { display:flex; gap:10px; justify-content:center }
+.listening-buttons button { display:grid; place-content:center; padding:8px; border-radius:8px; background:var(--accent-soft) }
+.listening-buttons button:disabled { opacity:.35 }
+.listening-lyrics-settings { padding-top:16px; margin-top:18px; border-top:1px solid var(--line); font-size:12px }
+.listening-lyrics-settings summary { cursor:pointer }
+.listening-source-state { display:flex; flex-wrap:wrap; gap:6px 12px; justify-content:space-between; margin-top:16px; color:var(--ink-soft); font-size:11px; line-height:1.8 }
+.listening-source-state > span { color:var(--ink-faint) }
+.listening-lyrics-settings p { color:var(--ink-soft); line-height:1.8 }
+.listening-lyrics-settings > button { padding:7px 10px; border:1px solid var(--line); border-radius:7px; background:transparent; color:var(--ink-soft); font-size:11px }
+.listening-offset { display:inline-flex; align-items:center; gap:8px; margin:12px }
+.listening-offset input { width:70px; padding:7px; border:1px solid var(--line); border-radius:8px; color:var(--ink); background:var(--panel) }
+.listening-badge { --listening-paper:#f3f8fff5; --listening-border:#cad9e6; --listening-ink:#405a72; position:fixed; z-index:8; max-width:calc(100vw - 16px); color:var(--listening-ink); font-size:10px }
+.listening-badge.pixel { left:8px; bottom:8px; width:152px }
+.listening-badge.pixel.side-left-edge { left:auto; right:8px }
+.listening-badge.pixel.side-bottom-edge { top:7px; bottom:auto; left:50%; transform:translateX(-50%) }
+.listening-badge.webm { --listening-paper:#fffaf2f5; --listening-border:#e0d3bf; --listening-ink:#645747; left:50%; transform:translateX(-50%); bottom:50px; width:190px }
+.listening-marker { width:100%; display:flex; align-items:center; gap:7px; padding:7px 9px; border:1px solid var(--listening-border); border-radius:12px; background:var(--listening-paper); color:inherit; box-shadow:0 2px 10px #7896b11a; cursor:pointer }
+.listening-marker span { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; flex:1; text-align:left }
+.listening-marker i { font-style:normal; opacity:.55 }
+.playing .listening-marker i { animation:listening-note 16s ease-in-out infinite }
+.listening-badge .lyric-sheet { --lyric-ink:var(--listening-ink); --lyric-muted:var(--listening-ink); background:var(--listening-paper); border-color:var(--listening-border); box-shadow:0 3px 12px #00000008 }
+.listening-badge > .lyric-sheet { pointer-events:none }
+.pixel .lyric-sheet.compact .lyric-focus { font-size:12px; -webkit-line-clamp:2; line-height:1.7 }
+.listening-mini-card { margin-top:6px; border:1px solid var(--listening-border); padding:12px; border-radius:12px; background:var(--listening-paper); display:grid; gap:8px; max-height:min(280px,calc(100vh - 100px)); overflow-y:auto; overflow-wrap:anywhere; box-shadow:0 5px 18px #00000012 }
+.listening-mini-card > header { display:flex; gap:9px; align-items:center }
+.listening-mini-card > header > div { min-width:0; display:grid; gap:4px }
+.listening-mini-card img,.listening-cover-placeholder { width:32px; height:32px; flex-shrink:0; object-fit:cover; border-radius:6px; background:#7896b115; display:grid; place-items:center }
+.listening-mini-card small { opacity:.7 }.listening-mini-card progress { height:3px; width:100%; accent-color:var(--listening-ink) }
+.listening-mini-card .lyric-sheet { padding:6px 0; border:0; border-radius:0; box-shadow:none; background:none }
+.listening-mini-card .lyric-focus { font-size:13px; padding:8px 0 }
+.listening-mini-card .lyric-context { font-size:10px; min-height:18px; max-height:36px }
+.pixel .listening-mini-card { position:absolute; bottom:calc(100% + 6px); left:0; width:min(176px,calc(100vw - 16px)); max-height:calc(100vh - 52px) }
+.pixel.side-left-edge .listening-mini-card { left:auto; right:0 }
+.pixel.side-bottom-edge .listening-mini-card { top:calc(100% + 6px); bottom:auto; left:50%; transform:translateX(-50%); max-height:calc(100vh - 52px) }
+.listening-badge .listening-buttons { gap:8px }.listening-badge .listening-buttons button { background:#7896b112; color:inherit; padding:7px 11px }
+.listening-badge .listening-buttons button:hover:not(:disabled) { background:#7896b126 }
+.listening-badge.quiet { pointer-events:none }
+@keyframes listening-note { 0%,82%,100% { transform:translateY(0); opacity:.55 } 88% { transform:translateY(-2px); opacity:1 } 94% { transform:translateY(1px) } }
+@keyframes lyric-arrive { from { opacity:.55; transform:translateY(2px) } to { opacity:1; transform:translateY(0) } }
+@media(prefers-reduced-motion:reduce) { .playing .listening-marker i,.lyric-focus { animation:none } }

@@ -1,8 +1,8 @@
 import { emitTo, listen } from '@tauri-apps/api/event'
 import { useCallback, useEffect, useState } from 'react'
-import { resolveChatPresentation, type ChatPresentation } from './chatPresentation'
+import { resolveChatPresentation, type ChatCharacter, type ChatPresentation } from './chatPresentation'
 
-export function useChatPresentation(attention: boolean) {
+export function useChatPresentation(attention: boolean, character: ChatCharacter = 'pet') {
   const [requested, setRequested] = useState<ChatPresentation>('bubble')
   const [compactMode, setCompactMode] = useState<'bubble' | 'voice'>('bubble')
   const mode = resolveChatPresentation(requested, attention)
@@ -17,7 +17,7 @@ export function useChatPresentation(attention: boolean) {
     }).then((value) => { if (disposed) value(); else stop = value })
     return () => { disposed = true; stop?.() }
   }, [])
-  useEffect(() => { void emitTo('main', 'companion:chat-presentation-request', { mode }) }, [mode])
+  useEffect(() => { void emitTo('main', 'companion:chat-presentation-request', { mode }) }, [mode, character])
   const choose = useCallback((next: ChatPresentation) => {
     setRequested(next)
     if (next !== 'full') setCompactMode(next)

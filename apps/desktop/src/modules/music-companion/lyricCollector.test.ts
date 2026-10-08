@@ -1,0 +1,208 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useLibraryStore } from '../../state/useLibraryStore'
+import { createSeedLibrary, normalizeLibrary } from '../../domain/seed'
+import { useListeningStore } from './listeningStore'
+import { createLyricCollector } from './lyricCollector'
+import { lyricCache } from './lyricCache'
+import { trackKey, type MediaSnapshot } from './types'
+import { lyricLookupVersion } from '../../domain/lyricLibrary'
+vi.mock('../../infrastructure/libraryRepository', () => ({ libraryRepository: { save: vi.fn().mockResolvedValue(undefined) } }))
+const song: MediaSnapshot = { title: 'Test song', artist: 'Singer', album: 'Album', playing: true, durationMs: 180000, positionMs: 0, canPlay: false, canPause: true, canNext: true, canPrevious: true }
+describe('personal lyric collector', () => {
+  it('shows the real enabled source for an empty result instead of hiding that QQ was never queried', async () => {
+    const lookup = vi.fn().mockResolvedValue({ lrc: '', instrumental: false, outcome: 'not-found', source: 'lrclib' })
+    const collector = createLyricCollector(lookup, () => time)
+    await collector.tick(); time = 3001; await collector.tick()
+    expect(useListeningStore.getState().lyricStatus).toContain('目前仅查询LRCLIB')
+    useListeningStore.getState().setPreferences({ qqLyrics: true })
+    expect(useListeningStore.getState().lyricStatus).not.toContain('目前仅查询LRCLIB')
+  })
+  it('rechecks old failure caches while paused and keeps new negative results across restarts', async () => {
+    useListeningStore.getState().setPreferences({ qqLyrics: true })
+    useListeningStore.getState().applySong({ ...song, playing: false })
+    lyricCache.save(song, '', 'lrclib', { lookupScope: 'qqmusic+lrclib', retryAfter: 999999 })
+    const lookup = vi.fn().mockResolvedValue({ lrc: '[00:01]Found paused', instrumental: false, source: 'qqmusic' })
+    const collector = createLyricCollector(lookup, () => time)
+    await collector.tick(); time = 2999; await collector.tick(); expect(lookup).not.toHaveBeenCalled()
+    time = 3001; await collector.tick()
+    expect(lookup).toHaveBeenCalledTimes(1)
+    expect(lyricCache.get(trackKey(song))).toMatchObject({ source: 'qqmusic', lookupVersion: lyricLookupVersion })
+    expect(useListeningStore.getState().lines[0].text).toBe('Found paused')
+  })
+  it('persisted timeout does not turn into not-found after switching back', async () => {
+    const lookup = vi.fn().mockRejectedValue('LYRICS_TIMEOUT')
+    const collector = createLyricCollector(lookup, () => time)
+    await collector.tick(); time = 3001; await collector.tick()
+    expect(lyricCache.get(trackKey(song))?.failureReason).toBe('timeout')
+    useListeningStore.getState().applySong({ ...song, title: 'Other' }); useListeningStore.getState().applySong(song)
+    expect(useListeningStore.getState().lyricStatus).toContain('上次歌词查询超时')
+    const second = createLyricCollector(lookup, () => time)
+    await second.tick(); time = 20000; await second.tick()
+    expect(lookup).toHaveBeenCalledTimes(1)
+  })
+  it('rejects an unapproved source or a payload beyond the portable cache limit', async () => {
+    const lookup = vi.fn().mockResolvedValueOnce({ lrc: '[00:01]Unexpected source', instrumental: false, source: 'qqmusic' })
+      .mockResolvedValue({ lrc: '[00:01]' + 'x'.repeat(200001), instrumental: false, source: 'lrclib' })
+    const collector = createLyricCollector(lookup, () => time)
+    await collector.tick(); time = 3001; await collector.tick()
+    expect(lyricCache.get(trackKey(song))?.lrc).toBe('')
+    useListeningStore.getState().retryLyrics(); time = 20000; await collector.tick()
+    expect(lyricCache.get(trackKey(song))?.lrc).toBe('')
+    expect(useListeningStore.getState().lines).toEqual([])
+  })
+  it('a revoked request lease does not poison this song and retries while paused', async () => {
+    const lookup = vi.fn().mockRejectedValueOnce('LYRICS_BUSY').mockResolvedValue({ lrc: '[00:01]Ready', instrumental: false, source: 'qqmusic' })
+    useListeningStore.getState().setPreferences({ qqLyrics: true })
+    const collector = createLyricCollector(lookup, () => time)
+    await collector.tick(); time = 3001; await collector.tick()
+    expect(lyricCache.entries()).toEqual([])
+    useListeningStore.getState().applySong({ ...song, playing: false })
+    time = 20000; await collector.tick()
+    expect(lookup).toHaveBeenCalledTimes(2)
+    expect(useListeningStore.getState().lines[0].text).toBe('Ready')
+  })
+  it('new source bypasses old negative results and successful QQ lyrics are reused offline', async () => {
+    lyricCache.save(song, '', 'lrclib', { retryAfter: 999999 })
+    useListeningStore.getState().setPreferences({ qqLyrics: true })
+    const lookup = vi.fn().mockResolvedValue({ lrc: '[00:01]QQ line', instrumental: false, source: 'qqmusic' })
+    const collector = createLyricCollector(lookup, () => time)
+    await collector.tick(); time = 3001; await collector.tick()
+    expect(lookup).toHaveBeenCalledTimes(1)
+    expect(lyricCache.get(trackKey(song))).toMatchObject({ source: 'qqmusic', lookupScope: 'qqmusic+lrclib' })
+    expect(useListeningStore.getState().lyricStatus).toBe('QQ音乐 · 本地歌词库')
+    useListeningStore.getState().setLyricOffset(250)
+    useListeningStore.getState().setPreferences({ onlineLyrics: false })
+    useListeningStore.getState().applySong({ ...song, title: 'Other' }); useListeningStore.getState().applySong(song)
+    expect(useListeningStore.getState().lines[0].text).toBe('QQ line')
+    expect(useListeningStore.getState().lyricOffsetMs).toBe(250)
+    time = 20000; await collector.tick(); expect(lookup).toHaveBeenCalledTimes(1)
+  })
+  it('source changes do not undo explicit removal or manual priority', async () => {
+    useListeningStore.getState().forgetLyrics()
+    useListeningStore.getState().setPreferences({ qqLyrics: true })
+    const lookup = vi.fn(), collector = createLyricCollector(lookup, () => time)
+    await collector.tick(); time = 3001; await collector.tick(); expect(lookup).not.toHaveBeenCalled()
+    useListeningStore.getState().importLyrics('[00:01]Manual', trackKey(song))
+    useListeningStore.getState().retryLyrics(); time = 20000; await collector.tick()
+    expect(lookup).not.toHaveBeenCalled()
+  })
+  it('revoking the QQ source discards its pending response even if reenabled', async () => {
+    useListeningStore.getState().setPreferences({ qqLyrics: true })
+    let finish!: (value: { lrc: string; instrumental: boolean; source: 'qqmusic' }) => void
+    const collector = createLyricCollector(() => new Promise(resolve => { finish = resolve }), () => time)
+    await collector.tick(); time = 3001; const pending = collector.tick()
+    useListeningStore.getState().setPreferences({ qqLyrics: false })
+    useListeningStore.getState().setPreferences({ qqLyrics: true })
+    finish({ lrc: '[00:01]Stale', instrumental: false, source: 'qqmusic' }); await pending
+    expect(lyricCache.entries()).toEqual([])
+  })
+  let time = 0
+  beforeEach(() => {
+    time = 0; useLibraryStore.setState({ data: createSeedLibrary() }); useListeningStore.setState({ lyricRetryRequested: 0 })
+    useListeningStore.setState({ preferences: { enabled: true, onlineLyrics: true, controls: false, lyricOffsetMs: 0 }, song: null, lines: [], lyricKey: '', lyricOffsetMs: 0, lyricRevision: 0 })
+    useListeningStore.getState().applySong(song)
+  })
+  it('requires stable playback and only one in-flight lookup', async () => {
+    let finish!: (value: { lrc: string; instrumental: boolean }) => void
+    const lookup = vi.fn().mockImplementation(() => new Promise(resolve => { finish = resolve }))
+    const collector = createLyricCollector(lookup, () => time)
+    await collector.tick(); time = 2999; await collector.tick(); expect(lookup).not.toHaveBeenCalled()
+    time = 3000; const pending = collector.tick(); await collector.tick(); expect(lookup).toHaveBeenCalledTimes(1)
+    finish({ lrc: '[00:01]Line', instrumental: false }); await pending
+    time = 20000; await collector.tick(); expect(lookup).toHaveBeenCalledTimes(1)
+    expect(lyricCache.get(trackKey(song))?.source).toBe('lrclib')
+  })
+  it('does not write a stale song, even when the user switches back', async () => {
+    let finish!: (value: { lrc: string; instrumental: boolean }) => void
+    const collector = createLyricCollector(() => new Promise(resolve => { finish = resolve }), () => time)
+    await collector.tick(); time = 3001; const pending = collector.tick()
+    useListeningStore.getState().applySong({ ...song, title: 'Other' }); useListeningStore.getState().applySong(song)
+    finish({ lrc: '[00:01]Old result', instrumental: false }); await pending
+    expect(lyricCache.entries()).toEqual([])
+  })
+  it('manual LRC wins over an outstanding network request and persists per-song calibration', async () => {
+    let finish!: (value: { lrc: string; instrumental: boolean }) => void
+    const collector = createLyricCollector(() => new Promise(resolve => { finish = resolve }), () => time)
+    await collector.tick(); time = 3001; const pending = collector.tick()
+    const store = useListeningStore.getState(); store.importLyrics('[00:01]My LRC', trackKey(song)); store.setLyricOffset(350)
+    finish({ lrc: '[00:01]Remote', instrumental: false }); await pending
+    store.applySong({ ...song, title: 'Other' }); store.applySong(song)
+    expect(useListeningStore.getState().lines[0].text).toBe('My LRC')
+    expect(useListeningStore.getState().lyricOffsetMs).toBe(350)
+    const restored = normalizeLibrary(JSON.parse(JSON.stringify(useLibraryStore.getState().data)))
+    expect(restored.lyricLibrary?.entries[0].offsetMs).toBe(350)
+  })
+  it('negative results cool down across a restarted collector', async () => {
+    const lookup = vi.fn().mockResolvedValue({ lrc: '', instrumental: false })
+    const first = createLyricCollector(lookup, () => time)
+    await first.tick(); time = 3001; await first.tick(); first.dispose()
+    const second = createLyricCollector(lookup, () => time); await second.tick(); time += 20000; await second.tick()
+    expect(lookup).toHaveBeenCalledTimes(1)
+  })
+  it('disable cancels late application and private metadata never reaches LRCLIB', async () => {
+    const lookup = vi.fn().mockResolvedValue({ lrc: '[00:01]Line', instrumental: false })
+    useLibraryStore.setState(state => ({ data: { ...state.data, settings: { ...state.data.settings, trust: { ...state.data.settings.trust, privateDictionary: [{ id: 'private', value: 'Test song', category: 'other', enabled: true }] } } } }))
+    const collector = createLyricCollector(lookup, () => time)
+    await collector.tick(); time = 3001; await collector.tick(); expect(lookup).not.toHaveBeenCalled()
+    useListeningStore.getState().setPreferences({ enabled: false }); await collector.tick()
+    expect(useListeningStore.getState().song).toBeNull()
+  })
+  it('a failed song does not block another song for thirty minutes', async () => {
+    const lookup = vi.fn().mockRejectedValueOnce('LYRICS_TIMEOUT').mockResolvedValue({ lrc: '[00:01]Other line', instrumental: false })
+    const collector = createLyricCollector(lookup, () => time)
+    await collector.tick(); time = 3001; await collector.tick()
+    useListeningStore.getState().applySong({ ...song, title: 'Other' }); await collector.tick()
+    time = 20000; await collector.tick()
+    expect(lookup).toHaveBeenCalledTimes(2)
+    expect(useListeningStore.getState().lines[0].text).toBe('Other line')
+  })
+  it('explicit retry bypasses old negative cache but keeps source throttling and works while paused', async () => {
+    const lookup = vi.fn().mockResolvedValueOnce({ lrc: '', instrumental: false }).mockResolvedValue({ lrc: '[00:01]Found', instrumental: false })
+    const collector = createLyricCollector(lookup, () => time)
+    await collector.tick(); time = 3001; await collector.tick()
+    useListeningStore.getState().applySong({ ...song, playing: false }); useListeningStore.getState().retryLyrics()
+    time = 4000; await collector.tick(); expect(lookup).toHaveBeenCalledTimes(1)
+    time = 20000; await collector.tick(); expect(lookup).toHaveBeenCalledTimes(2)
+    expect(useListeningStore.getState().lines[0].text).toBe('Found')
+  })
+  it('rate limits delay other songs and explicit retries as required by the source', async () => {
+    const lookup = vi.fn().mockRejectedValueOnce('LYRICS_RATE_LIMITED:120').mockResolvedValue({ lrc: '[00:01]Line', instrumental: false })
+    const collector = createLyricCollector(lookup, () => time)
+    await collector.tick(); time = 3001; await collector.tick()
+    useListeningStore.getState().applySong({ ...song, title: 'Other' }); useListeningStore.getState().retryLyrics()
+    time = 20000; await collector.tick(); expect(lookup).toHaveBeenCalledTimes(1)
+    time = 124000; await collector.tick(); expect(lookup).toHaveBeenCalledTimes(2)
+  })
+  it('retry failure does not erase saved lyrics or per-track calibration', async () => {
+    lyricCache.save(song, '[00:01]Saved', 'lrclib', { offsetMs: 400 })
+    const lookup = vi.fn().mockRejectedValue('LYRICS_TIMEOUT'), collector = createLyricCollector(lookup, () => time)
+    useListeningStore.getState().retryLyrics(); await collector.tick()
+    expect(lookup).toHaveBeenCalledTimes(1)
+    expect(lyricCache.get(trackKey(song))).toMatchObject({ lrc: '[00:01]Saved', offsetMs: 400 })
+    useListeningStore.getState().importLyrics('[00:01]Manual', trackKey(song)); useListeningStore.getState().retryLyrics()
+    time = 20000; await collector.tick(); expect(lookup).toHaveBeenCalledTimes(1)
+  })
+  it('restores local lyrics without enabling online collection and separates recording versions', () => {
+    useListeningStore.getState().importLyrics('[00:01]Local', trackKey(song))
+    useListeningStore.getState().setPreferences({ onlineLyrics: false })
+    useListeningStore.getState().applySong({ ...song, durationMs: 200000 }); expect(useListeningStore.getState().lines).toEqual([])
+    useListeningStore.getState().applySong(song); expect(useListeningStore.getState().lines[0].text).toBe('Local')
+  })
+  it('disabling lookup clears the busy label so paused playback can be retried later', () => {
+    useListeningStore.setState({ lyricStatus: '正在匹配同步歌词…' })
+    useListeningStore.getState().setPreferences({ onlineLyrics: false })
+    expect(useListeningStore.getState().lyricStatus).not.toContain('正在匹配')
+    useListeningStore.getState().setPreferences({ onlineLyrics: true })
+    useListeningStore.getState().applySong({ ...song, playing: false })
+    useListeningStore.getState().retryLyrics()
+    expect(useListeningStore.getState().lyricStatus).toBe('等待重新查找…')
+  })
+  it('private metadata retry preserves an existing local lyric instead of erasing it', async () => {
+    lyricCache.save(song, '[00:01]Local', 'lrclib')
+    useLibraryStore.setState(state => ({ data: { ...state.data, settings: { ...state.data.settings, trust: { ...state.data.settings.trust, privateDictionary: [{ id: 'private', value: 'Test song', category: 'other', enabled: true }] } } } }))
+    const lookup = vi.fn(), collector = createLyricCollector(lookup, () => time)
+    useListeningStore.getState().retryLyrics(); await collector.tick()
+    expect(lookup).not.toHaveBeenCalled()
+    expect(lyricCache.get(trackKey(song))?.lrc).toBe('[00:01]Local')
+  })
+})

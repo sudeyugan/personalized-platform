@@ -14,6 +14,7 @@ import { createCompanionSlice } from './companionSlice'
 import { createAgentTaskSlice } from './agentTaskSlice'
 import { createPlannerSlice } from './plannerSlice'
 import { createFortuneSlice } from './fortuneSlice'
+import { createExperiencesSlice } from './experiencesSlice'
 import { createAnswerBookSlice } from './answerBookSlice'
 import { formatLocalDate } from '../domain/localDate'
 import { viewForAgentDestination } from '../modules/companion/agent/featureContract'
@@ -43,6 +44,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   recoveryDrafts: {},
   playback: { playing: false, context: 'global', queue: [] },
   temporaryCompanionWorkIds: [],
+  ...createExperiencesSlice(get, set),
 
   hydrate: async () => {
     try {
@@ -431,6 +433,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       || (moduleId === 'answerBook' && current.session.activeView === 'answerBook')
       || (moduleId === 'truth' && current.session.activeView === 'truth')
       || (moduleId === 'fortune' && current.session.activeView === 'fortune')
+      || (moduleId === 'experiences' && current.session.activeView === 'experiences')
     )
     const session = hidesActiveView
       ? { ...current.session, activeView: 'home' as const }

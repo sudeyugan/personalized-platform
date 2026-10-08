@@ -1,13 +1,18 @@
 import type { JSONContent } from '@tiptap/react'
 
 export type ThemeId = 'warm' | 'light' | 'dark'
-export type ViewId = 'home' | 'answerBook' | 'truth' | 'fortune' | 'calendar' | 'todos' | 'writing' | 'diary' | 'people' | 'places' | 'timeline' | 'assets' | 'music' | 'help' | 'settings'
+export type ViewId = 'home' | 'answerBook' | 'truth' | 'fortune' | 'experiences' | 'calendar' | 'todos' | 'writing' | 'diary' | 'people' | 'places' | 'timeline' | 'assets' | 'music' | 'help' | 'settings'
 export type BackgroundSlot = 'default' | 'daily' | 'creation' | 'immersive' | 'sidebar'
 export type SidebarBackgroundMode = 'soft' | 'decoration'
 
 export interface BackgroundSettings {
   images: Partial<Record<BackgroundSlot, string>>
   sidebarMode: SidebarBackgroundMode
+  mode?: 'wallpaper' | 'illustration'
+  positionX?: number
+  positionY?: number
+  artSize?: number
+  paperOpacity?: number
 }
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 export type EntityType = 'chapter' | 'person' | 'place' | 'event'
@@ -87,7 +92,7 @@ export interface Asset {
   alt?: string
   caption?: string
   /** Separates technical companion media from the creative asset library. */
-  purpose?: 'creative' | 'companion'
+  purpose?: 'creative' | 'companion' | 'experience' | 'background'
   deletedAt?: string
 }
 
@@ -297,7 +302,9 @@ export interface CompanionData {
   growth: { enabled: boolean; logs: CompanionGrowthLog[] }
 }
 
-export interface Person {
+export interface RecordUsage { usage?: 'real' | 'fiction'; workId?: string }
+
+export interface Person extends RecordUsage {
   id: string
   name: string
   summary: string
@@ -309,7 +316,7 @@ export interface Person {
   deletedAt?: string
 }
 
-export interface Place {
+export interface Place extends RecordUsage {
   id: string
   name: string
   region: string
@@ -323,7 +330,7 @@ export interface Place {
   deletedAt?: string
 }
 
-export interface TimelineEvent {
+export interface TimelineEvent extends RecordUsage {
   id: string
   title: string
   displayTime: string
@@ -432,7 +439,7 @@ export interface PersonRelation { id: string; fromPersonId: string; toPersonId: 
 export interface EntityLink { id: string; sourceType: EntityType; sourceId: string; targetType: EntityType; targetId: string; relationType: 'mentions' | 'occurs_at' | 'involves' | 'related'; anchor?: TextAnchor; createdAt: string }
 
 export interface ModuleSetting {
-  id: 'writing' | 'music' | 'companion' | 'answerBook' | 'truth' | 'fortune'
+  id: 'writing' | 'music' | 'companion' | 'answerBook' | 'truth' | 'fortune' | 'experiences'
   enabled: boolean
   available: boolean
 }
@@ -454,7 +461,9 @@ export interface LibraryData {
   companion: CompanionData
   planner: PlannerData
   answerBook: AnswerBookData
-  fortune?: { today?: import('./fortune').FortuneDraw }
+  fortune?: import('./fortune').FortuneData
+  experiences?: import('./experiences').ExperienceData
+  lyricLibrary?: import('./lyricLibrary').LyricLibrary
   settings: {
     theme: ThemeId
     showRightPanel: boolean

@@ -1,6 +1,7 @@
 import type { PixelPetFrame } from '../types'
 import { artPlacement, type ArtEye, type ArtProfile } from './artProfiles'
 import { prepareIrisGaze, renderIrisGaze, type IrisGaze } from './gazeTexture'
+import { includeUpperLashes } from './lashMask'
 
 export interface PreparedEye {
   x: number; y: number; width: number; height: number; resolution: number
@@ -14,7 +15,7 @@ export function prepareEye(source: ImageData, eye: ArtEye, profile: ArtProfile, 
   const fit = artPlacement(profile), cosine = Math.cos(eye.angle), sine = Math.sin(eye.angle)
   const cx = (fit.x + eye.x * fit.scale) * resolution, cy = (fit.y + eye.y * fit.scale) * resolution
   const rx = eye.rx * fit.scale * resolution, ry = eye.ry * fit.scale * resolution
-  const radius = Math.ceil(Math.hypot(rx, ry) + 4 * resolution)
+  const radius = Math.ceil(Math.hypot(rx * 1.65, ry * 2) + 4 * resolution)
   const x = Math.max(0, Math.floor(cx - radius)), y = Math.max(0, Math.floor(cy - radius))
   const width = Math.min(source.width - x, radius * 2 + 2), height = Math.min(source.height - y, radius * 2 + 2)
   const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height
@@ -39,6 +40,7 @@ export function prepareEye(source: ImageData, eye: ArtEye, profile: ArtProfile, 
     affected[i] = Number(a > 100 && (distance < 1.45 || irisDistance < 1.2 || (dark && distance < 2.1 && v < 0)))
     if (a > 200 && skinColor(r, g, b) && px % resolution === 0 && py % resolution === 0) skins.push(i)
   }
+  includeUpperLashes(original, affected, width, cx - x, cy - y, rx, ry, cosine, sine)
   const skin = original.slice()
   // Neighbouring face colours reconstruct the eyelid; never replace it with a flat peach ellipse.
   for (let i = 0; i < affected.length; i++) if (affected[i]) {
@@ -90,7 +92,8 @@ export function renderEyePixels(eye: PreparedEye, frame: PixelPetFrame) {
     const dx = px - eye.cx, dy = py - eye.cy, u = dx * cosine + dy * sine, v = -dx * sine + dy * cosine
     if (open < 1) pixels.data.set(eye.skin.subarray(p, p + 4), p)
     if (open < .03) {
-      if (Math.abs(v) < .32 * eye.resolution && Math.abs(u) < rx * .94) {
+      const lidCurve = eye.ry * .12 * (1 - (u / rx) ** 2)
+      if (Math.abs(v - lidCurve) < .36 * eye.resolution && Math.abs(u) < rx * .96) {
         const column = Math.min(eye.lid.length / 4 - 1, Math.max(0, Math.round(u + rx))) * 4
         pixels.data.set(eye.lid.subarray(column, column + 4), p)
       }

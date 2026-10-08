@@ -1,0 +1,40 @@
+.app-frame { position:relative; isolation:isolate }
+.unified-background { position:absolute; inset:0; z-index:-1; pointer-events:none; overflow:hidden }
+.unified-background img { position:absolute; display:block }
+.unified-background.wallpaper img { inset:0; width:100%; height:100%; object-fit:cover; object-position:var(--background-x) var(--background-y) }
+.unified-background.illustration img { width:var(--background-size); height:96%; object-fit:contain; left:var(--background-x); top:var(--background-y); transform:translate(calc(-1 * var(--background-x)),calc(-1 * var(--background-y))) }
+.app-frame.has-unified-background { background:transparent }
+.has-unified-background .primary-sidebar { background:color-mix(in srgb,var(--panel) var(--paper-opacity),transparent); backdrop-filter:blur(8px) }
+.has-unified-background .workspace { background:transparent }
+.has-unified-background .view-stage > .scroll-view,
+.has-unified-background .view-stage > .records-hub { background:transparent }
+.has-unified-background .window-toolbar, .has-unified-background .tab-strip,
+.has-unified-background .settings-workspace, .has-unified-background .record-card,
+.has-unified-background .timeline-card, .has-unified-background .records-hub-bar {
+  background:color-mix(in srgb,var(--panel) var(--paper-opacity),transparent)
+}
+.has-unified-background .editor-paper { background:var(--panel) }
+.has-unified-background .view-stage .page-header { background:color-mix(in srgb,var(--panel-solid) var(--paper-opacity),transparent); border-radius:14px; padding:18px 22px }
+.has-unified-background .page-header h1, .has-unified-background .record-title h2,
+.has-unified-background .records-hub-bar strong, .has-unified-background .brand-lockup strong { color:var(--ink) }
+.records-hub-bar button:not(.active) { background:var(--surface-soft); color:var(--ink-soft) }
+.background-editor { display:grid; grid-template-columns:minmax(0,1fr) 210px; gap:20px; margin-top:20px }
+.background-layout-preview { position:relative; isolation:isolate; height:270px; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--bg) }
+.background-layout-preview .unified-background { z-index:0 }
+.background-preview-layout { position:relative; height:100%; display:grid; grid-template-columns:25% 1fr; gap:14px; padding:12px }
+.background-preview-layout aside { border-radius:8px; padding:12px 8px; background:color-mix(in srgb,var(--panel) 88%,transparent); font-size:11px; line-height:2.6 }
+.background-preview-layout article { align-self:center; border-radius:8px; padding:18px; background:color-mix(in srgb,var(--panel) var(--paper-opacity),transparent); font-size:12px; line-height:2 }
+.background-preview-layout h3 { font-family:serif; font-size:21px; margin:0 0 8px }
+.background-controls { display:grid; align-content:start; gap:14px; font-size:12px }
+.background-controls label { display:grid; gap:6px }
+.background-controls input[type=range] { width:100%; min-width:0; accent-color:var(--accent); cursor:pointer }
+.background-mode-picker { display:flex; gap:6px; flex-wrap:wrap }
+.background-mode-picker button { padding:8px 12px; border:1px solid var(--line); border-radius:8px }
+.background-mode-picker .active { background:var(--accent-soft); border-color:var(--accent); color:var(--accent) }
+.background-upload { display:inline-flex; gap:8px; align-items:center; cursor:pointer; padding:8px 12px; border:1px solid var(--line); border-radius:8px }
+.background-upload input { display:none }
+.background-advanced { margin-top:20px; border-top:1px solid var(--line); padding-top:16px }
+.background-advanced summary { cursor:pointer; font-size:12px; color:var(--muted) }
+.background-scene-row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:12px; font-size:12px }
+.background-scene-row > span { margin-right:auto }
+@media(max-width:850px) { .background-editor { grid-template-columns:1fr }; .background-controls { grid-template-columns:1fr 1fr } }

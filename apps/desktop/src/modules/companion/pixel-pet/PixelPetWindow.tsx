@@ -1,3 +1,5 @@
+import type { ListeningInput } from '../../music-companion/listeningNotice'
+import type { CompanionHeartRateInput } from '../../heart-rate/companionHeartRate'
 import { emitTo } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
@@ -15,11 +17,11 @@ import type { CompanionPetSide } from '../../../domain/models'
 import type { PixelPoint } from './types'
 
 interface Props {
-  snapshot: CompanionDesktopSnapshot; layout: PixelLayout
+  snapshot: CompanionDesktopSnapshot; layout: PixelLayout; heartInput?: CompanionHeartRateInput; listeningInput?: ListeningInput
   drag?: NativePetDragHandlers & { dragging?: boolean; motion?: RefObject<PixelPoint> }
   onPose?: (pose: CompanionPetSide | 'float') => Promise<void>
 }
-export function PixelPetWindow({ snapshot, layout, drag, onPose }: Props) {
+export function PixelPetWindow({ snapshot, layout, drag, onPose, heartInput, listeningInput }: Props) {
   const response = useRef(0)
   const headPat = useRef(0)
   const [menu, setMenu] = useState<PixelPoint | null>(null)
@@ -38,7 +40,7 @@ export function PixelPetWindow({ snapshot, layout, drag, onPose }: Props) {
   useEffect(() => { closeMenu() }, [closeMenu, snapshot.desktopVisible, snapshot.desktopMode, snapshot.pixelPetStyle, pose])
   const fail = () => setMenuError('操作暂未完成，请重试或从主界面设置。')
   return <main className={`desktop-companion pixel-pet-window pose-${pose} mode-${snapshot.desktopMode}`} style={{ opacity: layout.ready ? undefined : 0 }}>
-    <PixelPetRenderer name={snapshot.name} engaged={Boolean(menu)} dragging={drag?.dragging} dragMotion={drag?.motion} conversation={petConversationState(snapshot)}
+    <PixelPetRenderer listeningInput={listeningInput} heartInput={heartInput} name={snapshot.name} engaged={Boolean(menu)} dragging={drag?.dragging} dragMotion={drag?.motion} conversation={petConversationState(snapshot)}
       pose={pose} response={response} headPat={headPat} style={snapshot.pixelPetStyle} pointer={pointer} scale={layout.scale} pixelRatio={layout.pixelRatio} active={snapshot.desktopVisible && layout.ready} />
     <button className="pixel-pet-interaction" aria-label={`${snapshot.name}，拖动移动，轻点头部回应或点击身体打开对话；右键打开菜单`} {...interaction}
       onPointerDown={event => { if (menu) { closeMenu(); return }; interaction.onPointerDown(event) }}

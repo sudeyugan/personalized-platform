@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
+import { isTauri } from '@tauri-apps/api/core'
 import type { CompanionPetSide, CompanionPetStyle } from '../../../domain/models'
 import { normalizeCompanionPetSide, normalizeCompanionPetStyle } from '../../../domain/companionPetStyle'
 import { useLibraryStore } from '../../../state/useLibraryStore'
 import type { PetConversationState } from './conversation'
 import { PixelPetRenderer } from './PixelPetRenderer'
-import { PET_MODE_STATUS } from './usePetModeShortcut'
+import { PET_MODE_REBIND, PET_MODE_STATUS } from './usePetModeShortcut'
 import { PET_STYLES } from './art/artProfiles'
+import './PixelPetSettings.css'
 
 function StylePicker({ value, onChange }: { value: CompanionPetStyle; onChange: (style: CompanionPetStyle) => void }) {
   return <label className="shortcut-picker"><span>桌宠造型</span>
@@ -26,7 +28,9 @@ function ModeShortcutStatus() {
     window.addEventListener(PET_MODE_STATUS, update)
     return () => window.removeEventListener(PET_MODE_STATUS, update)
   }, [])
-  return <small role="status">{status || 'Ctrl+Alt+Q：切换桌宠与 WebM / 原角色（桌面程序运行时）'}</small>
+  return <div className="setting-row"><div><strong>形象切换快捷键 · Ctrl+Alt+Q</strong><small role="status">{status || 'Ctrl+Alt+Q：切换桌宠与 WebM / 原角色（桌面程序运行时）'}</small></div>
+    <button className="ghost-button" disabled={!isTauri() || status === '正在绑定 Ctrl+Alt+Q…'} onClick={() => window.dispatchEvent(new Event(PET_MODE_REBIND))}>重新绑定</button>
+  </div>
 }
 export function PixelPetSettings() {
   const { data, setCompanionPixelPet, setCompanionPetStyle, setCompanionPetSide, setCompanionDesktopMode } = useLibraryStore()
@@ -36,18 +40,20 @@ export function PixelPetSettings() {
   const enabled = data.companion.desktop.pixelPetEnabled ?? false
   const style = normalizeCompanionPetStyle(data.companion.desktop.pixelPetStyle)
   const side = normalizeCompanionPetSide(data.companion.desktop.pixelPetSide)
-  return <div>
+  return <div className="pet-settings">
     <div className="setting-row companion-shortcut-row">
       <div><strong>桌宠 · 三种造型预览</strong><span>自然半身、左右扒边或底部趴边，右键可快速切换；WebM 素材保持不变</span></div>
       <label className="shortcut-picker"><span>渲染模式</span><select aria-label="伙伴渲染模式" value={enabled ? 'pixel-pet' : 'webm'} onChange={(event) => setCompanionPixelPet(event.target.value === 'pixel-pet')}>
-        <option value="webm">WebM Mode / 原角色</option><option value="pixel-pet">Pixel Pet Mode</option>
+        <option value="webm">WebM / 原角色</option><option value="pixel-pet">桌宠模式</option>
       </select></label>
     </div>
     <ModeShortcutStatus />
-    {enabled && <div className="setting-row"><div><strong>选择造型</strong><span>三套共用视线、眨眼与轻待机；闲置约90秒轻闭眼，互动即醒；选择会同步到桌面并保存。</span></div><StylePicker value={style} onChange={setCompanionPetStyle} /></div>}
+    {enabled && <><div className="setting-row"><div><strong>选择造型</strong><span>共用视线、眨眼与轻待机；闲置约90秒轻闭眼，互动即醒。</span></div><StylePicker value={style} onChange={setCompanionPetStyle} /></div>
+      <div className="pet-style-gallery" role="group" aria-label="桌宠造型预选">{PET_STYLES.map(item => <button type="button" key={item.style} aria-label={`选择${item.label}造型`} aria-pressed={style === item.style} onClick={() => setCompanionPetStyle(item.style)}><span className="pet-style-image"><img src={item.src} alt="" loading="lazy" style={{ imageRendering: item.pixelated ? 'pixelated' : 'auto' }} /></span><strong>{item.label}</strong><small>{style === item.style ? '正在使用' : '点击切换'}</small></button>)}</div>
+    </>}
     {enabled && <div className="setting-row"><div><strong>扒边方向</strong><span>左侧为镜像，底部使用独立趴边造型；位置按设备保存，桌宠和 WebM 分开记忆。</span></div><SidePicker value={side} onChange={setCompanionPetSide} /></div>}
     {enabled && data.companion.desktop.mode === 'quiet' && <div className="setting-row"><div><strong>当前为安静穿透</strong><span>穿透模式不会接收拖动或点击。</span></div><button className="ghost-button" onClick={() => setCompanionDesktopMode('interactive')}>开启鼠标互动</button></div>}
-    {enabled && <details open={previewOpen} onToggle={(event) => setPreviewOpen(event.currentTarget.open)}><summary>查看动态造型</summary>
+    {enabled && <details className="pet-settings-preview" open={previewOpen} onToggle={(event) => setPreviewOpen(event.currentTarget.open)}><summary>查看动态造型</summary>
       {previewOpen && <><button className="ghost-button" onClick={() => setEnlarged(!enlarged)}>{enlarged ? '实际大小' : '放大细看'}</button>
         <button className="ghost-button" onClick={() => setFreePreview(!freePreview)}>{freePreview ? '查看扒边' : '查看自然半身'}</button>
         <div className={`pixel-pet-preview pose-${freePreview ? 'float' : side}`}><PixelPetRenderer name={data.companion.name} pose={freePreview ? 'float' : side} style={style} scale={enlarged ? 2 : 1} /></div></>}

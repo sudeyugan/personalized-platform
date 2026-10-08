@@ -46,6 +46,7 @@
 .runtime-state { display: flex; align-items: center; gap: 7px; padding: 10px; color: var(--ink-faint); font-size: 9px; }
 .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #78946f; box-shadow: 0 0 0 3px rgba(120, 148, 111, .13); }
 .workspace { position: relative; isolation: isolate; min-width: 0; min-height: 0; display: grid; grid-template-rows: 48px auto minmax(0, 1fr); overflow: hidden; }
+.workspace-fortune { grid-template-rows: 48px minmax(0, 1fr); }
 .workspace-background { position: absolute; z-index: 0; inset: 0; overflow: hidden; pointer-events: none; background: var(--bg); animation: workspace-background-enter .28s ease both; }
 .workspace-background img { width: 100%; height: 100%; display: block; object-fit: cover; object-position: center; opacity: .58; }
 .workspace > :not(.workspace-background) { position: relative; z-index: 1; }

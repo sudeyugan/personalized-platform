@@ -1,10 +1,8 @@
-import { CompanionNameSetting } from './CompanionNameSetting'
 import { CheckCircle2, Globe2, KeyRound, LockKeyhole, Music2, ShieldCheck, Sparkles, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { createCompanionProvider, deleteCompanionKey, hasCompanionKey, storeCompanionKey } from '../../infrastructure/companionProvider'
 import { deleteWebSearchKey, hasWebSearchKey, searchWeb, storeWebSearchKey, type WebSearchProviderId } from '../../infrastructure/webSearch'
 import { useLibraryStore } from '../../state/useLibraryStore'
-import { CompanionVoiceSettings } from './CompanionVoiceSettings'
 import { ComputerCapabilitySettings } from './ComputerCapabilitySettings'
 import { assertExternalAiAllowed } from '../trust/trustPolicy'
 
@@ -120,14 +118,12 @@ export function CompanionSettingsSection({ mode = 'profile' }: CompanionSettings
   return <section className="settings-section intelligence-section">
     <div className="settings-title"><Sparkles /><div><h2>对话与 Agent 模型</h2><p>DeepSeek 用于对话与 Tool Calling；本地 Mock 可离线验证流程。</p></div></div>
     <div className="settings-subsection compact-settings-grid">
-      <CompanionNameSetting name={data.companion.name} onChange={(name) => setCompanionProfile({ name })} />
       <label className="setting-row"><div><strong>回应气质</strong><span>影响伙伴状态文字</span></div><select value={data.companion.expression} onChange={(event) => setCompanionProfile({ expression: event.target.value as typeof data.companion.expression })}><option value="calm">安静</option><option value="warm">温暖</option><option value="thinking">思考</option></select></label>
     </div>
     <div className="settings-subsection">
       <label className="setting-row"><div><strong>对话 Provider</strong><span>DeepSeek 已支持对话与 Tool Calling</span></div><select value={data.companion.provider.providerId} onChange={(event) => chooseProvider(event.target.value as 'mock' | 'deepseek' | 'custom')}><option value="mock">本地 Mock（离线）</option><option value="deepseek">DeepSeek</option><option value="custom">其他兼容 Provider（暂不联网）</option></select></label>
       {onlineProvider && <><label className="setting-row"><div><strong>服务地址</strong><span>{data.companion.provider.providerId === 'deepseek' ? '仅允许 DeepSeek 官方地址' : '等待单独授权与协议适配'}</span></div><input readOnly={data.companion.provider.providerId === 'deepseek'} value={data.companion.provider.endpoint} placeholder="https://…" onChange={(event) => setCompanionProvider({ endpoint: event.target.value })} /></label><label className="setting-row"><div><strong>模型 ID</strong><span>DeepSeek 默认 deepseek-chat</span></div><input value={data.companion.provider.model} onChange={(event) => setCompanionProvider({ model: event.target.value })} /></label><div className="secret-setting"><KeyRound /><input type="password" autoComplete="off" value={key} placeholder={keySaved ? '对话 Key 已安全保存；输入可替换' : '输入对话模型 API Key'} onChange={(event) => setKey(event.target.value)} /><button disabled={!key} onClick={() => void saveKey()}>{keySaved ? '替换' : '保存'}</button>{keySaved && <button title="删除对话模型密钥" onClick={() => void deleteCompanionKey().then(() => { setKeySaved(false); setMessage('对话模型 API Key 已删除。') })}><Trash2 size={14} /></button>}</div></>}
       <div className="provider-test"><button className="ghost-button" onClick={() => void checkProvider()}><CheckCircle2 size={14} />检查配置</button><span>{message}</span></div>
-      <CompanionVoiceSettings />
     </div>
   </section>
 }

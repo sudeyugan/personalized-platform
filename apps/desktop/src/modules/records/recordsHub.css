@@ -1,0 +1,11 @@
+.records-hub { height:100%; min-height:0; display:flex; flex-direction:column }
+.records-hub > main { flex:1; min-height:0 }
+.records-hub-bar { display:flex; flex-wrap:wrap; gap:14px; align-items:center; padding:18px 28px; border-bottom:1px solid var(--line); background:var(--panel) }
+.records-hub-bar > div { margin-right:auto; display:grid; gap:4px }
+.records-hub-bar small { color:var(--ink-soft); font-size:11px }
+.records-hub-bar nav { display:flex; gap:4px }
+.records-hub-bar button { padding:7px 12px; border-radius:8px }
+.records-hub-bar button.active { background:var(--accent-soft); color:var(--accent) }
+.records-hub-bar label { font-size:11px; display:flex; align-items:center; gap:6px; color:var(--ink-soft) }
+.records-hub-bar select { max-width:160px; border:1px solid var(--line); border-radius:7px; padding:6px; background:var(--panel); color:var(--ink) }
+.record-usage { font-size:10px; color:var(--ink-soft); margin:4px 0 }

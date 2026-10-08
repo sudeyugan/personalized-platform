@@ -101,6 +101,45 @@ fn blob_count(repository: &BackupRepository) -> usize {
     fs::read_dir(repository.root.join("共享素材")).unwrap().count()
 }
 #[test]
+fn saved_lyrics_and_per_recording_calibration_round_trip_in_both_formats() {
+    for automatic in [false, true] {
+        let (_dir, repository, library) = fixture();
+        let mut data = library.load().unwrap().unwrap().data;
+        data["lyricLibrary"] = json!({"version":1,"entries":[{"key":"[\"Song\",\"Singer\",\"Album\",180]","title":"Song","artist":"Singer","album":"Album","durationMs":180000,"lrc":"[00:01]Line","source":"manual","offsetMs":350,"updatedAt":1}]});
+        data["lyricLibrary"]["entries"].as_array_mut().unwrap().push(json!({"key":"[\"Live\",\"Singer\",\"Concert\",320]","title":"Live","artist":"Singer","album":"Concert","durationMs":320000,"lrc":"[00:01.25]QQ line","source":"qqmusic","lookupScope":"qqmusic+lrclib","offsetMs":420,"updatedAt":2}));
+        data["lyricLibrary"]["entries"].as_array_mut().unwrap().push(json!({"key":"[\"Failure\",\"Singer\",\"Album\",190]","title":"Failure","artist":"Singer","album":"Album","durationMs":190000,"lrc":"","source":"qqmusic","lookupScope":"qqmusic+lrclib","lookupVersion":2,"failureReason":"timeout","retryAfter":123,"offsetMs":0,"updatedAt":3}));
+        library.save(&data, 1).unwrap();
+        let receipt = if automatic {
+            repository.ensure_automatic(&library, 3, 3, "2026-10-06", "2026-10-06T12:00:00.000Z").unwrap().unwrap()
+        } else { repository.create(&library, false, "2026-10-06T12:00:00.000Z").unwrap() };
+        let mut changed = data.clone(); changed["lyricLibrary"] = json!({"version":1,"entries":[]});
+        library.save(&changed, 2).unwrap();
+        repository.restore_saved(&library, &receipt.path).unwrap();
+        assert_eq!(library.load().unwrap().unwrap().data["lyricLibrary"], data["lyricLibrary"]);
+    }
+}
+#[test]
+fn personal_experiences_and_local_covers_round_trip_in_both_backup_formats() {
+    for automatic in [false, true] {
+        let (_dir, repository, library) = fixture();
+        let mut data = library.load().unwrap().unwrap().data;
+        data["experiences"] = json!({"entries":[{"id":"experience-1","title":"看过的作品","category":"novel","note":"私人感想","dateText":"去年夏天","tier":"top","coverAssetId":"asset-cover"}],"tierLabels":{"top":"心头好"}});
+        data["assets"] = json!([{"id":"asset-cover","mimeType":"image/webp","purpose":"experience"}]);
+        library.save(&data, 1).unwrap();
+        fs::create_dir_all(repository.app_data.join("assets/asset-cover")).unwrap();
+        fs::write(repository.app_data.join("assets/asset-cover/original.webp"), b"cover-bytes").unwrap();
+        let receipt = if automatic {
+            repository.ensure_automatic(&library, 3, 3, "2026-10-05", "2026-10-05T12:00:00.000Z").unwrap().unwrap()
+        } else { repository.create(&library, false, "2026-10-05T12:00:00.000Z").unwrap() };
+        let mut changed = data.clone(); changed["experiences"] = json!({});
+        library.save(&changed, 2).unwrap();
+        fs::write(repository.app_data.join("assets/asset-cover/original.webp"), b"changed").unwrap();
+        repository.restore_saved(&library, &receipt.path).unwrap();
+        assert_eq!(library.load().unwrap().unwrap().data["experiences"], data["experiences"]);
+        assert_eq!(fs::read(repository.app_data.join("assets/asset-cover/original.webp")).unwrap(), b"cover-bytes");
+    }
+}
+#[test]
 fn shared_snapshots_deduplicate_and_restore_every_media_directory() {
     let (_dir, repository, library) = fixture();
     let first = repository.ensure_automatic(&library, 3, 3, "2026-10-03", "2026-10-02T17:00:00.000Z").unwrap().unwrap();
@@ -119,6 +158,31 @@ fn shared_snapshots_deduplicate_and_restore_every_media_directory() {
     assert_eq!(fs::read(repository.app_data.join("audio/music.mp3")).unwrap(), b"music");
     assert_eq!(fs::read(repository.app_data.join("vaults/private.vault")).unwrap(), b"encrypted-vault");
     assert_eq!(repository.list().unwrap().iter().filter(|item| !item.automatic).count(), 1);
+}
+
+#[test]
+fn background_references_and_record_usage_round_trip_in_both_formats() {
+    for automatic in [false, true] {
+        let (_dir, repository, library) = fixture();
+        let mut data = library.load().unwrap().unwrap().data;
+        data["settings"]["backgrounds"] = json!({"images":{"default":"asset:asset-background","creation":"asset:asset-background"},"sidebarMode":"soft","mode":"illustration","artSize":45});
+        data["people"] = json!([{"id":"person-scope","name":"人物","usage":"fiction","workId":"work-1","aliases":[],"summary":"","importantExperiences":"","tags":[],"customFields":[],"chapterIds":[]}]);
+        data["assets"] = json!([{"id":"asset-background","mimeType":"image/webp","purpose":"background"}]);
+        library.save(&data, 1).unwrap();
+        fs::create_dir_all(repository.app_data.join("assets/asset-background")).unwrap();
+        fs::write(repository.app_data.join("assets/asset-background/original.webp"), b"background").unwrap();
+        let receipt = if automatic {
+            repository.ensure_automatic(&library, 3, 3, "2026-10-06", "2026-10-06T12:00:00.000Z").unwrap().unwrap()
+        } else { repository.create(&library, false, "2026-10-06T12:00:00.000Z").unwrap() };
+        let mut changed = data.clone(); changed["people"] = json!([]); changed["settings"]["backgrounds"] = json!({});
+        library.save(&changed, 2).unwrap();
+        fs::write(repository.app_data.join("assets/asset-background/original.webp"), b"changed").unwrap();
+        repository.restore_saved(&library, &receipt.path).unwrap();
+        let restored = library.load().unwrap().unwrap().data;
+        assert_eq!(restored["people"], data["people"]);
+        assert_eq!(restored["settings"]["backgrounds"], data["settings"]["backgrounds"]);
+        assert_eq!(fs::read(repository.app_data.join("assets/asset-background/original.webp")).unwrap(), b"background");
+    }
 }
 #[test]
 fn automatic_interval_uses_local_dates_and_ignores_unfinished_files() {

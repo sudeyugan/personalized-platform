@@ -1,4 +1,62 @@
-.pet-heart-rate{position:absolute;left:8px;bottom:7px;z-index:12;display:flex;align-items:center;gap:4px;padding:4px 7px;border-radius:12px;border:1px solid #b6a28d40;background:#fffaf0e8;color:#88695f;font-size:11px;font-variant-numeric:tabular-nums;pointer-events:none;box-shadow:0 1px 5px #442b1210}
-.pet-heart-rate small{font-size:9px;color:#988374}
-.heart-rate-controls{padding:16px 0 0}.heart-rate-controls>p{font-size:12px;color:var(--ink-soft);line-height:1.7}.heart-rate-reading{display:flex;align-items:center;gap:9px;color:#a36967;flex-wrap:wrap}.heart-rate-reading strong{font-size:31px;font-weight:400;font-variant-numeric:tabular-nums}.heart-rate-reading>span{font-size:12px}.heart-rate-reading small{color:var(--ink-soft)}
-.heart-rate-buttons{display:flex;gap:9px;margin:12px 0}.heart-rate-buttons button,.heart-rate-devices button{display:flex;align-items:center;gap:6px;padding:8px 13px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);cursor:pointer}.heart-rate-buttons button:disabled{opacity:.45;cursor:default}.heart-rate-devices{display:grid;gap:7px;margin:12px 0}.heart-rate-devices button{justify-content:space-between}.heart-rate-devices small{color:#9b7760}.heart-rate-controls details{font-size:12px;margin-top:13px;color:var(--ink-soft);line-height:1.8}.heart-rate-controls summary{cursor:pointer}.heart-rate-controls details p{max-width:600px}
+.heart-readout{display:inline-flex;align-items:center;gap:13px;color:#a3666c}
+.heart-readout-icon{display:grid;place-items:center;width:44px;height:44px;border-radius:50%;background:#bb7d8310;border:1px solid #bb7d8320}
+.heart-readout-icon svg{width:20px;height:20px;stroke-width:1.6;fill:#bb7d8312}
+.heart-readout-value{display:flex;align-items:baseline;gap:7px}
+.heart-readout-value strong{font-size:42px;line-height:1.2;font-weight:400;font-variant-numeric:tabular-nums;letter-spacing:-.04em}
+.heart-readout-value small{font-size:11px;letter-spacing:.07em;color:var(--ink-soft,#88746b)}
+.heart-readout.compact{gap:6px}
+.heart-readout.panel{position:relative;display:grid;place-items:center;width:132px;height:132px;flex-shrink:0;border-radius:50%;background:radial-gradient(circle,#b5777e0a,transparent 68%);gap:0}
+.panel .heart-readout-ring{position:absolute;inset:0;width:132px;height:132px;fill:none;stroke:#b5777e29;stroke-width:1}
+.panel .heart-ring-dots{stroke:#b5777e30;stroke-dasharray:1 6;stroke-linecap:round}
+.panel .heart-ring-accent{stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-dasharray:76 295;stroke-dashoffset:-34;opacity:.3}
+.panel.live .heart-ring-accent{opacity:.8}
+.panel .heart-readout-icon{position:absolute;top:18px;width:18px;height:18px;background:none;border:0}
+.panel .heart-readout-icon svg{width:15px;height:15px}
+.panel .heart-readout-value{display:flex;flex-direction:column;align-items:center;gap:2px;padding-top:16px}
+.panel .heart-readout-value strong{font-size:38px;line-height:1.1}
+.panel .heart-readout-value small{font-size:10px;color:var(--ink-soft);letter-spacing:.1em}
+.compact .heart-readout-icon{width:20px;height:20px;border:0;background:none}
+.compact .heart-readout-icon svg{width:13px;height:13px}
+.compact .heart-readout-value{gap:4px}
+.compact .heart-readout-value strong{font-size:15px;letter-spacing:0}
+.compact .heart-readout-value small{font-size:9px;color:#927675}
+.heart-readout.live .heart-readout-icon svg{animation:heart-presence 2.8s ease-in-out infinite}
+.heart-rate-controls{padding:18px 0 0}
+.heart-rate-controls>p{font-size:12px;color:var(--ink-soft);line-height:1.7}
+.heart-rate-reading{display:flex;align-items:center;gap:24px;padding:20px 23px;border:1px solid #bb7d8325;border-radius:14px;background:linear-gradient(120deg,#bb7d830b,transparent 80%)}
+.heart-rate-reading-copy{min-width:0;flex:1}
+.heart-rate-reading-copy>p{font-size:11px;line-height:1.8;color:var(--ink-soft);margin:14px 0 0}
+.heart-rate-source small{overflow-wrap:anywhere}
+.heart-rate-memory{padding:16px 0 0}
+.heart-rate-remembered{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.heart-rate-remembered>span{display:flex;flex-direction:column;gap:5px;min-width:0}
+.heart-rate-remembered small{font-size:10px;color:var(--ink-soft);letter-spacing:.07em}
+.heart-rate-remembered strong{font-size:13px;font-weight:500;overflow-wrap:anywhere}
+.heart-rate-remembered button{font-size:11px;color:var(--ink-soft);padding:7px 10px;border:1px solid var(--line);border-radius:7px;background:transparent;cursor:pointer;flex-shrink:0}
+.heart-rate-remembered button:hover{color:var(--accent);border-color:var(--accent)}
+.heart-rate-memory>p,.heart-rate-save-warning{font-size:11px;line-height:1.8;color:var(--ink-soft)}
+.heart-rate-save-warning button{margin-left:8px;font-size:11px;background:none;border:0;color:var(--accent);cursor:pointer;text-decoration:underline}
+.heart-rate-memory .setting-row{margin-top:13px}
+.heart-rate-buttons{flex-wrap:wrap}
+.heart-rate-controls>.heart-rate-retry{font-size:11px;color:var(--ink-soft)}
+.heart-rate-eyebrow{display:block;margin-bottom:10px;font-size:11px;letter-spacing:.1em;color:var(--ink-soft)}
+.heart-rate-source{display:flex;gap:8px;align-items:flex-start}
+.heart-rate-source small{font-size:12px;color:var(--ink)}
+.heart-rate-source small>span{display:block;margin-top:5px;font-size:10px;color:var(--ink-soft)}
+.heart-rate-dot{width:6px;height:6px;margin-top:5px;border-radius:50%;background:var(--line)}
+.heart-rate-dot.live{background:#8d9f86;box-shadow:0 0 0 3px #8d9f8612}
+.heart-rate-buttons{display:flex;gap:9px;margin:15px 0}
+.heart-rate-buttons button,.heart-rate-devices button{display:flex;align-items:center;gap:6px;padding:9px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-size:12px;cursor:pointer}
+.heart-rate-buttons button:hover:not(:disabled),.heart-rate-devices button:hover{border-color:var(--accent)}
+.heart-rate-buttons button:disabled{opacity:.45;cursor:default}
+.heart-rate-devices{display:grid;gap:7px;margin:12px 0}
+.heart-rate-devices button{justify-content:space-between}
+.heart-rate-devices small{color:var(--ink-soft)}
+.heart-rate-controls details{font-size:12px;margin-top:16px;color:var(--ink-soft);line-height:1.9}
+.heart-rate-controls summary{cursor:pointer}
+.heart-rate-controls details p{max-width:600px}
+@keyframes heart-presence{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+[data-theme=dark] .heart-readout{color:#d49ba1}
+@media(prefers-reduced-motion:reduce){.heart-readout.live .heart-readout-icon svg{animation:none}}
+@media(max-width:650px){.heart-rate-reading{padding:16px;gap:14px}.heart-readout-value strong{font-size:36px}.compact .heart-readout-value strong{font-size:15px}}
+@media(max-width:400px){.heart-rate-reading{flex-direction:column;text-align:center}.heart-rate-source{justify-content:center}.heart-rate-reading-copy{width:100%}}

@@ -1,4 +1,6 @@
-import { normalizeFortune } from './fortune'
+import { normalizeLyricLibrary } from './lyricLibrary'
+import { normalizeFortunes } from './fortune'
+import { emptyExperiences, normalizeExperiences } from './experiences'
 import { resolveStoredCompanionName, supportsNameWake } from './companionIdentity'
 import type { JSONContent } from '@tiptap/react'
 import { companionVideoStates, type AgentTask, type CompanionVideoLibrary, type CompanionVideoState, type Course, type CourseDay, type LibraryData, type MoodEntry, type MoodKind, type MoodPeriod, type MoodPoints, type TodoItem } from './models'
@@ -156,6 +158,7 @@ export function createSeedLibrary(): LibraryData {
     companion: { name: '小鱼', expression: 'calm', appearance: { hair: 'ink', outfit: 'linen' }, desktop: { visible: false, pixelPetEnabled: false, pixelPetStyle: 'chibi', pixelPetSide: 'right-edge', mode: 'quiet', visual: { type: 'portrait' }, videoAssets: {}, videoClips: {}, videoPlacements: {}, toggleShortcut: 'CommandOrControl+Alt+Y', quietShortcut: 'CommandOrControl+Alt+T' }, provider: { providerId: 'mock', endpoint: '', model: 'mock-companion-v1' }, voice: { stt: { providerId: 'none', endpoint: '', model: 'scribe_v2' }, tts: { providerId: 'none', endpoint: '', model: 'eleven_flash_v2_5', voice: '' }, autoSpeak: false, wakeEnabled: false, wakeWord: '小鱼', wakeSensitivity: 'standard', conversationMode: 'short', speakerVerification: true, modelDownloadSource: 'china', replyLength: 'short', longReplySpeech: 'summary' }, permissions: { workIds: [], chapterIds: [], records: false, planner: false, todos: false, calendar: false, courses: false, dailyQuestions: false, diary: false, mood: false, memories: false, answerBook: false, musicContext: false, internet: false, writeActions: false, writePolicy: 'balanced' }, computer: { enabled: false, profile: 'trusted_workstation', ffmpegPath: '', recordingDirectory: '', emergencyShortcut: 'CommandOrControl+Alt+Escape', backgroundReminders: false, reminderLeadMinutes: 30, grants: [] }, messages: [], memories: [], agentAudit: [], tasks: [], personality: { warmth: 60, curiosity: 50, initiative: 30 }, growth: { enabled: false, logs: [] } },
     planner: { courses: importedScheduleCourses.map((course) => ({ ...course })), diaryEntries: [], moodEntries: [], todos: [], holidayDates: [], dailyQuestions: [], calendarEvents: [], term: { startDate: '2026-09-14', totalWeeks: 16 }, courseImportVersion: 1 },
     answerBook: { favorites: [] },
+    experiences: emptyExperiences(),
     settings: {
       theme: 'warm',
       showRightPanel: true,
@@ -168,9 +171,10 @@ export function createSeedLibrary(): LibraryData {
         { id: 'answerBook', enabled: true, available: true },
         { id: 'truth', enabled: true, available: true },
         { id: 'fortune', enabled: true, available: true },
+        { id: 'experiences', enabled: true, available: true },
       ],
       layoutProfile: 'writing',
-      navigationOrder: ['home', 'answerBook', 'truth', 'fortune', 'calendar', 'todos', 'writing', 'diary', 'people', 'places', 'timeline', 'assets', 'music', 'help', 'settings'],
+      navigationOrder: ['home', 'answerBook', 'truth', 'fortune', 'experiences', 'calendar', 'todos', 'writing', 'diary', 'people', 'places', 'timeline', 'assets', 'music', 'help', 'settings'],
       backgrounds: { images: {}, sidebarMode: 'decoration' },
       ai: { providerId: 'mock', endpoint: '', model: 'mock-illustration-v1', stylePreset: '温暖手绘' },
       webSearch: { providerId: 'tencent', fallbackToBing: true },
@@ -227,6 +231,7 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
   if (!navigationOrder.includes('answerBook')) navigationOrder.splice(Math.max(0, navigationOrder.indexOf('home') + 1), 0, 'answerBook')
   if (!navigationOrder.includes('truth')) navigationOrder.splice(navigationOrder.indexOf('answerBook') + 1, 0, 'truth')
   if (!navigationOrder.includes('fortune')) navigationOrder.splice(navigationOrder.indexOf('truth') + 1, 0, 'fortune')
+  if (!navigationOrder.includes('experiences')) navigationOrder.splice(navigationOrder.indexOf('fortune') + 1, 0, 'experiences')
   if (!navigationOrder.includes('diary')) navigationOrder.splice(Math.max(0, navigationOrder.indexOf('people')), 0, 'diary')
   if (!navigationOrder.includes('todos')) navigationOrder.splice(Math.max(2, navigationOrder.indexOf('writing')), 0, 'todos')
   const storedPlanner = data.planner ?? { courses: [], diaryEntries: [], moodEntries: [], todos: [], holidayDates: [], dailyQuestions: [], calendarEvents: [], term: seed.planner.term }
@@ -292,7 +297,9 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
     musicContexts: { ...seed.musicContexts, ...data.musicContexts, works: data.musicContexts?.works ?? {}, chapters: data.musicContexts?.chapters ?? {} },
     companion: { ...seed.companion, ...data.companion, name: resolveStoredCompanionName(data.companion?.name, data.companion?.voice?.wakeWord), appearance: { ...seed.companion.appearance, ...data.companion?.appearance }, desktop: { ...seed.companion.desktop, ...data.companion?.desktop, pixelPetStyle: normalizeCompanionPetStyle(data.companion?.desktop?.pixelPetStyle), pixelPetSide: normalizeCompanionPetSide(data.companion?.desktop?.pixelPetSide), visual: normalizedVisual, videoAssets: primaryVideos, videoClips, videoPlacements: data.companion?.desktop?.videoPlacements ?? {} }, provider: { ...seed.companion.provider, ...data.companion?.provider }, voice: { ...seed.companion.voice, ...data.companion?.voice, wakeWord: resolveStoredCompanionName(data.companion?.name, data.companion?.voice?.wakeWord), wakeEnabled: Boolean(data.companion?.voice?.wakeEnabled) && supportsNameWake(resolveStoredCompanionName(data.companion?.name, data.companion?.voice?.wakeWord)), stt: { ...seed.companion.voice.stt, ...data.companion?.voice?.stt }, tts: { ...seed.companion.voice.tts, ...data.companion?.voice?.tts } }, permissions, computer: { ...seed.companion.computer, ...data.companion?.computer, grants: data.companion?.computer?.grants ?? [] }, messages: data.companion?.messages ?? [], memories: data.companion?.memories ?? [], agentAudit: data.companion?.agentAudit ?? [], tasks: normalizeAgentTasks(data.companion?.tasks), personality: { ...seed.companion.personality, ...data.companion?.personality }, growth: { ...seed.companion.growth, ...data.companion?.growth, logs: data.companion?.growth?.logs ?? [] } },
     answerBook: { favorites: data.answerBook?.favorites ?? [] },
-    fortune: { today: normalizeFortune(data.fortune?.today) },
+    fortune: normalizeFortunes(data.fortune),
+    experiences: normalizeExperiences(data.experiences),
+    lyricLibrary: normalizeLyricLibrary(data.lyricLibrary),
     planner: {
       courses,
       diaryEntries: storedPlanner.diaryEntries,

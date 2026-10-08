@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createReplySpeechQueue } from './companionReplySpeech'
+import { createReplySpeechQueue, replySpeechLimit } from './companionReplySpeech'
 
 function options() {
   return {
@@ -25,11 +25,23 @@ describe('companion reply speech queue', () => {
     expect(config.provider.synthesize).toHaveBeenCalledTimes(1)
     expect(config.onLimit).toHaveBeenCalledTimes(1)
   })
-  it('keeps the existing first-paragraph speech boundary', async () => {
+  it('reads every paragraph in full mode and does not stop at blank lines', async () => {
     const config = options()
     await createReplySpeechQueue(config).speak('第一段\n\n第二段。')
-    expect(config.provider.synthesize).toHaveBeenCalledTimes(1)
-    expect(config.onLimit).toHaveBeenCalledTimes(1)
+    expect(config.provider.synthesize).toHaveBeenCalledTimes(2)
+    expect(config.onLimit).not.toHaveBeenCalled()
+  })
+  it('keeps the optional paragraph preview only for finite text-chat limits', async () => {
+    const config = { ...options(), limit: 220 }
+    await createReplySpeechQueue(config).speak('第一段\n\n第二段。')
+    expect(config.play).toHaveBeenCalledTimes(1)
+    expect(config.onLimit).toHaveBeenCalledOnce()
+  })
+  it('does not put voice replies under the text-chat character preview limit', () => {
+    expect(replySpeechLimit('summary', 'voice')).toBe(Infinity)
+    expect(replySpeechLimit('summary', 'text', true)).toBe(Infinity)
+    expect(replySpeechLimit('full', 'text')).toBe(Infinity)
+    expect(replySpeechLimit('summary', 'text')).toBe(220)
   })
   it('does not enqueue an inactive turn or play audio after cancellation', async () => {
     const config = options()

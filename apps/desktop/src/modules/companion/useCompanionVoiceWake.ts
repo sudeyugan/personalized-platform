@@ -1,7 +1,11 @@
 import { emitTo } from '@tauri-apps/api/event'
-import { CommitStrategy, RealtimeConnection, RealtimeEvents, Scribe } from '@elevenlabs/client'
+import type { RealtimeConnection } from '@elevenlabs/client'
 import { useEffect, useRef, type Dispatch, type RefObject, type SetStateAction } from 'react'
 import { localVoice } from '../../infrastructure/localVoice'
+import type { LocalVoiceLease } from '../../infrastructure/localVoiceMonitor'
+import { createPostWakeAudio } from './postWakeAudio'
+import { openVoiceRecognition } from './voiceRecognition'
+import type { createPlaybackEchoHistory } from './playbackEcho'
 import type { CompanionDesktopSnapshot } from './companionDesktop'
 import { followUpWindowMs, hasBargeInSignal, isDuplicateUtterance, isLikelyPlaybackEcho, isMeaningfulVoiceUtterance, resolveVoiceCommand, type VoiceConversationPhase } from './voiceConversation'
 
@@ -14,13 +18,14 @@ interface CompanionVoiceWakeOptions {
   agentBusy: RefObject<boolean>
   speechBusy: RefObject<boolean>
   spokenText: RefObject<string>
+  recentSpeech?: RefObject<ReturnType<typeof createPlaybackEchoHistory>>
   requestToken: () => Promise<string>
   setSpeechNote: Dispatch<SetStateAction<string>>
 }
 
-export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText, requestToken, setSpeechNote }: CompanionVoiceWakeOptions) {
+export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText, recentSpeech, requestToken, setSpeechNote }: CompanionVoiceWakeOptions) {
   const cloudConnection = useRef<RealtimeConnection | undefined>(undefined)
-  const localMonitor = useRef<{ stop: () => void } | undefined>(undefined)
+  const localMonitor = useRef<LocalVoiceLease | undefined>(undefined)
   const followUpTimer = useRef<number | undefined>(undefined)
   const sessionTimer = useRef<number | undefined>(undefined)
   const armed = useRef(false)
@@ -46,11 +51,20 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
     let disposed = false
     let reconnectTimer: number | undefined
     let closingCloud = false
+    let audio: ReturnType<typeof createPostWakeAudio> | undefined
+    let sessionGeneration = 0
+    let lastActivity = 0
+    let localRetries = 0
+    let cloudRetries = 0
+    let localRetryTimer: number | undefined
+    let bargeResumeTimer: number | undefined
+    const echo = (text: string) => recentSpeech?.current.matches(text) ?? ((speechBusy.current || interruptionPending.current) && isLikelyPlaybackEcho(text, spokenText.current))
 
     const setVoiceActivity = (active: boolean) => {
       void emitTo('main', 'companion:voice-activity', { active })
     }
     const resumeInterruptedSpeech = () => {
+      window.clearTimeout(bargeResumeTimer)
       bargeInStartedAt.current = undefined
       if (!interruptionPending.current) return
       interruptionPending.current = false
@@ -60,6 +74,13 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
     const endConversation = (hide = false) => {
       window.clearTimeout(followUpTimer.current)
       window.clearTimeout(sessionTimer.current)
+      window.clearTimeout(reconnectTimer)
+      window.clearTimeout(bargeResumeTimer)
+      sessionGeneration++
+      audio?.close()
+      audio = undefined
+      localMonitor.current?.stop()
+      localMonitor.current = undefined
       armed.current = false
       phase.current = 'sleeping'
       interruptionPending.current = false
@@ -114,7 +135,7 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
         if (afterTurn) playFollowUpCue()
         setSpeechNote(afterTurn ? '还在听，' + Math.round(windowMs / 1000) + ' 秒内可以继续说。' : voice.wakeWord + '在听，请说出问题。')
         followUpTimer.current = window.setTimeout(() => {
-          if (agentBusy.current || speechBusy.current) waitUntilIdle()
+          if (agentBusy.current || speechBusy.current || Date.now() - lastActivity < windowMs) waitUntilIdle()
           else endConversation()
         }, windowMs)
       }
@@ -122,7 +143,7 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
     }
     const enforceSessionLimit = () => {
       if (disposed || !armed.current) return
-      if (agentBusy.current || speechBusy.current) {
+      if (agentBusy.current || speechBusy.current || Date.now() - lastActivity < 3000) {
         sessionTimer.current = window.setTimeout(enforceSessionLimit, 500)
         return
       }
@@ -133,6 +154,8 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
       const text = value.trim()
       if (!text) return
       bargeInStartedAt.current = undefined
+      if (echo(text)) { setVoiceActivity(false); resumeInterruptedSpeech(); return }
+      lastActivity = Date.now()
       const command = resolveVoiceCommand(text, voice.wakeWord)
       if (command === 'hide') {
         void emitTo('main', 'companion:turn-stop', {})
@@ -159,13 +182,6 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
         return
       }
       lastUtterance.current = { text, at: Date.now() }
-      if ((speechBusy.current || interruptionPending.current) && isLikelyPlaybackEcho(text, spokenText.current)) {
-        setVoiceActivity(false)
-        resumeInterruptedSpeech()
-        phase.current = 'speaking'
-        setSpeechNote('还在听，你可以随时打断。')
-        return
-      }
       const replacing = agentBusy.current || speechBusy.current || interruptionPending.current
       if (replacing) {
         phase.current = 'interrupted'
@@ -173,6 +189,7 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
         void emitTo('main', 'companion:speech-stop', {})
       }
       interruptionPending.current = false
+      window.clearTimeout(bargeResumeTimer)
       bargeInStartedAt.current = undefined
       setVoiceActivity(false)
       phase.current = 'committing'
@@ -182,56 +199,48 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
       void emitTo('main', 'companion:chat-send', { message: text, inputMode: 'voice', wake: true, replace: true })
     }
     const connectConversation = async () => {
+      const generation = sessionGeneration
+      const handoff = audio
+      if (!handoff) return
       try {
         const token = await requestToken()
-        if (disposed || !armed.current) return
-        const connection = Scribe.connect({
-          token,
-          modelId: 'scribe_v2_realtime',
-          languageCode: 'zh',
-          secondaryLanguages: ['en'],
-          commitStrategy: CommitStrategy.VAD,
-          vadSilenceThresholdSecs: 0.8,
-          vadThreshold: 0.55,
-          minSpeechDurationMs: 450,
-          minSilenceDurationMs: 700,
-          filterBackgroundAudio: true,
-          noVerbatim: true,
-          microphone: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-            workletPaths: { scribeAudioProcessor: '/vendor/elevenlabs/scribe-audio-processor.js' },
-          },
-        })
-        connection.on(RealtimeEvents.PARTIAL_TRANSCRIPT, (event) => {
-          if (disposed || !armed.current) return
-          const partial = event.text.trim()
+        if (disposed || !armed.current || generation !== sessionGeneration) return
+        const connection = openVoiceRecognition(token, handoff, {
+          active: () => !disposed && armed.current && generation === sessionGeneration && cloudConnection.current === connection,
+          ready: () => { lastActivity = Date.now(); phase.current = 'listening'; setSpeechNote(`${voice.wakeWord}在听，请说出问题。`) },
+          partial: (value) => {
+          const partial = value.trim()
           if (!partial) return
+          if (!echo(partial)) lastActivity = Date.now()
           phase.current = 'listening'
           setVoiceActivity(true)
-          if (!speechBusy.current || isLikelyPlaybackEcho(partial, spokenText.current)) {
+          if (!speechBusy.current || echo(partial)) {
             bargeInStartedAt.current = undefined
             return
           }
           if (!hasBargeInSignal(partial)) return
+          if (interruptionPending.current) {
+            window.clearTimeout(bargeResumeTimer)
+            bargeResumeTimer = window.setTimeout(resumeInterruptedSpeech, 8000)
+            return
+          }
           const now = Date.now()
           bargeInStartedAt.current ??= now
           if (now - bargeInStartedAt.current < BARGE_IN_CONFIRM_MS || interruptionPending.current) return
           interruptionPending.current = true
+          bargeResumeTimer = window.setTimeout(resumeInterruptedSpeech, 8000)
           phase.current = 'interrupted'
           setSpeechNote('确认你在继续说，已暂停朗读。')
           void emitTo('main', 'companion:speech-pause', { paused: true })
-        })
-        connection.on(RealtimeEvents.COMMITTED_TRANSCRIPT, (event) => handleUtterance(event.text))
-        connection.on(RealtimeEvents.ERROR, (event) => {
-          if (disposed) return
+        },
+        committed: handleUtterance,
+        error: (message) => {
           setVoiceActivity(false)
           resumeInterruptedSpeech()
-          setSpeechNote(`语音聊天暂不可用：${event.error || '实时转写失败'}`)
-        })
-        connection.on(RealtimeEvents.CLOSE, () => {
-          if (disposed) return
+          setSpeechNote(`语音聊天暂不可用：${message}`)
+          connection.close()
+        },
+        closed: () => {
           setVoiceActivity(false)
           resumeInterruptedSpeech()
           if (cloudConnection.current === connection) cloudConnection.current = undefined
@@ -239,22 +248,30 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
             closingCloud = false
             return
           }
-          if (armed.current) reconnectTimer = window.setTimeout(() => void connectConversation(), 1500)
+          if (armed.current) retryConnection()
+        },
         })
         cloudConnection.current = connection
-        phase.current = 'listening'
-        setSpeechNote(`${voice.wakeWord}在听，请说出问题。`)
       } catch (error) {
-        if (disposed || !armed.current) return
+        if (disposed || !armed.current || generation !== sessionGeneration) return
         setSpeechNote(`语音聊天暂不可用：${error instanceof Error ? error.message.replace(/^[A-Z_]+:/, '') : '请检查语音服务'}`)
-        reconnectTimer = window.setTimeout(() => void connectConversation(), 3000)
+        retryConnection()
       }
+    }
+    const retryConnection = () => {
+      window.clearTimeout(reconnectTimer)
+      if (++cloudRetries > 3) { endConversation(); setSpeechNote('语音连接连续失败，已返回本地待机；请检查网络和语音服务。'); return }
+      reconnectTimer = window.setTimeout(() => void connectConversation(), 1500 * cloudRetries)
     }
     const activateConversation = () => {
       if (disposed || armed.current) return
-      localMonitor.current?.stop()
-      localMonitor.current = undefined
+      if (!localMonitor.current?.isActive()) return
+      sessionGeneration++
+      audio = createPostWakeAudio()
+      localMonitor.current.handoff(audio.push)
       armed.current = true
+      lastActivity = Date.now()
+      cloudRetries = 0
       phase.current = 'listening'
       closingCloud = false
       void emitTo('main', 'companion:voice-show-request', {})
@@ -274,6 +291,7 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
           speakerVerification: voice.speakerVerification,
         }, (result) => {
           if (disposed) return
+          localRetries = 0
           if (!result.speakerMatched) {
             setSpeechNote(`听到了“${voice.wakeWord}”，但声纹没有通过。`)
             return
@@ -281,7 +299,10 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
           activateConversation()
         }, (error) => {
           if (disposed) return
+          if (armed.current) { endConversation(); setSpeechNote('麦克风已中断，请检查输入设备后重新唤醒。'); return }
+          localMonitor.current = undefined
           setSpeechNote(`本地唤醒暂不可用：${error instanceof Error ? error.message.replace(/^[A-Z_]+:/, '') : String(error)}`)
+          if (++localRetries <= 3) localRetryTimer = window.setTimeout(() => void startLocalListening(), 2000 * localRetries)
         })
         if (disposed || armed.current || !monitor.isActive()) {
           monitor.stop()
@@ -306,6 +327,10 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
       window.removeEventListener('yiyu:voice-end', endRequested)
       disposed = true
       window.clearTimeout(reconnectTimer)
+      window.clearTimeout(localRetryTimer)
+      window.clearTimeout(bargeResumeTimer)
+      sessionGeneration++
+      audio?.close()
       window.clearTimeout(followUpTimer.current)
       window.clearTimeout(sessionTimer.current)
       localMonitor.current?.stop()
@@ -319,5 +344,5 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
       bargeInStartedAt.current = undefined
       setVoiceActivity(false)
     }
-  }, [agentBusy, requestToken, setSpeechNote, speechBusy, spokenText, voice.conversationMode, voice.speakerVerification, voice.sttProviderId, voice.wakeEnabled, voice.wakeSensitivity, voice.wakeWord])
+  }, [agentBusy, recentSpeech, requestToken, setSpeechNote, speechBusy, spokenText, voice.conversationMode, voice.speakerVerification, voice.sttProviderId, voice.wakeEnabled, voice.wakeSensitivity, voice.wakeWord])
 }

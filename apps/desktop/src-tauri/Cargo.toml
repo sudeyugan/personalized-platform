@@ -29,7 +29,7 @@ chacha20poly1305 = "0.10"
 sha2 = "0.10"
 zip = { version = "4", default-features = false, features = ["deflate"] }
 base64 = "0.22"
-reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls", "stream"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls", "stream", "system-proxy"] }
 sherpa-onnx = { version = "1.13.8", default-features = false, features = ["static"] }
 pinyin = "0.11"
 bzip2 = "0.6"
@@ -37,7 +37,7 @@ tar = "0.4"
 tauri-plugin-single-instance = "2"
 tauri-plugin-notification = "2"
 clipboard-win = "5.4"
-windows = { version = "0.61.3", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Devices_Bluetooth", "Devices_Bluetooth_Advertisement", "Devices_Bluetooth_GenericAttributeProfile", "Foundation", "Storage_Streams", "Win32_System_WinRT"] }
+windows = { version = "0.61.3", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Devices_Bluetooth", "Devices_Bluetooth_Advertisement", "Devices_Bluetooth_GenericAttributeProfile", "Foundation", "Media_Control", "Storage_Streams", "Win32_System_WinRT"] }
 
 [dev-dependencies]
 tempfile = "3"

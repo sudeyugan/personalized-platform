@@ -1,12 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PixelPetSettings } from './PixelPetSettings'
+import { PET_MODE_REBIND } from './usePetModeShortcut'
 
 const store = vi.hoisted(() => ({ enabled: true, mode: 'interactive', setCompanionPixelPet: vi.fn(), setCompanionDesktopMode: vi.fn(), setCompanionPetStyle: vi.fn(), setCompanionPetSide: vi.fn() }))
 vi.mock('../../../state/useLibraryStore', () => ({
   useLibraryStore: () => ({ data: { companion: { desktop: { pixelPetEnabled: store.enabled, mode: store.mode } } }, setCompanionPixelPet: store.setCompanionPixelPet, setCompanionDesktopMode: store.setCompanionDesktopMode, setCompanionPetStyle: store.setCompanionPetStyle, setCompanionPetSide: store.setCompanionPetSide }),
 }))
 vi.mock('./PixelPetRenderer', () => ({ PixelPetRenderer: () => <canvas data-testid="pet-preview" /> }))
+vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => true }))
 
 describe('pixel pet development settings', () => {
   beforeEach(() => { store.enabled = true; store.mode = 'interactive'; vi.clearAllMocks() })
@@ -52,5 +54,15 @@ describe('pixel pet development settings', () => {
     expect(store.setCompanionPixelPet).toHaveBeenCalledWith(false)
     fireEvent.change(screen.getByRole('combobox', { name: '伙伴渲染模式' }), { target: { value: 'pixel-pet' } })
     expect(store.setCompanionPixelPet).toHaveBeenLastCalledWith(true)
+  })
+  it('offers rebind without toggling the renderer or modifying any saved settings', () => {
+    const requested = vi.fn()
+    window.addEventListener(PET_MODE_REBIND, requested)
+    render(<PixelPetSettings />)
+    fireEvent.click(screen.getByRole('button', { name: '重新绑定' }))
+    expect(requested).toHaveBeenCalledTimes(1)
+    expect(store.setCompanionPixelPet).not.toHaveBeenCalled()
+    expect(store.setCompanionDesktopMode).not.toHaveBeenCalled()
+    window.removeEventListener(PET_MODE_REBIND, requested)
   })
 })

@@ -67,6 +67,21 @@
         "skipTaskbar": true,
         "visible": false,
         "focus": false
+      },
+      {
+        "label": "companion-lyrics",
+        "title": "一隅伴听歌词",
+        "url": "index.html?companion-lyrics=1",
+        "width": 280,
+        "height": 92,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "focus": false
       }
     ],
     "security": {
