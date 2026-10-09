@@ -45,6 +45,8 @@ describe('direct computer actions', () => {
     const tools = [lowRiskTool('app.open'), lowRiskTool('music.control'), lowRiskTool('screen.capture')]
     expect(resolveDirectAction('打开本月情绪回望', tools)).toMatchObject({ name: 'app.open', arguments: { destination: 'mood.reflection', range: 'month' } })
     expect(resolveDirectAction('下一首', tools)).toMatchObject({ name: 'music.control', arguments: { action: 'next' } })
+    expect(resolveDirectAction('播放音乐', tools)).toMatchObject({ name: 'music.control', arguments: { action: 'play' } })
+    expect(resolveDirectAction('暂停音乐', tools)).toMatchObject({ name: 'music.control', arguments: { action: 'pause' } })
     expect(resolveDirectAction('帮我截屏', tools)).toMatchObject({ name: 'screen.capture', arguments: { source: 'desktop' } })
   })
 

@@ -13,6 +13,7 @@ export function ExperienceEditor({ entry, place, labels, onClose }: { entry?: Ex
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [confirmClose, setConfirmClose] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const revision = useRef(0)
   useEffect(() => () => { revision.current++ }, [])
   const data = useLibraryStore(store => store.data)
@@ -61,8 +62,9 @@ export function ExperienceEditor({ entry, place, labels, onClose }: { entry?: Ex
         <label>无图纸封<select value={draft.paperStyle} onChange={event => update({ paperStyle: event.target.value as ExperienceDraft['paperStyle'] })}><option value="linen">素纸</option><option value="ink">墨夜</option><option value="blue">清蓝</option><option value="rose">蔷薇</option></select></label></details>
       </fieldset></div>
       {message && <p role="status">{message}</p>}
-      <footer className="experience-editor-footer"><button type="button" className="ghost-button" disabled={busy} onClick={close}>先放下</button><button type="submit" className="primary-button" disabled={busy || !draft.title.trim()}>{busy ? '正在准备…' : '保存这一页'}</button></footer>
+      <footer className="experience-editor-footer">{entry && <button type="button" className="danger-button experience-delete-button" disabled={busy} onClick={() => setConfirmDelete(true)}>删除这张卡片</button>}<button type="button" className="ghost-button" disabled={busy} onClick={close}>先放下</button><button type="submit" className="primary-button" disabled={busy || !draft.title.trim()}>{busy ? '正在准备…' : '保存这一页'}</button></footer>
     </form>
     {confirmClose && <ConfirmDialog title="先放下这张卡片？" subject={draft.title || '未命名经历'} description="尚未保存的文字和选图会放下，原有记录不会改变。" confirmLabel="放下修改" onCancel={() => setConfirmClose(false)} onConfirm={() => { clearDraft(); onClose() }} />}
+    {entry && confirmDelete && <ConfirmDialog title="删除这张经历卡片？" subject={entry.title} description="卡片将从经历册和排行中移除，先放入收纳袋；可以恢复，也可以在收纳袋永久删除。未保存的修改会放下。" confirmLabel="删除并移入收纳袋" onCancel={() => setConfirmDelete(false)} onConfirm={() => { useLibraryStore.getState().trashExperience(entry.id); clearDraft(); onClose() }} />}
   </aside>
 }

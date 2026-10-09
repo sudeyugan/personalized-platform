@@ -2,7 +2,7 @@ import type { ComputerCapability } from '../../../domain/models'
 
 export type AgentCapability = 'read' | 'presentation' | 'create' | 'modify' | 'delete' | 'external' | 'system'
 export type AgentRiskLevel = 'read_only' | 'low' | 'medium' | 'high' | 'critical'
-export type AgentToolScope = 'none' | 'active_work' | 'chapters' | 'records' | 'todos' | 'calendar' | 'courses' | 'daily_question' | 'diary' | 'mood' | 'memory' | 'answer_book' | 'music' | 'web'
+export type AgentToolScope = 'none' | 'active_work' | 'chapters' | 'records' | 'todos' | 'calendar' | 'courses' | 'daily_question' | 'diary' | 'mood' | 'memory' | 'answer_book' | 'fortune' | 'truth' | 'experiences' | 'assets' | 'music' | 'web'
 
 export interface AgentContextSnapshot {
   page: string

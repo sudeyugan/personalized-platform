@@ -6,6 +6,7 @@ import { AgentPermissionEngine } from './permission'
 import { TaskActionConfirmationRequired, TaskActionRegistry } from './taskActionRegistry'
 import { createAgentTaskFromDraft } from './taskPlan'
 import { AgentToolRegistry } from './toolRegistry'
+import { createCompanionToolRegistry } from './tools'
 
 const objectSchema = {
   type: 'object' as const,
@@ -40,6 +41,15 @@ function taskRegistry(tools: AgentToolRegistry) {
 }
 
 describe('TaskActionRegistry', () => {
+  it('blocks closed-module navigation in a task even with a previous confirmation', async () => {
+    const data = createSeedLibrary()
+    data.settings.modules.find((module) => module.id === 'fortune')!.enabled = false
+    const openDestination = vi.fn()
+    const task = createAgentTaskFromDraft({ title: '页面', goal: '抽签页', steps: [{ title: '打开', action: 'app.open', destination: 'fortune' }] })
+    const actions = new TaskActionRegistry(createCompanionToolRegistry(), new AgentPermissionEngine({ policy: { autoAllow: ['read', 'presentation'] }, resourcePermissions: data.companion.permissions, access: buildAgentAccess(data, []), modules: data.settings.modules }), { openDestination } as unknown as AgentApplicationServices, task.id, vi.fn())
+    await expect(actions.execute({ ...task.steps[0], confirmed: true, toolName: 'app.open', arguments: { destination: 'fortune' } }, task, 0)).rejects.toThrow('功能已关闭')
+    expect(openDestination).not.toHaveBeenCalled()
+  })
   it('executes eligible tools and resolves persisted step results', async () => {
     const first = vi.fn((args: Record<string, unknown>) => ({ id: args.id, nested: { count: 2 } }))
     const second = vi.fn((args: Record<string, unknown>) => args)

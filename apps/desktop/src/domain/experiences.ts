@@ -4,7 +4,7 @@ export const categoryLabels: Record<ExperienceCategory, string> = { novel: 'ф╕нц
 export const tierIds = ['top', 'great', 'good', 'ordinary', 'poor'] as const
 export type ExperienceTier = typeof tierIds[number]
 export type PaperStyle = 'linen' | 'ink' | 'blue' | 'rose'
-export type CoverProvider = 'weread' | 'bangumi' | 'openlibrary' | 'tmdb' | 'fanqie'
+export type CoverProvider = 'webnovel' | 'weread' | 'bangumi' | 'openlibrary' | 'tmdb' | 'fanqie'
 export interface CoverSource { provider: CoverProvider; url: string; credit: string }
 export interface ExperienceEntry {
   id: string
@@ -51,7 +51,7 @@ export function normalizeExperiences(value: unknown): ExperienceData {
       dateText: text(entry.dateText, 80), note: text(entry.note, 10000), paperStyle: ['linen', 'ink', 'blue', 'rose'].includes(entry.paperStyle) ? entry.paperStyle : 'linen' as const,
       tier: tierIds.includes(entry.tier as ExperienceTier) ? entry.tier : undefined,
       order: Number.isFinite(entry.order) ? entry.order : index, coverAssetId: /^asset-[a-zA-Z0-9-]+$/.test(entry.coverAssetId ?? '') ? entry.coverAssetId : undefined,
-      source: sourceUrl && provider && ['weread', 'bangumi', 'openlibrary', 'tmdb', 'fanqie'].includes(provider) ? { provider, url: sourceUrl, credit: text(entry.source?.credit, 180) } : undefined,
+      source: sourceUrl && provider && ['webnovel', 'weread', 'bangumi', 'openlibrary', 'tmdb', 'fanqie'].includes(provider) ? { provider, url: sourceUrl, credit: text(entry.source?.credit, 180) } : undefined,
       createdAt: text(entry.createdAt, 40), updatedAt: text(entry.updatedAt, 40), deletedAt: text(entry.deletedAt, 40) || undefined,
     }]
   })

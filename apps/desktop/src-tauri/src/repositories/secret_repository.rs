@@ -7,6 +7,8 @@ pub struct SecretRepository {
 }
 
 impl SecretRepository {
+    #[cfg(test)]
+    pub(crate) fn for_test(root: PathBuf) -> Self { Self { root } }
     pub fn from_app(app: &AppHandle) -> Result<Self, String> {
         Ok(Self {
             root: app

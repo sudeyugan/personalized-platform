@@ -146,6 +146,7 @@ async function executeTask(task: AgentTask, signal: AbortSignal, audioRef: { cur
     return new TaskActionRegistry(
       createCompanionToolRegistry(),
       new AgentPermissionEngine({
+        modules: liveData.settings.modules,
         policy: { autoAllow: ['read', 'presentation'] },
         resourcePermissions: liveData.companion.permissions,
         computer: liveData.companion.computer,
@@ -160,7 +161,7 @@ async function executeTask(task: AgentTask, signal: AbortSignal, audioRef: { cur
 
   const runStep = async (step: AgentTaskStep, index: number) => {
     if (step.action === 'app.open') {
-      useLibraryStore.getState().openAgentDestination({ destination: step.destination! })
+      await createTaskActions().execute({ ...step, toolName: 'app.open', arguments: { destination: step.destination! } }, task, index)
       await waitFor(900, signal)
       const expected = viewForAgentDestination(step.destination!)
       if (!expected || useLibraryStore.getState().data.session.activeView !== expected) throw new Error('页面没有切换到计划目标')

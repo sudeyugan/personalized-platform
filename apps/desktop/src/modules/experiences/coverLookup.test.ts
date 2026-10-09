@@ -1,11 +1,22 @@
 import { describe, expect, it, vi } from 'vitest'
 import { automaticCoverProvider, lookupCovers, lookupCoverImage } from './coverLookup'
 import { experienceCovers } from '../../infrastructure/experienceCovers'
+import { useLibraryStore } from '../../state/useLibraryStore'
 vi.mock('../../infrastructure/experienceCovers', async original => {
   const actual = await original<typeof import('../../infrastructure/experienceCovers')>()
   return { ...actual, experienceCovers: { ...actual.experienceCovers, hasKey: vi.fn(), search: vi.fn(), image: vi.fn() } }
 })
 describe('bounded cover reuse', () => {
+  it('explicitly retries incomplete novel metadata instead of caching a missing cover', async () => {
+    vi.mocked(experienceCovers.search).mockClear()
+    const candidate = { id: 'incomplete', provider: 'webnovel' as const, title: '缺图重查作品', creator: '', year: '', sourceUrl: 'https://www.zongheng.com/detail/123', credit: '纵横' }
+    vi.mocked(experienceCovers.search).mockResolvedValueOnce([candidate]).mockResolvedValueOnce([{ ...candidate, coverUrl: 'https://static.zongheng.com/upload/cover/test.jpg' }])
+    const hints = { title: candidate.title, creator: '', year: '' }
+    expect((await lookupCovers('webnovel', 'novel', hints))[0].coverUrl).toBeUndefined()
+    expect((await lookupCovers('webnovel', 'novel', hints))[0].coverUrl).toContain('static.zongheng.com')
+    expect(experienceCovers.search).toHaveBeenCalledTimes(2)
+    vi.mocked(experienceCovers.search).mockClear()
+  })
   it('an empty search is reissued on explicit retry instead of being cached for thirty minutes', async () => {
     vi.mocked(experienceCovers.search).mockResolvedValueOnce([]).mockResolvedValueOnce([{ id: 'retry', provider: 'bangumi', title: 'Retry title', creator: '', year: '', sourceUrl: 'https://bgm.tv/subject/1', credit: 'Bangumi' }])
     const hints = { title: 'Retry title', creator: '', year: '' }
@@ -14,11 +25,10 @@ describe('bounded cover reuse', () => {
     expect(experienceCovers.search).toHaveBeenCalledTimes(2)
     vi.mocked(experienceCovers.search).mockClear()
   })
-  it('checks only credentials and selects the appropriate catalogue, without a network lookup', async () => {
-    vi.mocked(experienceCovers.hasKey).mockResolvedValueOnce(true).mockResolvedValueOnce(false)
-    expect(await automaticCoverProvider('novel')).toBe('weread')
-    expect(await automaticCoverProvider('novel')).toBe('openlibrary')
+  it('selects the public web-novel catalogue without credentials or a network lookup', async () => {
+    expect(await automaticCoverProvider('novel')).toBe('webnovel')
     expect(await automaticCoverProvider('film')).toBe('tmdb')
+    expect(experienceCovers.hasKey).not.toHaveBeenCalled()
     expect(experienceCovers.search).not.toHaveBeenCalled()
   })
   it('reuses metadata when changing the local year hint, and keeps image caching ephemeral', async () => {
@@ -32,5 +42,20 @@ describe('bounded cover reuse', () => {
     expect(await lookupCoverImage('https://covers.openlibrary.org/b/id/123-M.jpg')).toBe(file)
     expect(await lookupCoverImage('https://covers.openlibrary.org/b/id/123-M.jpg')).toBe(file)
     expect(experienceCovers.image).toHaveBeenCalledTimes(1)
+  })
+  it('uses the current search settings and does not replay candidates from another provider', async () => {
+    vi.mocked(experienceCovers.search).mockClear()
+    vi.mocked(experienceCovers.search).mockResolvedValue([{ id: 'configured', provider: 'webnovel', title: '配置检索作品', creator: '', year: '', sourceUrl: 'https://www.qidian.com/book/123/', credit: '起点' }])
+    const config = useLibraryStore.getState().data.settings.webSearch
+    const hints = { title: '配置检索作品', creator: '', year: '' }
+    await lookupCovers('webnovel', 'novel', hints)
+    expect(experienceCovers.search).toHaveBeenLastCalledWith('webnovel', 'novel', hints.title, '', config)
+    const data = useLibraryStore.getState().data
+    const changed = { providerId: 'bing' as const, fallbackToBing: false }
+    useLibraryStore.setState({ data: { ...data, settings: { ...data.settings, webSearch: changed } } })
+    await lookupCovers('webnovel', 'novel', hints)
+    expect(experienceCovers.search).toHaveBeenCalledTimes(2)
+    expect(experienceCovers.search).toHaveBeenLastCalledWith('webnovel', 'novel', hints.title, '', changed)
+    useLibraryStore.setState({ data })
   })
 })

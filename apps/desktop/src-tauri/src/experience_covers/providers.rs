@@ -2,15 +2,16 @@ use super::{CoverCandidate, http};
 use reqwest::Client;
 use serde_json::{Value, json};
 use crate::repositories::SecretRepository;
+use super::web_novels;
 
 fn field(value: &Value, key: &str) -> String { value[key].as_str().unwrap_or("").chars().take(250).collect() }
 fn provider_label(provider: &str) -> &str {
-    match provider { "bangumi" => "Bangumi", "openlibrary" => "Open Library", "tmdb" => "TMDB", _ => "微信读书" }
+    match provider { "bangumi" => "Bangumi", "openlibrary" => "Open Library", "tmdb" => "TMDB", "webnovel" => "公开网文目录", _ => "微信读书" }
 }
 fn image(value: &str) -> Option<String> { http::image_url(value).ok().map(|url| url.to_string()) }
 fn cover_field(value: &Value, key: &str) -> Option<String> { value[key].as_str().and_then(image) }
 fn candidate(id: String, provider: &str, title: String, creator: String, year: String, cover_url: Option<String>, source_url: String) -> CoverCandidate {
-    CoverCandidate { id, provider: provider.into(), title, creator, year, cover_url, source_url, credit: match provider {
+    CoverCandidate { id, provider: provider.into(), title, creator, year, cover_url, source_url, matched_title: None, credit: match provider {
         "bangumi" => "封面与条目信息：Bangumi",
         "openlibrary" => "封面与书目信息：Open Library",
         "tmdb" => "This product uses the TMDB API but is not endorsed or certified by TMDB.",
@@ -19,6 +20,7 @@ fn candidate(id: String, provider: &str, title: String, creator: String, year: S
 }
 pub async fn search(client: &Client, provider: &str, category: &str, query: &str, creator: &str, secrets: &SecretRepository) -> Result<Vec<CoverCandidate>, String> {
     match provider {
+        "webnovel" => web_novels::search(query, creator).await,
         "weread" => {
             let key = secrets.load("experiences-weread")?.ok_or("请先配置微信读书API Key，或使用书名封面")?;
             let response = client.post("https://i.weread.qq.com/api/agent/gateway").bearer_auth(key)
@@ -69,6 +71,7 @@ pub async fn search(client: &Client, provider: &str, category: &str, query: &str
         _ => Err("尚未接入这个封面来源".into()),
     }
 }
+
 pub fn parse_weread(value: &Value) -> Result<Vec<CoverCandidate>, String> {
     if value.get("upgrade_info").is_some_and(|v| !v.is_null()) { return Err("微信读书要求更新接口版本，已停止本次搜索".into()); }
     if value["errcode"].as_i64().is_some_and(|code| code != 0) { return Err("微信读书未接受请求，请检查密钥或稍后重试".into()); }

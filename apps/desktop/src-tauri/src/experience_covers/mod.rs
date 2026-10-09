@@ -1,8 +1,16 @@
 mod http;
 mod providers;
 mod links;
+mod web_novels;
+mod web_novel_artwork;
+mod novel_catalogue;
+mod novel_matching;
+mod novel_metadata;
+mod novel_clues;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod novel_tests;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde::Serialize;
@@ -17,6 +25,8 @@ pub struct CoverRuntime { query_active: AtomicBool, image_active: AtomicUsize }
 pub struct CoverCandidate {
     id: String, provider: String, title: String, creator: String, year: String,
     cover_url: Option<String>, source_url: String, credit: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    matched_title: Option<String>,
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -30,7 +40,7 @@ struct ImageLease<'a>(&'a AtomicUsize);
 impl Drop for ImageLease<'_> { fn drop(&mut self) { self.0.fetch_sub(1, Ordering::SeqCst); } }
 
 #[tauri::command]
-pub async fn experience_cover_search(window: WebviewWindow, app: AppHandle, runtime: State<'_, CoverRuntime>, provider: String, category: String, query: String, creator: Option<String>) -> Result<Vec<CoverCandidate>, String> {
+pub async fn experience_cover_search(window: WebviewWindow, app: AppHandle, runtime: State<'_, CoverRuntime>, provider: String, category: String, query: String, creator: Option<String>, catalog_search: Option<crate::web_search::WebSearchConfig>) -> Result<Vec<CoverCandidate>, String> {
     require_main(window.label())?;
     let query = query.trim();
     let creator = creator.as_deref().unwrap_or("").trim();
@@ -39,15 +49,24 @@ pub async fn experience_cover_search(window: WebviewWindow, app: AppHandle, runt
     if !["novel","book","anime","manga","film","series","game","other"].contains(&category.as_str()) { return Err("该类别不支持找封面".into()); }
     if runtime.query_active.swap(true, Ordering::SeqCst) { return Err("上一项封面请求尚未结束，请稍候".into()); }
     let _lease = QueryLease(&runtime.query_active);
-    providers::search(&http::client()?, &provider, &category, query, creator, &SecretRepository::from_app(&app)?).await
+    let secrets = SecretRepository::from_app(&app)?;
+    if provider == "webnovel" {
+        let search = match catalog_search { Some(config) => crate::web_search::PreparedSearch::configured(config, &secrets)?, None => crate::web_search::PreparedSearch::bing() };
+        return web_novels::search_using(query, creator, search).await;
+    }
+    providers::search(&http::client()?, &provider, &category, query, creator, &secrets).await
 }
 #[tauri::command]
-pub async fn experience_cover_link(window: WebviewWindow, runtime: State<'_, CoverRuntime>, url: String) -> Result<CoverCandidate, String> {
+pub async fn experience_cover_link(window: WebviewWindow, app: AppHandle, runtime: State<'_, CoverRuntime>, url: String, catalog_search: Option<crate::web_search::WebSearchConfig>) -> Result<CoverCandidate, String> {
     require_main(window.label())?;
-    links::supported_link(&url)?;
+    let (provider, _) = links::supported_link(&url)?;
     if runtime.query_active.swap(true, Ordering::SeqCst) { return Err("上一项封面请求尚未结束，请稍候".into()); }
     let _lease = QueryLease(&runtime.query_active);
-    links::resolve(&http::client()?, &url).await
+    let search = match catalog_search.filter(|_| provider == "webnovel") {
+        Some(config) => crate::web_search::PreparedSearch::configured(config, &SecretRepository::from_app(&app)?)?,
+        None => crate::web_search::PreparedSearch::bing(),
+    };
+    links::resolve(&http::client()?, &url, search).await
 }
 #[tauri::command]
 pub async fn experience_cover_image(window: WebviewWindow, runtime: State<'_, CoverRuntime>, url: String) -> Result<CoverImage, String> {

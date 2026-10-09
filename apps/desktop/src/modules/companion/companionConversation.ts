@@ -9,6 +9,12 @@ import { createPrivacyProtectedProvider, protectOutboundText, type PrivacyReview
 import { AgentPermissionEngine, buildAgentAccess, buildAgentContext, createAgentApplicationServices, createCompanionToolRegistry, runAgent } from './agent'
 import type { AgentPermissionRequest, AgentRuntimeStatus } from './agent/types'
 import type { AgentDataAccess } from './agent/applicationServices'
+import { experienceCategories, tierIds, type ExperienceCategory, type ExperienceTier } from '../../domain/experiences'
+import { createRitualServices } from './ritualServices'
+import { resolveDirectAction } from './agent/directActions'
+import { localRitualTools } from './agent/ritualTools'
+import { viewForAgentDestination } from './agent/featureContract'
+import { withLiveAgentReads } from './liveAgentReads'
 
 export interface CompanionTurnOptions {
   onStatus?: (status?: AgentRuntimeStatus) => void
@@ -48,7 +54,8 @@ export function createLiveCompanionApplicationServices(
   access: AgentDataAccess,
   requestPrivacyReview?: (request: PrivacyReviewRequest) => Promise<boolean>,
 ) {
-  return createAgentApplicationServices(data, access, {
+  return withLiveAgentReads(createAgentApplicationServices(data, access, {
+    ...createRitualServices(),
     createTodo: (title, dueDate) => {
       const date = dueDate ?? today()
       if (!isoDate.test(date)) throw new Error('待办日期必须使用 YYYY-MM-DD')
@@ -220,12 +227,32 @@ export function createLiveCompanionApplicationServices(
       if (!saved) throw new Error('这条记忆无法保存；加密作品内容不会写入普通记忆')
       return { saved: true }
     },
+    saveExperience: ({ id, title, category, creator, dateText, note, tier }) => {
+      if (!experienceCategories.includes(category as ExperienceCategory) || (tier && !tierIds.includes(tier as ExperienceTier))) throw new Error('经历类别或档位无效')
+      const normalizedTitle = title.trim()
+      if (!normalizedTitle) throw new Error('经历名称不能为空')
+      const current = useLibraryStore.getState()
+      const previous = id ? current.data.experiences?.entries.find((item) => item.id === id && !item.deletedAt) : undefined
+      if (id && !previous) throw new Error('找不到这条经历')
+      const savedId = current.saveExperience({
+        category: category as ExperienceCategory,
+        title: normalizedTitle, creator: creator?.trim() ?? previous?.creator ?? '', dateText: dateText?.trim() ?? previous?.dateText ?? '',
+        note: note?.trim() ?? previous?.note ?? '', tier: tier as ExperienceTier | undefined ?? previous?.tier,
+        paperStyle: previous?.paperStyle ?? 'linen', coverAssetId: previous?.coverAssetId, source: previous?.source,
+      }, id)
+      return { saved: true, id: savedId }
+    },
     createTask: (task) => {
       useLibraryStore.getState().addAgentTask(task)
       return { taskId: task.id, title: task.title, status: task.status, stepCount: task.steps.length }
     },
     openDestination: (input) => {
-      useLibraryStore.getState().openAgentDestination({
+      const current = useLibraryStore.getState()
+      const view = viewForAgentDestination(input.destination)
+      if (!view) throw new Error('这个页面目标没有接入')
+      const module = current.data.settings.modules.find((item) => item.id === view)
+      if (module && (!module.enabled || !module.available)) throw new Error('这个功能已关闭，请先在“功能与导航”中开启')
+      current.openAgentDestination({
         destination: input.destination,
         date: input.date,
         range: input.range === 'week' || input.range === 'month' ? input.range : undefined,
@@ -237,10 +264,14 @@ export function createLiveCompanionApplicationServices(
     },
     controlMusic: (action) => {
       const current = useLibraryStore.getState()
+      const track = current.data.tracks.find((item) => item.id === current.data.session.currentTrackId && !item.deletedAt)
+      if (!track) throw new Error('尚未选择一隅本地歌曲；此工具不控制 QQ 系统伴听，请先在本地曲库选曲')
+      if ((action === 'next' || action === 'previous') && !current.playback.queue.length) throw new Error('本地播放队列为空，未切换歌曲')
       if (action === 'next') current.nextTrack()
       else if (action === 'previous') current.previousTrack()
-      else current.togglePlayback()
-      return { action }
+      else if (action === 'play_pause' || (action === 'play' && !current.playback.playing) || (action === 'pause' && current.playback.playing)) current.togglePlayback()
+      const updated = useLibraryStore.getState()
+      return { action, playing: updated.playback.playing, trackId: updated.data.session.currentTrackId, player: 'yiyu-local' }
     },
     computer: createComputerService(data.companion.computer),
     searchWeb: async (query) => searchWeb(await protectOutboundText(query, {
@@ -249,7 +280,7 @@ export function createLiveCompanionApplicationServices(
       purpose: '联网查询',
       requestReview: requestPrivacyReview,
     }), data.settings.webSearch),
-  })
+  }))
 }
 
 export async function sendCompanionTurn(message: string, options: CompanionTurnOptions = {}) {
@@ -258,18 +289,23 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
   const store = useLibraryStore.getState()
   const { data, temporaryCompanionWorkIds } = store
   const access = buildAgentAccess(data, temporaryCompanionWorkIds)
-  assertExternalAiAllowed(data.companion.provider.providerId, data.settings.trust, 'companion')
+  const registry = createCompanionToolRegistry(options.onVisualState)
+  const localAction = resolveDirectAction(clean, registry.definitions(), data.companion.name)
+  if (!localAction || !localRitualTools.has(localAction.name)) assertExternalAiAllowed(data.companion.provider.providerId, data.settings.trust, 'companion')
   const context = applyContextPrivacy(buildAgentContext(data, access), data.settings.trust)
   const services = createLiveCompanionApplicationServices(data, access, options.requestPrivacyReview)
-  const registry = createCompanionToolRegistry(options.onVisualState)
-  const permissions = new AgentPermissionEngine({
-    policy: { autoAllow: ['read', 'presentation'] },
-    resourcePermissions: data.companion.permissions,
-    computer: data.companion.computer,
-    access,
+  const permissions = new AgentPermissionEngine(() => {
+    const live = useLibraryStore.getState()
+    return {
+      policy: { autoAllow: ['read', 'presentation'] },
+      resourcePermissions: live.data.companion.permissions,
+      computer: live.data.companion.computer,
+      access: buildAgentAccess(live.data, live.temporaryCompanionWorkIds),
+      modules: live.data.settings.modules,
+    }
   })
   const contextSummary = [context.activeWork?.title, context.activeChapter?.title].filter(Boolean).join('、') || '未授权作品或章节'
-  const history = applyHistoryPrivacy(data.companion.messages.slice(-8).map((item) => ({
+  const history = applyHistoryPrivacy(data.companion.messages.filter((item) => !item.localOnly).slice(-8).map((item) => ({
     role: item.role === 'companion' ? 'assistant' as const : 'user' as const,
     content: item.content,
   })), data.settings.trust)
@@ -289,7 +325,7 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
     }
     options.onStatus?.(status)
   }
-  if (data.settings.trust.retainConversationHistory) store.addCompanionMessage({ id: `message-${crypto.randomUUID()}`, role: 'user', content: clean, createdAt: new Date().toISOString(), contextSummary })
+  if (data.settings.trust.retainConversationHistory) store.addCompanionMessage({ id: `message-${crypto.randomUUID()}`, role: 'user', content: clean, createdAt: new Date().toISOString(), contextSummary, localOnly: Boolean(localAction && localRitualTools.has(localAction.name)) })
   try {
     const result = await runAgent({
       message: clean,
@@ -322,7 +358,7 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
       voiceReplyLength: options.voiceReplyLength,
       signal: options.signal,
     })
-    if (data.settings.trust.retainConversationHistory) useLibraryStore.getState().addCompanionMessage({ id: `message-${crypto.randomUUID()}`, role: 'companion', content: result.text, createdAt: new Date().toISOString(), contextSummary })
+    if (data.settings.trust.retainConversationHistory) useLibraryStore.getState().addCompanionMessage({ id: `message-${crypto.randomUUID()}`, role: 'companion', content: result.text, createdAt: new Date().toISOString(), contextSummary, localOnly: result.audit.some((entry) => localRitualTools.has(entry.toolName)) })
     return result.text
   } finally {
     globalThis.clearTimeout(thinkingTimer)

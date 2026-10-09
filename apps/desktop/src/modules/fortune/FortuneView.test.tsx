@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createSeedLibrary } from '../../domain/seed'
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { FortuneView } from './FortuneView'
+import { createRitualServices } from '../companion/ritualServices'
 vi.mock('../../state/persistence', () => ({ commitLibraryData: (data: unknown, set: (value: unknown) => void) => set({ data }), queueLibrarySave: vi.fn() }))
 describe('fortune ritual', () => {
   beforeEach(() => {
@@ -12,6 +13,16 @@ describe('fortune ritual', () => {
     vi.stubGlobal('matchMedia', () => ({ matches: false }))
   })
   afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
+  it('shows the same paper selected by a companion draw, including a draw while already mounted', () => {
+    const { unmount } = render(<FortuneView />)
+    act(() => { createRitualServices().drawFortune!('love', false) })
+    expect(screen.getByRole('article', { name: '恋爱签文' })).toBeInTheDocument()
+    const saved = useLibraryStore.getState().data.fortune?.love
+    unmount()
+    render(<FortuneView />)
+    expect(screen.getByRole('article', { name: '恋爱签文' })).toBeInTheDocument()
+    expect(useLibraryStore.getState().data.fortune?.love).toBe(saved)
+  })
   it('locks the draw during animation and restores the same paper after reopening', () => {
     const { unmount } = render(<FortuneView />)
     fireEvent.click(screen.getByRole('button', { name: '求今日签' }))

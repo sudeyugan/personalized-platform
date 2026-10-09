@@ -8,6 +8,7 @@ export interface AgentAccessSnapshot extends AgentDataAccess {
 }
 
 export function buildAgentAccess(data: LibraryData, temporaryWorkIds: string[]): AgentAccessSnapshot {
+  const full = data.companion.permissions.fullAccess
   const grantedWorks = new Set(data.companion.permissions.workIds)
   const grantedChapters = new Set(data.companion.permissions.chapterIds)
   const workIds = new Set<string>()
@@ -15,25 +16,27 @@ export function buildAgentAccess(data: LibraryData, temporaryWorkIds: string[]):
 
   data.works.forEach((work) => {
     const encryptedAllowed = !work.encrypted || (!work.locked && temporaryWorkIds.includes(work.id))
-    if (!work.deletedAt && encryptedAllowed && (grantedWorks.has(work.id) || work.chapterIds.some((id) => grantedChapters.has(id)))) workIds.add(work.id)
+    if (!work.deletedAt && encryptedAllowed && (full || grantedWorks.has(work.id) || work.chapterIds.some((id) => grantedChapters.has(id)))) workIds.add(work.id)
   })
   Object.values(data.chapters).forEach((chapter) => {
-    if (!chapter.deletedAt && workIds.has(chapter.workId) && (grantedWorks.has(chapter.workId) || grantedChapters.has(chapter.id))) chapterIds.add(chapter.id)
+    if (!chapter.deletedAt && workIds.has(chapter.workId) && (full || grantedWorks.has(chapter.workId) || grantedChapters.has(chapter.id))) chapterIds.add(chapter.id)
   })
   return {
     workIds,
     chapterIds,
-    records: data.companion.permissions.records,
-    todos: data.companion.permissions.todos,
-    calendar: data.companion.permissions.calendar,
-    courses: data.companion.permissions.courses,
-    dailyQuestions: data.companion.permissions.dailyQuestions,
-    diary: data.companion.permissions.diary,
-    mood: data.companion.permissions.mood,
-    memories: data.companion.permissions.memories,
-    answerBook: data.companion.permissions.answerBook,
-    music: data.companion.permissions.musicContext,
-    internet: data.companion.permissions.internet,
+    records: full || data.companion.permissions.records,
+    todos: full || data.companion.permissions.todos,
+    calendar: full || data.companion.permissions.calendar,
+    courses: full || data.companion.permissions.courses,
+    dailyQuestions: full || data.companion.permissions.dailyQuestions,
+    diary: full || data.companion.permissions.diary,
+    mood: full || data.companion.permissions.mood,
+    memories: full || data.companion.permissions.memories,
+    answerBook: full || data.companion.permissions.answerBook,
+    experiences: full || data.companion.permissions.experiences,
+    assets: full || data.companion.permissions.assets,
+    music: full || data.companion.permissions.musicContext,
+    internet: full || data.companion.permissions.internet,
     activeWorkAllowed: workIds.has(data.session.activeWorkId),
   }
 }

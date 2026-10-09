@@ -11,20 +11,21 @@ const clamp = (value: number) => Math.max(0, Math.min(100, Math.round(value)))
 
 export function buildCompanionContext(data: LibraryData, temporaryWorkIds: string[]) {
   const permission = data.companion.permissions
+  const full = permission.fullAccess
   const chapter = data.chapters[data.session.activeChapterId]
   const work = data.works.find((item) => item.id === chapter?.workId)
-  const workAllowed = Boolean(work && permission.workIds.includes(work.id))
-  const chapterAllowed = Boolean(chapter && permission.chapterIds.includes(chapter.id))
+  const workAllowed = Boolean(work && (full || permission.workIds.includes(work.id)))
+  const chapterAllowed = Boolean(chapter && (full || permission.chapterIds.includes(chapter.id)))
   const encryptedAllowed = !work?.encrypted || (!work.locked && temporaryWorkIds.includes(work.id))
   const parts: string[] = []
   if (chapter && encryptedAllowed && (workAllowed || chapterAllowed)) parts.push(`章节片段：${chapter.plainText.slice(0, 1200)}`)
-  if (permission.records) parts.push(`资料概览：人物 ${data.people.filter((item) => !item.deletedAt).length}，地点 ${data.places.filter((item) => !item.deletedAt).length}，事件 ${data.events.filter((item) => !item.deletedAt).length}`)
-  if (permission.musicContext) { const track = data.tracks.find((item) => item.id === data.session.currentTrackId); if (track) parts.push(`正在播放：${track.title} / ${track.artist}`) }
+  if (full || permission.records) parts.push(`资料概览：人物 ${data.people.filter((item) => !item.deletedAt).length}，地点 ${data.places.filter((item) => !item.deletedAt).length}，事件 ${data.events.filter((item) => !item.deletedAt).length}`)
+  if (full || permission.musicContext) { const track = data.tracks.find((item) => item.id === data.session.currentTrackId); if (track) parts.push(`正在播放：${track.title} / ${track.artist}`) }
   const memories = data.companion.memories.filter((memory) => {
     if (!memory.authorized) return false
     if (!memory.sourceWorkId) return true
     const sourceWork = data.works.find((item) => item.id === memory.sourceWorkId)
-    const hasScope = permission.workIds.includes(memory.sourceWorkId) || permission.chapterIds.some((id) => data.chapters[id]?.workId === memory.sourceWorkId)
+    const hasScope = full || permission.workIds.includes(memory.sourceWorkId) || permission.chapterIds.some((id) => data.chapters[id]?.workId === memory.sourceWorkId)
     return hasScope && (!sourceWork?.encrypted || temporaryWorkIds.includes(memory.sourceWorkId))
   })
   if (memories.length) parts.push(`已授权记忆：${memories.slice(-8).map((memory) => memory.content).join('；')}`)

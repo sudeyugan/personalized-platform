@@ -17,7 +17,10 @@
 .experience-cover-advanced { margin-bottom: 15px; }
 .experience-editor-page .cover-search-controls { grid-template-columns: 1fr; margin-block: 8px; }
 .experience-editor-page .cover-candidate-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.experience-editor-page .experience-editor-footer { position: sticky; bottom: 0; padding: 18px 0 8px; margin-top: 24px; background: var(--surface); border-top: 1px solid var(--line); z-index: 1; }
+.experience-editor-page .experience-editor-footer { padding: 18px 0 8px; margin-top: 24px; background: transparent; border-top: 1px solid var(--line); }
+.experience-editor-footer { flex-wrap: wrap; }
+.experience-editor-footer .experience-delete-button { margin-right: auto; }
+.experience-trash > div > div { display: flex; flex-wrap: wrap; gap: 8px; }
 .experience-editor-page input[type=checkbox] { width: auto; }
 .experience-editor-page .catalog-search label { display: flex; align-items: center; }
 @media (max-width: 700px) {

@@ -27,7 +27,7 @@ export function CoverSourceSettings() {
   return <details className="experience-source-settings"><summary>封面来源设置 · 可选</summary>
     <p>只在主动找封面时发送名称和类别，不发送感想、排行或日期。不使用AI，不读取微信书架或笔记。密钥留在此电脑，迁移时需重新配置。</p>
     <SourceKey provider="weread" /><SourceKey provider="tmdb" />
-    <p>动漫、漫画、游戏用Bangumi；书籍可用Open Library。中文网文优先微信读书，覆盖不保证。链接识别目前支持番茄公开作品页和Bangumi，遇到登录/验证就停止。</p>
+    <p>中文网文沿用「联网搜索」中选择的腾讯/博查/Bing及后备设置，主动查询会使用已有搜索密钥与额度；只查起点、番茄和晋江官方作品信息，无需平台账号。也可选择微信读书。动漫、漫画、游戏用Bangumi，书籍可用Open Library。遇到登录或验证就停止，不读取书架、Cookie或正文。</p>
     <p>封面用于个人记录，保留来源、不做全库抓取；导出或对外分享前请确认图片使用权限。</p>
     <div className="experience-source-credits"><a href="https://bgm.tv/" target="_blank" rel="noreferrer">Bangumi</a><a href="https://openlibrary.org/" target="_blank" rel="noreferrer">Open Library</a>
       <a className="tmdb-credit" href="https://www.themoviedb.org/" target="_blank" rel="noreferrer"><img src="/tmdb-attribution.svg" alt="The Movie Database" />TMDB</a></div>

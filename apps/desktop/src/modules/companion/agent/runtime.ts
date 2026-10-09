@@ -3,6 +3,7 @@ import type { AgentApplicationServices } from './applicationServices'
 import { AgentPermissionEngine, permissionDeniedResult } from './permission'
 import { AgentToolRegistry } from './toolRegistry'
 import { detectActionIntent } from './directActions'
+import { localRitualReply, localRitualTools } from './ritualTools'
 import type { AgentAuditRecord, AgentContextSnapshot, AgentErrorCode, AgentMessage, AgentModelProvider, AgentPermissionRequest, AgentRuntimeStatus, AgentSession, AgentToolCall, AgentToolResult } from './types'
 
 export const DEFAULT_MAX_TOOL_STEPS = 8
@@ -85,6 +86,7 @@ export async function runAgent(input: RunAgentInput) {
   ]
   let toolSteps = 0
   const toolDefinitions = input.registry.definitions()
+  messages.push({ role: 'system', content: `本轮权限状态：${JSON.stringify(input.permissions.summary())}。完整程序权限仅授权已登记的程序内 Tool，不是全部 UI 或电脑的万能权限。必须区分“未接入动作”“用户关闭授权”“需要执行确认”“模块已关闭”和“执行失败”；没有 PermissionDenied 结果不得声称无权限。app.capabilities 可核对各模块的查询与写入。fortune.draw、truth.draw、answer_book.draw 是本地真实抽取，用户要求时调用对应 Tool；不自行生成签文，也不把 app.open 当作抽取完成。` })
   const actionIntent = detectActionIntent(input.message, toolDefinitions, input.context.companion.name)
   const taskPlanRequired = Boolean(actionIntent.requiresTaskPlan)
   const modelToolDefinitions = taskPlanRequired
@@ -161,15 +163,17 @@ export async function runAgent(input: RunAgentInput) {
     session.events.push({ type: 'tool_call', call, timestamp: new Date().toISOString() })
     input.onStatus?.({ phase: 'using_tool', toolName: call.name })
     const tool = input.registry.lookup(call.name)
-    const decision = tool ? input.permissions.check(tool.definition, call.arguments) : { allowed: true, reason: '工具不存在，由 Registry 返回错误' }
+    let decision = tool ? input.permissions.check(tool.definition, call.arguments) : { allowed: true, reason: '工具不存在，由 Registry 返回错误' }
     let confirmed = false
+    const neededConfirmation = Boolean(decision.requiresConfirmation)
     if (tool && decision.requiresConfirmation && input.requestPermission) {
       input.onStatus?.({ phase: 'waiting_permission', toolName: call.name })
       confirmed = await withCancellation(input.requestPermission({ call, tool: tool.definition }), input.signal)
     }
     throwIfCancelled(input.signal)
-    const permitted = decision.allowed || confirmed
-    const denialReason = decision.requiresConfirmation
+    if (tool) decision = input.permissions.check(tool.definition, call.arguments)
+    const permitted = (!neededConfirmation || confirmed) && (decision.allowed || (confirmed && Boolean(decision.requiresConfirmation)))
+    const denialReason = (neededConfirmation && !confirmed) || decision.requiresConfirmation
       ? input.requestPermission ? '用户取消了这次写入操作' : '当前界面无法显示写入确认'
       : decision.reason
     const result = permitted ? await withCancellation(input.registry.execute(call, input.services, { confirmed }), input.signal) : permissionDeniedResult(denialReason)
@@ -192,6 +196,14 @@ export async function runAgent(input: RunAgentInput) {
     audit.push(auditRecord)
     input.onAudit?.(auditRecord)
     session.events.push({ type: 'tool_result', callId: call.id, name: call.name, result, timestamp: new Date().toISOString() })
+    // These rituals have local literary results, not AI interpretations. Do not
+    // send a drawn result to the provider or ask it to claim execution again.
+    if (localRitualTools.has(call.name)) {
+      const text = localRitualReply(result)
+      input.onStatus?.({ phase: 'responding' })
+      session.events.push({ type: 'assistant', content: text, timestamp: new Date().toISOString() })
+      return { text, session, audit }
+    }
     messages.push({ role: 'assistant', content: '', toolCallId: call.id, toolName: call.name, toolCall: call }, toolResultMessage(call, result))
     if (taskPlanRequired && call.name === 'task.create' && result.success) {
       const task = result.data && typeof result.data === 'object' && !Array.isArray(result.data)

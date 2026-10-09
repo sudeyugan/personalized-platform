@@ -130,6 +130,8 @@ export interface MusicContexts {
   focus: string[]
 }
 export interface CompanionPermission {
+  /** Grants the companion access to every in-app module; encrypted works still require an unlocked session. */
+  fullAccess: boolean
   workIds: string[]
   chapterIds: string[]
   records: boolean
@@ -143,6 +145,8 @@ export interface CompanionPermission {
   mood: boolean
   memories: boolean
   answerBook: boolean
+  experiences: boolean
+  assets: boolean
   musicContext: boolean
   internet: boolean
   writeActions: boolean
@@ -168,7 +172,7 @@ export interface CompanionComputerSettings {
   reminderLeadMinutes: number
   grants: ComputerGrant[]
 }
-export interface CompanionMessage { id: string; role: 'user' | 'companion'; content: string; createdAt: string; contextSummary?: string }
+export interface CompanionMessage { id: string; role: 'user' | 'companion'; content: string; createdAt: string; contextSummary?: string; localOnly?: boolean }
 export interface CompanionMemory { id: string; content: string; source: 'manual' | 'conversation'; sourceLabel: string; createdAt: string; updatedAt: string; confidence: number; authorized: boolean; sourceWorkId?: string }
 export interface CompanionPersonality { warmth: number; curiosity: number; initiative: number }
 export interface CompanionGrowthLog { id: string; before: CompanionPersonality; after: CompanionPersonality; reason: string; createdAt: string }

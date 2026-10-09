@@ -25,8 +25,19 @@ describe('explicit cover requests', () => {
     await expect(experienceCovers.storeKey('weread', 'line\ninjection')).rejects.toThrow('密钥格式不正确')
     expect(invoke).toHaveBeenCalledTimes(1)
   })
+  it('forwards the configured search provider and fallback only to web-novel lookup', async () => {
+    Object.assign(window, { __TAURI_INTERNALS__: {} })
+    vi.mocked(invoke).mockResolvedValue([])
+    const catalogSearch = { providerId: 'tencent' as const, fallbackToBing: false }
+    await experienceCovers.search('webnovel', 'novel', '我加载了恋爱游戏', '', catalogSearch)
+    expect(invoke).toHaveBeenCalledWith('experience_cover_search', { provider: 'webnovel', category: 'novel', query: '我加载了恋爱游戏', creator: '', catalogSearch })
+    await experienceCovers.search('bangumi', 'anime', '作品', '', catalogSearch)
+    expect(vi.mocked(invoke).mock.calls[1][1]).not.toHaveProperty('catalogSearch')
+    await experienceCovers.resolveLink('https://book.qidian.com/info/123/', catalogSearch)
+    expect(invoke).toHaveBeenLastCalledWith('experience_cover_link', { url: 'https://book.qidian.com/info/123/', catalogSearch })
+  })
   it('selects appropriate default sources without querying them', () => {
-    expect(suggestedProvider('novel')).toBe('weread')
+    expect(suggestedProvider('novel')).toBe('webnovel')
     expect(suggestedProvider('anime')).toBe('bangumi')
     expect(suggestedProvider('film')).toBe('tmdb')
     expect(suggestedProvider('book')).toBe('openlibrary')

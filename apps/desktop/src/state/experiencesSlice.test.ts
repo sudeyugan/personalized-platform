@@ -32,6 +32,23 @@ describe('experiences store', () => {
     expect(useLibraryStore.getState().data.session.activeView).toBe('home')
     expect(useLibraryStore.getState().data.experiences?.entries).toHaveLength(1)
   })
+  it('purges only deleted cards, leaves unrelated cards and shared asset references untouched', async () => {
+    const store = useLibraryStore.getState()
+    const id = store.saveExperience(draft)
+    const other = store.saveExperience({ ...draft, title: '另一部作品' })
+    const assets = useLibraryStore.getState().data.assets
+    store.permanentlyDeleteExperience(id)
+    expect(useLibraryStore.getState().data.experiences?.entries).toHaveLength(2)
+    store.trashExperience(id)
+    store.permanentlyDeleteExperience(id)
+    store.restoreExperience(id)
+    expect(useLibraryStore.getState().data.experiences?.entries.map(item => item.id)).toEqual([other])
+    expect(referencedAssetIds(useLibraryStore.getState().data).has('asset-123')).toBe(true)
+    expect(useLibraryStore.getState().data.assets).toEqual(assets)
+    const repository = new AppLibraryRepository()
+    await repository.save(useLibraryStore.getState().data)
+    expect(normalizeLibrary((await repository.load())!).experiences?.entries.map(item => item.id)).toEqual([other])
+  })
   it('round trips collection data through the actual preview repository', async () => {
     useLibraryStore.getState().saveExperience(draft)
     const repository = new AppLibraryRepository()

@@ -1,4 +1,5 @@
 import type { AgentTask, LibraryData } from '../../../domain/models'
+import type { AgentRitualServices } from './ritualTools'
 
 export interface AgentDataAccess {
   workIds: Set<string>
@@ -12,11 +13,14 @@ export interface AgentDataAccess {
   mood: boolean
   memories: boolean
   answerBook: boolean
+  experiences: boolean
+  assets: boolean
   music: boolean
   internet: boolean
 }
 
-export interface AgentApplicationServices {
+export interface AgentApplicationServices extends AgentRitualServices {
+  getModuleStatus?(view: string): { enabled: boolean; available: boolean }
   getCurrentWork(): unknown | undefined
   searchChapters(query: string): unknown[]
   getChapter(id: string): unknown | undefined
@@ -34,6 +38,8 @@ export interface AgentApplicationServices {
   listDailyQuestions(from?: string, to?: string): unknown[]
   searchMemories(query?: string): unknown[]
   listAnswerBookFavorites(query?: string): unknown[]
+  listExperiences(query?: string, category?: string): unknown[]
+  getExperience(id: string): unknown | undefined
   listAssets(query?: string): unknown[]
   getCurrentMusic(): unknown
   searchWeb?(query: string): Promise<unknown[]>
@@ -56,13 +62,14 @@ export interface AgentApplicationServices {
   createCourse?(input: { title: string; day: number; period: number; teacher?: string; location?: string; weeks?: string; note?: string }): unknown
   updateCourse?(input: { id: string; title?: string; day?: number; period?: number; teacher?: string; location?: string; weeks?: string; note?: string }): unknown
   saveMemory?(content: string): unknown
+  saveExperience?(input: { id?: string; title: string; category: string; creator?: string; dateText?: string; note?: string; tier?: string }): unknown
   createTask?(task: AgentTask): unknown
   openDestination?(input: { destination: string; date?: string; range?: string; targetId?: string; filter?: string; section?: string }): unknown
   controlMusic?(action: string): unknown
   computer?: { execute(request: { action: string; params?: Record<string, unknown> }, confirmed: boolean): Promise<unknown> }
 }
 
-export type AgentWriteServices = Pick<AgentApplicationServices, 'createTodo' | 'updateTodo' | 'setTodoCompleted' | 'setTodoHoliday' | 'createCalendarEvent' | 'updateCalendarEvent' | 'appendDiary' | 'writeDiary' | 'saveMood' | 'createWork' | 'renameCurrentWork' | 'createChapter' | 'renameChapter' | 'appendChapter' | 'createRecord' | 'updateRecord' | 'createCourse' | 'updateCourse' | 'saveMemory' | 'createTask' | 'openDestination' | 'controlMusic' | 'searchWeb' | 'computer'>
+export type AgentWriteServices = Pick<AgentApplicationServices, 'createTodo' | 'updateTodo' | 'setTodoCompleted' | 'setTodoHoliday' | 'createCalendarEvent' | 'updateCalendarEvent' | 'appendDiary' | 'writeDiary' | 'saveMood' | 'createWork' | 'renameCurrentWork' | 'createChapter' | 'renameChapter' | 'appendChapter' | 'createRecord' | 'updateRecord' | 'createCourse' | 'updateCourse' | 'saveMemory' | 'saveExperience' | 'createTask' | 'openDestination' | 'controlMusic' | 'searchWeb' | 'computer'>
 
 function excerpt(text: string, query: string) {
   const index = text.toLocaleLowerCase().indexOf(query.toLocaleLowerCase())
@@ -70,12 +77,16 @@ function excerpt(text: string, query: string) {
   return text.slice(start, start + 180)
 }
 
-export function createAgentApplicationServices(data: LibraryData, access: AgentDataAccess, writes: AgentWriteServices = {}): AgentApplicationServices {
+export function createAgentApplicationServices(data: LibraryData, access: AgentDataAccess, writes: AgentWriteServices & AgentRitualServices = {}): AgentApplicationServices {
   const availableChapters = () => Object.values(data.chapters).filter((chapter) =>
     !chapter.deletedAt && access.chapterIds.has(chapter.id) && access.workIds.has(chapter.workId))
 
   return {
     ...writes,
+    getModuleStatus(view) {
+      const module = data.settings.modules.find((item) => item.id === view)
+      return { enabled: module?.enabled ?? true, available: module?.available ?? true }
+    },
     getCurrentWork() {
       const work = data.works.find((item) => item.id === data.session.activeWorkId && !item.deletedAt && access.workIds.has(item.id))
       if (!work) return undefined
@@ -190,8 +201,18 @@ export function createAgentApplicationServices(data: LibraryData, access: AgentD
       const needle = query?.trim().toLocaleLowerCase()
       return data.answerBook.favorites.filter((item) => !needle || `${item.question}\n${item.answer}`.toLocaleLowerCase().includes(needle)).slice(-50)
     },
+    listExperiences(query, category) {
+      if (!access.experiences) return []
+      const needle = query?.trim().toLocaleLowerCase()
+      return (data.experiences?.entries ?? []).filter((item) => !item.deletedAt && (!category || item.category === category) && (!needle || `${item.title}\n${item.creator}\n${item.note}`.toLocaleLowerCase().includes(needle))).slice(0, 100).map(({ id, title, category: type, creator, dateText, note, tier, updatedAt }) => ({ id, title, category: type, creator, dateText, note: note.slice(0, 1000), tier, updatedAt }))
+    },
+    getExperience(id) {
+      if (!access.experiences) return undefined
+      const item = data.experiences?.entries.find((entry) => entry.id === id && !entry.deletedAt)
+      return item ? { ...item, note: item.note.slice(0, 6000) } : undefined
+    },
     listAssets(query) {
-      if (!access.records) return []
+      if (!access.assets) return []
       const needle = query?.trim().toLocaleLowerCase()
       return data.assets.filter((item) => !item.deletedAt && (!needle || `${item.fileName}\n${item.alt}\n${item.caption}`.toLocaleLowerCase().includes(needle))).slice(0, 50).map(({ id, fileName, mimeType, alt, caption, createdAt }) => ({ id, fileName, mimeType, alt, caption, createdAt }))
     },

@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { ExperienceCategory, CoverProvider } from '../../domain/experiences'
 import { experienceCovers, type CoverCandidate } from '../../infrastructure/experienceCovers'
 import { lookupCovers, lookupCoverImage } from './coverLookup'
-import type { CoverHints } from './coverMatching'
+import { rankCoverResults, type CoverHints } from './coverMatching'
+import { useLibraryStore } from '../../state/useLibraryStore'
 
 export interface CoverResult { candidate: CoverCandidate; file?: File; imagePending: boolean; imageError?: string }
 export function useCoverResults() {
@@ -11,7 +12,7 @@ export function useCoverResults() {
   const [message, setMessage] = useState('')
   const generation = useRef(0)
   useEffect(() => () => { generation.current++ }, [])
-  const run = async (request: () => Promise<CoverCandidate[]>) => {
+  const run = async (request: () => Promise<CoverCandidate[]>, hints?: CoverHints) => {
     const current = ++generation.current
     setLoading(true); setMessage('正在向所选来源查找…'); setResults([])
     try {
@@ -32,13 +33,20 @@ export function useCoverResults() {
         }
       }
       await Promise.all([worker(), worker()])
+      // Keep worker positions stable while downloading; rank actual images only when all settle.
+      if (hints && current === generation.current) setResults(previous => rankCoverResults(previous, hints))
     } catch (error) {
       if (current === generation.current) setMessage(error instanceof Error ? error.message : String(error))
     } finally { if (current === generation.current) setLoading(false) }
   }
   return { results, loading, message,
-    search: (provider: CoverProvider | 'auto', category: ExperienceCategory, hints: CoverHints) => run(() => lookupCovers(provider, category, hints)),
-    resolve: (url: string) => run(async () => [await experienceCovers.resolveLink(url)]),
+    search: (provider: CoverProvider | 'auto', category: ExperienceCategory, hints: CoverHints) => run(() => lookupCovers(provider, category, hints), hints),
+    resolve: (url: string) => run(async () => {
+      const config = useLibraryStore.getState().data.settings.webSearch
+      const candidate = await experienceCovers.resolveLink(url, config)
+      if (config !== useLibraryStore.getState().data.settings.webSearch) throw new Error('搜索服务配置已变化，请重新识别')
+      return [candidate]
+    }),
     clear: () => { generation.current++; setResults([]); setLoading(false); setMessage('') },
   }
 }

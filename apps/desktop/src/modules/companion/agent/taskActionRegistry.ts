@@ -3,11 +3,12 @@ import type { AgentApplicationServices } from './applicationServices'
 import { AgentPermissionEngine } from './permission'
 import { AgentToolRegistry } from './toolRegistry'
 import type { AgentToolDefinition } from './types'
+import { localRitualTools } from './ritualTools'
 
 const reservedTools = new Set(['task.create', 'companion.set_state', 'screen.record_start', 'screen.record_stop'])
 
 export function isTaskToolEligible(tool: AgentToolDefinition) {
-  return !reservedTools.has(tool.name)
+  return !reservedTools.has(tool.name) && !localRitualTools.has(tool.name)
 }
 
 export class TaskActionConfirmationRequired extends Error {
@@ -151,4 +152,3 @@ export class TaskActionRegistry {
     return compactResult(result.data)
   }
 }
-

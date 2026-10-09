@@ -1,5 +1,6 @@
 import { DEFAULT_COMPANION_NAME, stripCompanionAddress } from '../../../domain/companionIdentity'
 import type { AgentToolCall, AgentToolDefinition } from './types'
+import { resolveRitualAction } from './ritualIntent'
 
 export interface AgentActionIntent {
   expectsTool: boolean
@@ -43,6 +44,9 @@ const pageRoutes: Array<{ pattern: RegExp; destination: string; extras?: Record<
   { pattern: /^(?:打开|进入|跳转到|切换到).*(?:人物)/, destination: 'record.person' },
   { pattern: /^(?:打开|进入|跳转到|切换到).*(?:地点)/, destination: 'record.place' },
   { pattern: /^(?:打开|进入|跳转到|切换到).*(?:时间线)/, destination: 'record.timeline' },
+  { pattern: /^(?:打开|进入|跳转到|切换到).*(?:经历册)/, destination: 'experiences' },
+  { pattern: /^(?:打开|进入|跳转到|切换到).*(?:抽签|每日一签)/, destination: 'fortune' },
+  { pattern: /^(?:打开|进入|跳转到|切换到).*(?:真心话)/, destination: 'truth' },
   { pattern: /^(?:打开|进入|跳转到|切换到).*(?:素材库)/, destination: 'assets' },
   { pattern: /^(?:打开|进入|跳转到|切换到).*(?:答案之书)/, destination: 'answer_book' },
   { pattern: /^(?:打开|进入|跳转到|切换到).*(?:音乐)/, destination: 'music' },
@@ -58,7 +62,8 @@ function resolveKnownAction(message: string, tools: AgentToolDefinition[]) {
     if (page) return call('app.open', { destination: page.destination, ...page.extras })
   }
   if (hasTool(tools, 'music.control')) {
-    if (/^(?:请|帮我|给我)?[，,\s]*(?:播放|暂停)(?:一下)?音乐/.test(command)) return call('music.control', { action: 'play_pause' })
+    if (/^(?:请|帮我|给我)?[，,\s]*播放(?:一下)?音乐/.test(command)) return call('music.control', { action: 'play' })
+    if (/^(?:请|帮我|给我)?[，,\s]*暂停(?:一下)?音乐/.test(command)) return call('music.control', { action: 'pause' })
     if (/^(?:请|帮我|给我)?[，,\s]*(?:切到|播放)?上一首/.test(command)) return call('music.control', { action: 'previous' })
     if (/^(?:请|帮我|给我)?[，,\s]*(?:切到|播放)?下一首/.test(command)) return call('music.control', { action: 'next' })
   }
@@ -72,7 +77,7 @@ function resolveKnownAction(message: string, tools: AgentToolDefinition[]) {
 export function detectActionIntent(message: string, tools: AgentToolDefinition[], name = DEFAULT_COMPANION_NAME): AgentActionIntent {
   const normalized = stripCompanionAddress(message, name)
   if (!normalized || discussionPrefix.test(normalized)) return { expectsTool: false }
-  const directCall = resolveWebOpen(normalized, tools) ?? resolveKnownAction(normalized, tools)
+  const directCall = resolveRitualAction(normalized, tools) ?? resolveWebOpen(normalized, tools) ?? resolveKnownAction(normalized, tools)
   const requiresTaskPlan = hasTool(tools, 'task.create') && narratedRecording.test(normalized)
   return { expectsTool: requiresTaskPlan || Boolean(directCall) || actionVerb.test(normalized), directCall, ...(requiresTaskPlan ? { requiresTaskPlan: true } : {}) }
 }

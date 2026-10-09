@@ -1,4 +1,4 @@
-import { BookHeart, LayoutGrid, ListOrdered, MapPin, Plus, Search, Trash2 } from 'lucide-react'
+import { BookHeart, LayoutGrid, ListOrdered, MapPin, Plus, Search } from 'lucide-react'
 import { useState } from 'react'
 import { categoryLabels, emptyExperiences, experienceGroup, type ExperienceCategory } from '../../domain/experiences'
 import { useLibraryStore } from '../../state/useLibraryStore'
@@ -10,7 +10,7 @@ import './experiences.css'
 import './experienceEditor.css'
 
 export function ExperiencesView() {
-  const { data, rankExperience, setExperienceTierLabel, trashExperience, restoreExperience } = useLibraryStore()
+  const { data, rankExperience, setExperienceTierLabel, permanentlyDeleteExperience, restoreExperience } = useLibraryStore()
   const experiences = data.experiences ?? emptyExperiences()
   const [group, setGroup] = useState<'works' | 'places'>('works')
   const [view, setView] = useState<'cards' | 'tiers'>('cards')
@@ -29,8 +29,6 @@ export function ExperiencesView() {
   const visible = entries
   if (editing) return <main className="experiences-view scroll-view">
     <ExperienceEditor key={editing.id ?? 'new'} entry={selected} place={group === 'places'} labels={experiences.tierLabels} onClose={closeEditor} />
-    {selected && <button type="button" className="experience-trash-trigger" onClick={() => setDeleting(selected.id)}><Trash2 size={14} />收起这张卡片</button>}
-    {pending && <ConfirmDialog title="收起这张经历卡片？" subject={pending.title} description="它会进入收纳袋，文字、排行和封面仍然保留，随时可以放回。" confirmLabel="收进收纳袋" onCancel={() => setDeleting(undefined)} onConfirm={() => { trashExperience(pending.id); setDeleting(undefined); closeEditor() }} />}
   </main>
   return <main className="experiences-view scroll-view">
     <header className="page-header experiences-header"><div><p className="eyebrow">私 人 经 历 册</p><h1>看过的世界，走过的路。</h1><p>不必事事记得清楚，留下名字和自己的感受就好。</p></div>
@@ -46,6 +44,7 @@ export function ExperiencesView() {
       : <TierBoard entries={visible} assets={data.assets} labels={experiences.tierLabels} rank={rankExperience} rename={setExperienceTierLabel} onOpen={open} />}
     {visible.length === 0 && <section className="experience-empty"><div aria-hidden="true"><span>✦</span><i>隅</i></div><h2>{query || category ? '这一页，还没有找到匹配的回忆' : group === 'places' ? '从一个你去过的地方开始' : '从一部你记得的作品开始'}</h2><p>只写名称也可以。感想、时间、封面和排行，都不必一次补齐。</p></section>}
     <footer className="experience-page-footer"><span>{visible.length} {group === 'places' ? '处足迹' : '部作品'} · 只属于你的感受</span><button type="button" disabled={Boolean(editing)} className="ghost-button" onClick={() => setTrashOpen(!trashOpen)}>收纳袋{deleted.length ? ' · ' + deleted.length : ''}</button></footer>
-    {trashOpen && <section className="experience-trash"><h2>暂时收起的经历</h2>{deleted.length ? deleted.map(entry => <div key={entry.id}><span>{entry.title}</span><button type="button" onClick={() => restoreExperience(entry.id)}>放回经历册</button></div>) : <p>收纳袋是空的。收起卡片不会删除文字或图片。</p>}</section>}
+    {trashOpen && <section className="experience-trash"><h2>已删除 / 暂时收起的经历</h2>{deleted.length ? deleted.map(entry => <div key={entry.id}><span>{entry.title}</span><div><button type="button" onClick={() => restoreExperience(entry.id)}>放回经历册</button><button type="button" className="danger-button" aria-label={'永久删除' + entry.title} onClick={() => setDeleting(entry.id)}>永久删除</button></div></div>) : <p>收纳袋是空的。移入收纳袋的卡片仍可恢复。</p>}</section>}
+    {pending?.deletedAt && <ConfirmDialog title="永久删除这张经历卡片？" subject={pending.title} description="这张卡片的名称、感想、时间和排行记录将从资料库移除，无法从收纳袋恢复。素材库图片和既有备份不会一起删除。" confirmLabel="永久删除" permanent onCancel={() => setDeleting(undefined)} onConfirm={() => { permanentlyDeleteExperience(pending.id); setDeleting(undefined) }} />}
   </main>
 }

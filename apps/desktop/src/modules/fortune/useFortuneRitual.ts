@@ -9,6 +9,7 @@ type Phase = 'ready' | 'shaking' | 'stick' | 'paper'
 export function useFortuneRitual() {
   const fortune = useLibraryStore((store) => store.data.fortune)
   const draw = useLibraryStore((store) => store.drawFortune)
+  const navigation = useLibraryStore((store) => store.data.session.agentNavigation)
   const [date, setDate] = useState(formatLocalDate)
   const [kind, setKind] = useState<FortuneKind>()
   const [guest, setGuest] = useState(false)
@@ -54,6 +55,14 @@ export function useFortuneRitual() {
     setKind(next)
     setPhase(saved?.date === current && getFortuneSign(next, saved.signId) ? 'paper' : 'ready')
   }
+  useEffect(() => {
+    if (navigation?.destination !== 'fortune' || !['daily', 'love', 'future'].includes(navigation.section ?? '')) return
+    cancel()
+    setGuest(false)
+    select(navigation.section as FortuneKind)
+    // Only an explicit new navigation request should interrupt the ritual.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigation?.id])
   const back = () => {
     if (locked.current) return
     cancel(); setKind(undefined); setGuestDraw(undefined); setPhase('ready'); refreshDate()

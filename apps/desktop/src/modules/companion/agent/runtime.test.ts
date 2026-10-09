@@ -24,6 +24,7 @@ class ScriptedProvider implements AgentModelProvider {
 
 function fixture(records = true) {
   const data = createSeedLibrary()
+  data.companion.permissions.fullAccess = false
   const work = data.works[0]
   data.companion.permissions.workIds = [work.id]
   data.companion.permissions.records = records
@@ -53,7 +54,8 @@ describe('agent tool registry', () => {
     expect(registry.lookup('mood.get_summary')?.definition.scope).toBe('mood')
     expect(registry.lookup('app.open')?.definition.capability).toBe('presentation')
     expect(registry.lookup('web.search')?.definition).toMatchObject({ capability: 'external', scope: 'web' })
-    expect(registry.lookup('asset.list')).toBeUndefined()
+    expect(registry.lookup('asset.list')?.definition.scope).toBe('assets')
+    expect(registry.lookup('experience.list')?.definition.scope).toBe('experiences')
     expect(() => registry.register(registry.lookup('character.search')!)).toThrow('already registered')
   })
 
@@ -108,6 +110,21 @@ describe('agent tool registry', () => {
     const allowed = new AgentPermissionEngine({ policy: { autoAllow: ['read'] }, resourcePermissions: current.data.companion.permissions, access })
     expect(allowed.check(createCompanionToolRegistry().lookup('diary.search')!.definition, { query: 'Agent' }).allowed).toBe(true)
     await expect(createCompanionToolRegistry().execute({ id: 'diary-1', name: 'diary.search', arguments: { query: 'Agent' } }, services)).resolves.toMatchObject({ success: true, data: [{ date: '2026-09-23' }] })
+  })
+
+  it('covers every in-app data scope with full access while preserving encrypted-work and confirmation boundaries', () => {
+    const current = fixture()
+    current.data.companion.permissions.fullAccess = true
+    const access = buildAgentAccess(current.data, [])
+    const permissions = new AgentPermissionEngine({ policy: { autoAllow: ['read', 'presentation'] }, resourcePermissions: current.data.companion.permissions, access })
+    const registry = createCompanionToolRegistry()
+    for (const name of ['diary.search', 'experience.list', 'asset.list', 'web.search']) {
+      expect(permissions.check(registry.lookup(name)!.definition, name === 'web.search' ? { query: '公开信息' } : {}).allowed).toBe(true)
+    }
+    expect(permissions.check(registry.lookup('experience.save')!.definition, { title: '作品', category: 'novel' })).toMatchObject({ allowed: false, requiresConfirmation: true })
+    current.data.works[0].encrypted = true
+    current.data.works[0].locked = true
+    expect(buildAgentAccess(current.data, []).activeWorkAllowed).toBe(false)
   })
 
   it('allows controlled web search only after the internet permission is enabled', () => {

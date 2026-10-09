@@ -17,6 +17,7 @@ export function describeAgentPermission(request: AgentPermissionRequest) {
     }
   }
   switch (request.call.name) {
+    case 'fortune.draw': return { title: '让伙伴抽这支签？', subject: args.kind === 'love' ? '恋爱签' : args.kind === 'future' ? '前程签' : '今日签', detail: args.guest === true ? '临时客签，不占个人每日签' : '各筒每日一支，已有今日结果会直接复用' }
     case 'todo.create': return { title: '创建待办？', subject: value(args.title), detail: value(args.dueDate) || '今天' }
     case 'todo.update': return { title: '修改待办？', subject: value(args.title) || value(args.id), detail: [value(args.dueDate), value(args.priority), value(args.note)].filter(Boolean).join(' · ') || '修改现有信息' }
     case 'todo.set_completed': return { title: '更新待办状态？', subject: value(args.id), detail: `${value(args.date)} · ${args.completed === 'true' ? '标记完成' : '取消完成'}` }

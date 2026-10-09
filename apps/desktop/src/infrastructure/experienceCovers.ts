@@ -1,12 +1,13 @@
 import { invoke } from '@tauri-apps/api/core'
 import type { CoverProvider, CoverSource, ExperienceCategory } from '../domain/experiences'
+import type { WebSearchConfig } from './webSearch'
 
-export interface CoverCandidate { id: string; provider: CoverProvider; title: string; creator: string; year: string; coverUrl?: string; sourceUrl: string; credit: string }
-export const coverProviderLabels: Record<CoverProvider, string> = { weread: '微信读书', bangumi: 'Bangumi', openlibrary: 'Open Library', tmdb: 'TMDB', fanqie: '番茄作品页' }
+export interface CoverCandidate { id: string; provider: CoverProvider; title: string; creator: string; year: string; coverUrl?: string; sourceUrl: string; credit: string; matchedTitle?: string }
+export const coverProviderLabels: Record<CoverProvider, string> = { webnovel: '网文平台', weread: '微信读书', bangumi: 'Bangumi', openlibrary: 'Open Library', tmdb: 'TMDB', fanqie: '番茄作品页' }
 export const isDesktop = () => '__TAURI_INTERNALS__' in window
 function desktopOnly() { if (!isDesktop()) throw new Error('浏览器预览不联网找封面；请在桌面版使用，本地卡片和排行仍可用') }
 export function suggestedProvider(category: ExperienceCategory): Exclude<CoverProvider, 'fanqie'> {
-  if (category === 'novel') return 'weread'
+  if (category === 'novel') return 'webnovel'
   if (['anime', 'manga', 'game'].includes(category)) return 'bangumi'
   if (['film', 'series'].includes(category)) return 'tmdb'
   return 'openlibrary'
@@ -15,13 +16,13 @@ export function candidateSource(candidate: CoverCandidate): CoverSource {
   return { provider: candidate.provider, url: candidate.sourceUrl, credit: candidate.credit }
 }
 export const experienceCovers = {
-  async search(provider: CoverProvider, category: ExperienceCategory, query: string, creator = ''): Promise<CoverCandidate[]> {
+  async search(provider: CoverProvider, category: ExperienceCategory, query: string, creator = '', catalogSearch?: WebSearchConfig): Promise<CoverCandidate[]> {
     desktopOnly()
-    return invoke('experience_cover_search', { provider, category, query: query.trim(), creator: creator.trim() })
+    return invoke('experience_cover_search', { provider, category, query: query.trim(), creator: creator.trim(), ...(catalogSearch && provider === 'webnovel' ? { catalogSearch } : {}) })
   },
-  async resolveLink(url: string): Promise<CoverCandidate> {
+  async resolveLink(url: string, catalogSearch?: WebSearchConfig): Promise<CoverCandidate> {
     desktopOnly()
-    return invoke('experience_cover_link', { url: url.trim() })
+    return invoke('experience_cover_link', { url: url.trim(), ...(catalogSearch ? { catalogSearch } : {}) })
   },
   async image(url: string): Promise<File> {
     desktopOnly()

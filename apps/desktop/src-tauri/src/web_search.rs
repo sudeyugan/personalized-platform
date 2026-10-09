@@ -11,6 +11,32 @@ const BOCHA_ENDPOINT: &str = "https://api.bochaai.com/v1/web-search";
 #[serde(rename_all = "lowercase")]
 pub enum WebSearchProvider { Tencent, Bocha, Bing }
 
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct WebSearchConfig { pub(crate) provider_id: WebSearchProvider, pub(crate) fallback_to_bing: bool }
+
+#[derive(Clone)]
+pub(crate) struct PreparedSearch { provider: WebSearchProvider, fallback: bool, key: Option<String> }
+impl PreparedSearch {
+    pub(crate) fn bing() -> Self { Self { provider: WebSearchProvider::Bing, fallback: false, key: None } }
+    pub(crate) fn configured(config: WebSearchConfig, secrets: &SecretRepository) -> Result<Self, String> {
+        let key = match config.provider_id.secret_id() { Some(id) => secrets.load(id)?, None => None };
+        Ok(Self { provider: config.provider_id, fallback: config.fallback_to_bing, key: key.filter(|value| !value.trim().is_empty()) })
+    }
+    pub(crate) async fn fetch(&self, query: &str) -> Result<Vec<WebSearchResult>, String> {
+        if self.provider.secret_id().is_some() {
+            if let Some(key) = &self.key {
+                match fetch_key_provider(self.provider, query, key).await {
+                    Ok(results) => return Ok(results),
+                    Err(error) if !self.fallback => return Err(error),
+                    Err(_) => {},
+                }
+            } else if !self.fallback { return Err(format!("WEB_SEARCH_KEY_MISSING:{}", self.provider.label())); }
+        }
+        fetch_bing(query).await
+    }
+}
+
 impl WebSearchProvider {
     fn label(self) -> &'static str {
         match self { Self::Tencent => "tencent", Self::Bocha => "bocha", Self::Bing => "bing" }
@@ -22,7 +48,14 @@ impl WebSearchProvider {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct WebSearchResult { title: String, snippet: String, url: String, provider: &'static str }
+pub struct WebSearchResult { pub(crate) title: String, pub(crate) snippet: String, pub(crate) url: String, provider: &'static str }
+
+#[cfg(test)]
+impl WebSearchResult {
+    pub(crate) fn fixture(title: &str, snippet: &str, url: &str) -> Self {
+        Self { title: title.into(), snippet: snippet.into(), url: url.into(), provider: "test" }
+    }
+}
 
 fn result(title: &str, snippet: &str, url: &str, provider: &'static str) -> Option<WebSearchResult> {
     let parsed = reqwest::Url::parse(url).ok()?;
@@ -141,7 +174,7 @@ fn parse_bing(body: &str) -> Vec<WebSearchResult> {
     )).collect()
 }
 
-async fn fetch_bing(query: &str) -> Result<Vec<WebSearchResult>, String> {
+pub(crate) async fn fetch_bing(query: &str) -> Result<Vec<WebSearchResult>, String> {
     let client = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(10)).timeout(Duration::from_secs(25))
         .redirect(reqwest::redirect::Policy::custom(|attempt| {
@@ -173,22 +206,21 @@ pub async fn web_search(window: WebviewWindow, app: AppHandle, query: String, pr
     if window.label() != "main" { return Err("WINDOW_CAPABILITY_DENIED:桌面伙伴不能调用联网搜索".into()); }
     let query = query.trim();
     if query.is_empty() || query.chars().count() > 200 { return Err("WEB_SEARCH_QUERY_INVALID:查询词不能为空且不能超过 200 字".into()); }
-    if let Some(secret_id) = provider.secret_id() {
-        let key = SecretRepository::from_app(&app)?.load(secret_id)?;
-        if let Some(key) = key.filter(|value| !value.trim().is_empty()) {
-            match fetch_key_provider(provider, query, &key).await {
-                Ok(results) => return Ok(results),
-                Err(error) if !fallback_to_bing => return Err(error),
-                Err(_) => {}
-            }
-        } else if !fallback_to_bing { return Err(format!("WEB_SEARCH_KEY_MISSING:{}", provider.label())); }
-    } else { return fetch_bing(query).await; }
-    fetch_bing(query).await
+    PreparedSearch::configured(WebSearchConfig { provider_id: provider, fallback_to_bing }, &SecretRepository::from_app(&app)?)?.fetch(query).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn configured_search_without_key_respects_disabled_fallback() {
+        let directory = tempfile::tempdir().unwrap();
+        let secrets = SecretRepository::for_test(directory.path().to_path_buf());
+        let config: WebSearchConfig = serde_json::from_value(serde_json::json!({"providerId":"tencent", "fallbackToBing":false})).unwrap();
+        let search = PreparedSearch::configured(config, &secrets).unwrap();
+        assert_eq!(tauri::async_runtime::block_on(search.fetch("公开书名")).err().unwrap(), "WEB_SEARCH_KEY_MISSING:tencent");
+    }
 
     #[test]
     fn parses_provider_responses_into_one_shape() {

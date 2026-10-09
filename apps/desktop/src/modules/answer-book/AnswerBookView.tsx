@@ -1,15 +1,9 @@
 import { BookOpen, Bookmark, BookmarkCheck, Feather, PenLine, Sparkles, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useLibraryStore } from '../../state/useLibraryStore'
-import { answerBookAnswers } from './answers'
+import { drawRandomAnswer } from './drawAnswer'
 
 type RevealPhase = 'idle' | 'turning' | 'revealed'
-
-function drawRandomAnswer() {
-  const random = new Uint32Array(1)
-  crypto.getRandomValues(random)
-  return answerBookAnswers[Math.floor((random[0] / 2 ** 32) * answerBookAnswers.length)]
-}
 
 function formatFavoriteTime(value: string) {
   return new Intl.DateTimeFormat('zh-CN', {

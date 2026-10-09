@@ -47,7 +47,18 @@ pub fn image_url(value: &str) -> Result<Url, String> {
         | "cdn.weread.qq.com" | "wfqqreader-1252317822.image.myqcloud.com");
     let weread = matches!(host, "qpic.cn" | "mmbiz.qpic.cn" | "mmbiz.qlogo.cn" | "img1.qidian.com" | "img2.qidian.com");
     let fanqie = (1..=9).any(|n| host == format!("p{n}-novel-sign.byteimg.com") || host == format!("p{n}-tt.byteimg.com"));
-    if !allowed && !weread && !fanqie { return Err("图片地址不在已接入来源白名单内，可改用书名封面或本地图片".into()); }
+    let path: Vec<_> = url.path().trim_matches('/').split('/').collect();
+    let qidian = host == "qidian.qpic.cn" && url.query().is_none() && path.len() == 4
+        && path[0] == "qdbimg" && path[1] == "349573" && path[3] == "180"
+        && !path[2].is_empty() && path[2].chars().all(|c| c.is_ascii_digit());
+    let jinjiang = (1..=9).any(|n| host == format!("i{n}-static.jjwxc.net")) && url.query().is_none()
+        && url.path().starts_with("/tmp/backend/authorspace/")
+        && [".jpg", ".jpeg", ".png", ".webp"].iter().any(|extension| url.path().ends_with(extension));
+    let raster = [".jpg", ".jpeg", ".png", ".webp"].iter().any(|extension| url.path().ends_with(extension));
+    let catalogue = url.query().is_none() && raster && (
+        (host == "static.zongheng.com" && url.path().starts_with("/upload/cover/"))
+        || (host == "cdn.wtzw.com" && url.path().starts_with("/bookimg/public/images/cover/")));
+    if !allowed && !weread && !fanqie && !qidian && !jinjiang && !catalogue { return Err("图片地址不在已接入来源白名单内，可改用书名封面或本地图片".into()); }
     Ok(url)
 }
 pub fn image_mime(data: &[u8]) -> Result<&'static str, String> {
