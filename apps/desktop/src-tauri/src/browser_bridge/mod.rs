@@ -7,6 +7,7 @@ mod assets;
 mod maintenance;
 #[cfg(test)] mod tests;
 #[cfg(test)] mod maintenance_tests;
+#[cfg(test)] mod transport_tests;
 
 use std::{net::TcpListener, sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}}, time::{Duration, Instant}};
 use chacha20poly1305::aead::rand_core::{OsRng, RngCore};

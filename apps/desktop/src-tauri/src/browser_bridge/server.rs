@@ -31,6 +31,11 @@ fn handle(app: &AppHandle, state: &Mutex<BridgeState>, request: http::HttpReques
         state.pair = Some(pair); state.pending_pair = None; state.cancel();
         return Ok(json!({"paired":true}));
     }
+    authenticated_request(&mut state, request)
+}
+// Keep authenticated protocol dispatch independently exercisable through the
+// actual TCP parser, rather than a mock bridge accepting nonexistent routes.
+pub(super) fn authenticated_request(state: &mut BridgeState, request: http::HttpRequest) -> Result<Value, String> {
     state.authenticate(&request.origin, &request.token)?;
     match request.path.as_str() {
         "/active" => {
