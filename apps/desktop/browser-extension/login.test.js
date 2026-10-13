@@ -11,8 +11,19 @@ const answer=status=>[{result:{status}}]
 describe('cached login is bounded and separate from query completion',()=>{
   it('requires explicit task opt-in and never clicks unfilled/challenged forms',async()=>{
     expect(await continueCachedLogin({...job,cachedLogin:false},active)).toBe('not_allowed');expect(active).not.toHaveBeenCalled()
-    for(const state of ['unfilled','needs_user']){chrome.scripting.executeScript.mockResolvedValue(answer(state));expect(await continueCachedLogin(job,active)).toBe(state)}
+    for(const state of ['unfilled','needs_user']){chrome.scripting.executeScript.mockResolvedValue(answer(state));const pending=continueCachedLogin(job,active);await vi.runAllTimersAsync();expect(await pending).toBe(state)}
     expect(chrome.scripting.executeScript.mock.calls.every(([request])=>!request.args.length)).toBe(true)
+  })
+  it('waits briefly for delayed fill, revalidates authority, and only submits once',async()=>{
+    chrome.scripting.executeScript.mockResolvedValueOnce(answer('unfilled')).mockResolvedValueOnce(answer('unfilled')).mockResolvedValueOnce(answer('ready')).mockResolvedValueOnce(answer('submitted')).mockResolvedValue(answer('none'))
+    const pending=continueCachedLogin(job,active);await vi.runAllTimersAsync();expect(await pending).toBe('continued')
+    expect(active).toHaveBeenCalledTimes(4)
+    expect(chrome.scripting.executeScript.mock.calls.filter(([request])=>request.args[0]===true)).toHaveLength(1)
+  })
+  it('does not inspect or click after revocation while waiting for fill',async()=>{
+    chrome.scripting.executeScript.mockResolvedValue(answer('unfilled'));active.mockRejectedValue(new Error('permission'))
+    const pending=continueCachedLogin(job,active),assertion=expect(pending).rejects.toThrow('permission')
+    await vi.runAllTimersAsync();await assertion;expect(chrome.scripting.executeScript).toHaveBeenCalledOnce()
   })
   it('clicks once, checks live authority, then allows actual page reading without claiming success',async()=>{
     chrome.scripting.executeScript.mockResolvedValueOnce(answer('ready')).mockResolvedValueOnce(answer('submitted')).mockResolvedValue(answer('none'))

@@ -60,8 +60,8 @@ export class BrowserQueryFlow {
   private call(name: string, args: Record<string, unknown>): AgentToolCall { return { id: `browser-goal-${crypto.randomUUID()}`, name, arguments: args } }
 }
 export function browserLoginReply(state?: string) {
-  if (state === 'not_allowed') return '目标网页仍需登录，尚未检查到账号内容。可在设置 → Edge浏览器连接 → 该网站，勾选「允许用已填凭据登录」，之后小鱼会尝试提交浏览器已自动填好的表单；不读取密码。'
-  if (state === 'unfilled') return '目标网页仍需登录，但浏览器尚未自动填好账号密码。保存过密码不等于已填入；请在Edge完成一次填充或登录，再让我检查。不读取密码，也不会猜测或选取账号。'
+  if (state === 'not_allowed') return '目标网页仍需登录，尚未检查到账号内容。可在设置 → Edge浏览器连接 → 该网站，勾选「允许用已填凭据登录」，之后小鱼会尝试提交已经填好的表单；不读取密码。'
+  if (state === 'unfilled') return '目标网页仍需登录，暂未确认表单的账号和密码均已填入，因此没有点击登录。若页面已经显示填好的内容，也可能是该表单不支持安全检测；请在Edge完成一次登录，再让我检查。不读取密码，也不会猜测或选取账号。'
   if (state === 'needs_user') return '登录页面需要你处理：可能有验证码、二次验证、多账号或不支持的登录表单。已停止自动登录，没有继续提交或读取其他网站；完成后可以再让我检查。'
   if (state === 'pending') return '已尝试提交一次登录，但尚未确认进入账号页面。没有重复点击；请查看Edge里的登录提示，完成后再让我检查。不能据此判断是否有未读邮件。'
 }

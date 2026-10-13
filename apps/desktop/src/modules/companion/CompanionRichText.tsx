@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from 'react'
+import { ReplyLink } from './ReplyLink'
 
 function inline(text: string): ReactNode[] {
   const parts = text.split(/(\\[\\`*[\]#>_~.+()-]|\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g)
@@ -7,7 +8,7 @@ function inline(text: string): ReactNode[] {
     if (part.startsWith('**') && part.endsWith('**')) return <strong key={index}>{part.slice(2, -2)}</strong>
     if (part.startsWith('`') && part.endsWith('`')) return <code key={index}>{part.slice(1, -1)}</code>
     const link = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
-    if (link && /^https?:\/\//i.test(link[2])) return <a href={link[2]} target="_blank" rel="noreferrer" key={index}>{link[1]}</a>
+    if (link && /^https?:\/\//i.test(link[2])) return <ReplyLink href={link[2]} key={index}>{link[1]}</ReplyLink>
     if (link) return <Fragment key={index}>{link[1]}</Fragment>
     return <Fragment key={index}>{part}</Fragment>
   })

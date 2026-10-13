@@ -186,6 +186,7 @@ pub fn run() {
             local_voice::local_voice_stop,
             set_background_wake_runtime,
             computer::computer_execute,
+            computer::reply_links::open_reply_link,
             computer::computer_takeover,
             computer::computer_status,
             computer::computer_emergency_stop,

@@ -5,6 +5,7 @@ mod recording;
 mod types;
 mod windows;
 mod takeover;
+pub(crate) mod reply_links;
 
 use clipboard_win::{get_clipboard_string, set_clipboard_string};
 use serde_json::{json, Value};

@@ -20,9 +20,30 @@ describe('fixed cached-login form policy',()=>{
     const result=commit();expect(result).toEqual({status:'submitted'});expect(click).toHaveBeenCalledOnce()
     expect(JSON.stringify(result)).not.toMatch(/password|username|credential/)
   })
-  it('does not mistake a saved/typed credential for browser-autofilled state',()=>{
+  it('stops if there is no nonempty-state evidence, even when a credential is saved elsewhere',()=>{
     document.querySelector('input[type=password]').autocomplete='off'
     expect(commit()).toEqual({status:'unfilled'});expect(click).not.toHaveBeenCalled()
+  })
+  it('accepts already-filled placeholder controls without an autofill marker or reading values',()=>{
+    const inputs=[...document.querySelectorAll('input')],matches=Element.prototype.matches
+    for(const input of inputs){input.autocomplete='off';input.placeholder='虚构提示'}
+    vi.spyOn(Element.prototype,'matches').mockImplementation(function(selector){return selector===':placeholder-shown'?false:matches.call(this,selector)})
+    expect(inspectLoginForm()).toEqual({status:'ready'});expect(commit()).toEqual({status:'submitted'});expect(click).toHaveBeenCalledOnce()
+    // It is the native empty/nonempty state, not simply having a placeholder.
+    vi.spyOn(Element.prototype,'matches').mockImplementation(function(selector){return selector===':placeholder-shown'?true:matches.call(this,selector)})
+    expect(commit()).toEqual({status:'unfilled'});expect(click).toHaveBeenCalledOnce()
+  })
+  it('can use required validity without changing controls or reading credentials',()=>{
+    const setter=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set
+    for(const input of document.querySelectorAll('input')){input.autocomplete='off';input.required=true;setter.call(input,'fictional-filled')}
+    expect(commit()).toEqual({status:'submitted'});expect(click).toHaveBeenCalledOnce()
+    setter.call(document.querySelector('input[type=password]'),'')
+    expect(inspectLoginForm()).toEqual({status:'unfilled'})
+  })
+  it('rechecks emptied credentials at commit rather than replaying ready status',()=>{
+    const password=document.querySelector('input[type=password]')
+    expect(inspectLoginForm().status).toBe('ready');password.autocomplete='off'
+    expect(commit().status).toBe('unfilled');expect(click).not.toHaveBeenCalled()
   })
   it.each(['<input autocomplete="one-time-code">','<input name="captcha">','<iframe src="https://challenge.example.com/recaptcha"></iframe>','<div class="second-auth">二次验证</div>'])('stops visible challenges, not hidden dormant challenge templates: %s',html=>{
     const extra=document.createElement('div');extra.innerHTML=html;document.body.append(extra)

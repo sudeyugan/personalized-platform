@@ -19,6 +19,15 @@ export async function continueCachedLogin(job, assertActive) {
   let status = await inspect()
   if (status === 'none') return
   if (!job.cachedLogin) return 'not_allowed'
+  // Let an asynchronous browser/password-manager fill settle, without
+  // querying its credentials or submitting again. Recheck task and URL each time.
+  for (let attempt = 0; status === 'unfilled' && attempt < 6; attempt++) {
+    await new Promise(resolve => setTimeout(resolve, 500))
+    await assertActive(job)
+    if ((await check()).url !== before.url) throw new Error('tab_changed')
+    status = await inspect()
+    if (status === 'none') return
+  }
   if (status !== 'ready') return status === 'unfilled' ? 'unfilled' : 'needs_user'
   // Native checks task id, epoch, expiry and opt-in immediately before the
   // sole possible click. No auth token is injected into or returned by pages.

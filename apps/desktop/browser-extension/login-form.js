@@ -23,7 +23,15 @@ export function inspectLoginForm(commit = false, expectedUrl = '', deadline = 0)
   if (accounts.length !== 1 || accounts[0].disabled || accounts[0].readOnly) return state('needs_user')
   const extra = [...form.querySelectorAll('input,select,textarea')].some(node => visible(node) && ![password,accounts[0]].includes(node) && !['hidden','checkbox','submit','button'].includes(node.type))
   if (extra) return state('needs_user')
-  const filled = node => { try { return node.matches(':autofill') || node.matches(':-webkit-autofill') } catch { return false } }
+  // Only boolean browser state, never the value or value attribute. Some
+  // password managers/sites fill controls without Chromium's autofill marker.
+  // :placeholder-shown is meaningful only if the control has a placeholder;
+  // required validity is the fallback for controls without one. Otherwise stop.
+  const filled = node => {
+    try { if (node.matches(':autofill') || node.matches(':-webkit-autofill')) return true } catch { /* try other native state */ }
+    try { if (node.hasAttribute('placeholder') && node.getAttribute('placeholder')?.trim()) return !node.matches(':placeholder-shown') } catch { /* unsupported selector */ }
+    return node.required && node.willValidate && !node.validity.valueMissing
+  }
   if (!filled(password) || !filled(accounts[0])) return state('unfilled')
   const buttons = [...form.querySelectorAll('button')].filter(node => visible(node) && !node.disabled && node.getAttribute('aria-disabled') !== 'true' && /^(?:登\s*[录入]|sign\s*in|log\s*in)$/i.test((node.textContent ?? '').trim()))
   if (buttons.length !== 1) return state('needs_user')
