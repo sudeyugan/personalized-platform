@@ -4,6 +4,7 @@ import type { MoodEntry } from '../../domain/models'
 import { createSeedLibrary } from '../../domain/seed'
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { MoodStats } from './MoodStats'
+import { reflectionViewKey } from './visualizations/ReflectionVisualizations'
 
 const entries: MoodEntry[] = [
   { id: 'old', date: '2024-02-29', period: 'evening', points: { calm: 5 }, note: '闰年旧记录', createdAt: '2024-02-29T12:00:00Z', updatedAt: '2024-02-29T12:00:00Z' },
@@ -19,11 +20,12 @@ function openReflection() {
 
 describe('historical mood reflection', () => {
   beforeEach(() => {
+    localStorage.setItem(reflectionViewKey, 'original')
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2026, 9, 1, 10))
     useLibraryStore.setState({ data: createSeedLibrary(), ready: true, saveStatus: 'idle' })
   })
-  afterEach(() => vi.useRealTimers())
+  afterEach(() => { vi.useRealTimers(); localStorage.removeItem(reflectionViewKey) })
 
   it('opens last month with its daily notes and returns to the current month', () => {
     openReflection()
@@ -60,6 +62,7 @@ describe('historical mood reflection', () => {
   it('browses previous weeks and returns without changing the stored entries', () => {
     const before = JSON.stringify(entries)
     openReflection()
+    fireEvent.click(screen.getByRole('button', { name: '按周' }))
     fireEvent.click(screen.getByRole('button', { name: '上一周' }))
     expect(screen.getByText('2026/09/21 — 2026/09/27')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '上一周' }))

@@ -1,0 +1,4 @@
+.companion-capabilities{margin:18px 0;padding:15px;border:1px solid var(--line);border-radius:12px;font-size:12px;line-height:1.8}
+.companion-capabilities summary{cursor:pointer;color:var(--ink)}.companion-capabilities p{color:var(--ink-soft)}
+.companion-capabilities details{padding:9px 0;border-top:1px solid var(--line)}.companion-capabilities details>div{display:grid;grid-template-columns:1fr auto;gap:3px 12px;margin:10px 0}
+.companion-capabilities strong{font-weight:400}.companion-capabilities small{grid-column:1/-1;color:var(--ink-soft)}.companion-capabilities span{color:var(--accent)}

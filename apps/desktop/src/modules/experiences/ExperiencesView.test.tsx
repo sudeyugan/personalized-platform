@@ -11,7 +11,7 @@ vi.mock('../../infrastructure/experienceCovers', async importOriginal => {
 })
 describe('experience paper cards and personal tier board', () => {
   beforeEach(() => { useLibraryStore.setState({ data: createSeedLibrary() }) })
-  it('filters work categories directly and preserves the selection, personal notes and ranks after editing', () => {
+  it('filters work categories directly and preserves the selection, personal notes and ranks after editing', async () => {
     const store = useLibraryStore.getState()
     store.saveExperience({ title: '第一部', category: 'novel', creator: '作者', dateText: '去年', note: '保留这段感想', tier: 'top', paperStyle: 'linen' })
     store.saveExperience({ title: '第二部', category: 'anime', creator: '', dateText: '', note: '', paperStyle: 'blue' })
@@ -22,7 +22,7 @@ describe('experience paper cards and personal tier board', () => {
     expect(screen.queryByRole('button', { name: '查看第二部' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: '查看第一部' }))
     fireEvent.click(screen.getByRole('button', { name: '保存这一页' }))
-    expect(screen.getByLabelText('筛选作品类别')).toHaveValue('novel')
+    expect(await screen.findByLabelText('筛选作品类别')).toHaveValue('novel')
     fireEvent.change(screen.getByLabelText('筛选作品类别'), { target: { value: '' } })
     expect(screen.getByRole('button', { name: '查看第二部' })).toBeInTheDocument()
     expect(screen.queryByLabelText('经历卡片编辑')).not.toBeInTheDocument()

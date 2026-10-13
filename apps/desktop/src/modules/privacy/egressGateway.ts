@@ -4,6 +4,8 @@ import { PrivacySession } from './privacySession'
 import type { PrivacyFinding, PrivacyReviewRequest } from './types'
 
 interface EgressGatewayOptions {
+  assertAllowed?: () => void
+  reviewEachRequest?: boolean
   trust: LibraryData['settings']['trust']
   destination: string
   purpose: string
@@ -50,6 +52,7 @@ export function createPrivacyProtectedProvider(provider: AgentModelProvider, opt
     id: provider.id,
     testConnection: () => provider.testConnection(),
     async generate(request, generationOptions) {
+      options.assertAllowed?.()
       const findings: PrivacyFinding[] = []
       const sanitize = (text: string) => {
         const result = session.sanitize(text)
@@ -57,7 +60,7 @@ export function createPrivacyProtectedProvider(provider: AgentModelProvider, opt
         return result.text
       }
       const protectedRequest = mapStrings(request, sanitize) as AgentModelRequest
-      const needsReview = !reviewed && Boolean(options.requestReview) && (options.trust.outboundReviewMode === 'strict' || findings.length > 0)
+      const needsReview = (!reviewed || options.reviewEachRequest) && Boolean(options.requestReview) && (options.trust.outboundReviewMode === 'strict' || findings.length > 0)
       if (needsReview) {
         const findingCounts = findings.reduce<PrivacyReviewRequest['findingCounts']>((counts, finding) => ({ ...counts, [finding.kind]: (counts[finding.kind] ?? 0) + 1 }), {})
         const previewSource = protectedRequest.messages.at(-1)?.content ?? ''
@@ -66,9 +69,11 @@ export function createPrivacyProtectedProvider(provider: AgentModelProvider, opt
         reviewed = true
       }
       let rawStream = ''; let emitted = ''
+      options.assertAllowed?.()
       const response = await provider.generate(protectedRequest, {
         ...generationOptions,
         onTextDelta: generationOptions?.onTextDelta ? (delta) => {
+          options.assertAllowed?.()
           rawStream += delta
           const open = rawStream.lastIndexOf('['); const close = rawStream.lastIndexOf(']')
           const stableRaw = open > close ? rawStream.slice(0, open) : rawStream
@@ -77,6 +82,7 @@ export function createPrivacyProtectedProvider(provider: AgentModelProvider, opt
           emitted = restored
         } : undefined,
       })
+      options.assertAllowed?.()
       if (generationOptions?.onTextDelta) {
         const restored = session.restore(rawStream)
         if (restored.length > emitted.length) generationOptions.onTextDelta(restored.slice(emitted.length))

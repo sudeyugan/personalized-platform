@@ -1,5 +1,12 @@
 import type { AgentTask, LibraryData } from '../../../domain/models'
 import type { AgentRitualServices } from './ritualTools'
+import type { PublicReadServices } from '../web/publicReadServices'
+import type { OperationServices } from '../../operation-memory/services'
+import type { BrowserServices } from '../../browser-connection/services'
+import { matchOperations, operationDraftOf } from '../../../domain/operations/catalog'
+import { operationParameters } from '../../../domain/operations/method'
+import type { AgentAssignmentServices } from './assignmentTools'
+import { assignmentOccurrences, validAssignmentDate } from '../../../domain/assignments/dates'
 
 export interface AgentDataAccess {
   workIds: Set<string>
@@ -19,7 +26,7 @@ export interface AgentDataAccess {
   internet: boolean
 }
 
-export interface AgentApplicationServices extends AgentRitualServices {
+export interface AgentApplicationServices extends AgentRitualServices, AgentAssignmentServices, PublicReadServices, OperationServices, BrowserServices {
   getModuleStatus?(view: string): { enabled: boolean; available: boolean }
   getCurrentWork(): unknown | undefined
   searchChapters(query: string): unknown[]
@@ -77,15 +84,24 @@ function excerpt(text: string, query: string) {
   return text.slice(start, start + 180)
 }
 
-export function createAgentApplicationServices(data: LibraryData, access: AgentDataAccess, writes: AgentWriteServices & AgentRitualServices = {}): AgentApplicationServices {
+export function createAgentApplicationServices(data: LibraryData, access: AgentDataAccess, writes: AgentWriteServices & AgentRitualServices & AgentAssignmentServices & PublicReadServices & OperationServices & BrowserServices = {}): AgentApplicationServices {
   const availableChapters = () => Object.values(data.chapters).filter((chapter) =>
     !chapter.deletedAt && access.chapterIds.has(chapter.id) && access.workIds.has(chapter.workId))
 
   return {
     ...writes,
+    findOperations(query) { return access.memories ? matchOperations(data.companion.operations ?? [], query) : [] },
+    getOperation(id) {
+      const method = access.memories ? data.companion.operations?.find(item => item.id === id && item.enabled) : undefined
+      return method ? { id: method.id, revision: method.revision, ...operationDraftOf(method), parameters: operationParameters(method), source: method.source, pattern: method.pattern } : { found: false }
+    },
+    listAssignments(status = 'pending', through) {
+      if (!access.todos) return []
+      if (through !== undefined && !validAssignmentDate(through)) throw new Error('预览日期必须为有效的 YYYY-MM-DD')
+      return assignmentOccurrences(data.planner.assignments ?? [], new Date(), through).filter(item => status === 'all' || (item.status !== 'submitted' && item.status !== 'skipped')).slice(0, 100).map(item => ({ id: item.assignment.id, title: item.assignment.title, subject: item.assignment.subject, note: item.assignment.note, periodKey: item.key, originalDate: item.originalDate, date: item.date, time: item.time, status: item.status, submittedAt: item.submittedAt }))
+    },
     getModuleStatus(view) {
-      const module = data.settings.modules.find((item) => item.id === view)
-      return { enabled: module?.enabled ?? true, available: module?.available ?? true }
+      return moduleStatus(data.settings.modules, view)
     },
     getCurrentWork() {
       const work = data.works.find((item) => item.id === data.session.activeWorkId && !item.deletedAt && access.workIds.has(item.id))
@@ -223,3 +239,4 @@ export function createAgentApplicationServices(data: LibraryData, access: AgentD
     },
   }
 }
+import { moduleStatus } from '../../../domain/moduleAvailability'

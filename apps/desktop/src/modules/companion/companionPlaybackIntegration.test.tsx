@@ -228,6 +228,35 @@ describe('response expression timing', () => {
     expect(audio).toHaveLength(0)
     expect(lastSnapshot().action).toBe('celebrating')
   })
+
+  it('forwards display-only private replies even with history enabled and resets text-only status', async () => {
+    useLibraryStore.getState().data.companion.voice.autoSpeak = false
+    mocks.send.mockImplementation(async (message: string, options: CompanionTurnOptions) => {
+      options.onTransientMessage?.({id:'private-user',role:'user',content:message,createdAt:''})
+      options.onStatus?.({phase:'responding'})
+      options.onTransientMessage?.({id:'private-answer',role:'companion',content:'临时开播名单',createdAt:''})
+      return '临时开播名单'
+    })
+    await mountAndSend()
+    const displayed = mocks.emit.mock.calls.filter(call => call[1] === 'companion:transient-message').map(call => call[2])
+    expect(displayed.map(message => message.role)).toEqual(['user','companion'])
+    expect(displayed[1].content).toBe('临时开播名单')
+    expect(lastSnapshot().agentStatus).toBeUndefined()
+    expect(useLibraryStore.getState().data.companion.messages).toHaveLength(0)
+  })
+
+  it('ignores late display and stream callbacks after stop', async () => {
+    useLibraryStore.getState().data.companion.voice.autoSpeak = false
+    let options!: CompanionTurnOptions, finish!: (text: string) => void
+    mocks.send.mockImplementation((_message: string, next: CompanionTurnOptions) => { options=next; return new Promise<string>(resolve=>{finish=resolve}) })
+    await mountAndSend(); await sendEvent('companion:turn-stop')
+    await act(async()=>{
+      options.onTransientMessage?.({id:'late',role:'companion',content:'PRIVATE-LATE',createdAt:''})
+      options.onTextDelta?.('PRIVATE-LATE'); finish('PRIVATE-LATE')
+    })
+    expect(JSON.stringify(mocks.emit.mock.calls)).not.toContain('PRIVATE-LATE')
+    expect(lastSnapshot().agentStatus).toBeUndefined()
+  })
 })
 
 describe('simplified WebM library', () => {

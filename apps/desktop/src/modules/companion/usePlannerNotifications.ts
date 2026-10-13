@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import type { LibraryData } from '../../domain/models'
 import { createComputerService } from '../../infrastructure/computerService'
+import { assignmentOccurrences, deadlineLabel } from '../../domain/assignments/dates'
 
 const isTauri = () => '__TAURI_INTERNALS__' in window
 const reminderKey = (kind: string, id: string, target: number, lead: number) => 'yiyu:reminder:' + kind + ':' + id + ':' + target + ':' + lead
@@ -20,6 +21,7 @@ export function usePlannerNotifications(data: LibraryData) {
       const now = Date.now()
       const lead = Math.max(0, settings.reminderLeadMinutes) * 60_000
       const candidates = [
+        ...assignmentOccurrences(data.planner.assignments ?? [], new Date(now)).filter(item => item.status !== 'submitted' && item.status !== 'skipped').map(item => ({ kind: 'assignment', id: `${item.assignment.id}:${item.key}`, title: '作业即将截止', body: `${item.assignment.title} · ${deadlineLabel(item)}`, target: item.deadline })),
         ...data.planner.calendarEvents.map((event) => ({
           kind: 'calendar',
           id: event.id,
@@ -49,5 +51,5 @@ export function usePlannerNotifications(data: LibraryData) {
     check()
     const timer = window.setInterval(check, 30_000)
     return () => window.clearInterval(timer)
-  }, [data.companion.computer, data.planner.calendarEvents, data.planner.todos])
+  }, [data.companion.computer, data.planner.calendarEvents, data.planner.todos, data.planner.assignments])
 }

@@ -101,6 +101,50 @@ fn blob_count(repository: &BackupRepository) -> usize {
     fs::read_dir(repository.root.join("共享素材")).unwrap().count()
 }
 #[test]
+fn assignment_rules_and_submission_history_round_trip_in_both_formats() {
+    for automatic in [false, true] {
+        let (_dir, repository, library) = fixture();
+        let mut data = library.load().unwrap().unwrap().data;
+        data["planner"] = json!({"assignments":[{"id":"assignment-1","title":"阅读报告","subject":"文学","note":"笔记","createdAt":"2026-10-11T00:00:00Z","deletedAt":"2026-10-12T00:00:00Z","rules":[{"id":"rule-1","repeat":"weekly","startDate":"2026-10-01","weekdays":[5],"time":"18:00"}],"periods":{"rule-1@2026-10-09":{"date":"2026-10-13","time":null,"submittedAt":"2026-10-11T00:00:00Z"},"rule-1@2026-10-16":{"skipped":true}}}],"todos":[],"holidayDates":["2026-10-11"]});
+        library.save(&data, 1).unwrap();
+        let receipt = if automatic {
+            repository.ensure_automatic(&library, 3, 3, "2026-10-11", "2026-10-11T12:00:00.000Z").unwrap().unwrap()
+        } else { repository.create(&library, false, "2026-10-11T12:00:00.000Z").unwrap() };
+        let mut changed = data.clone(); changed["planner"]["assignments"] = json!([]);
+        library.save(&changed, 2).unwrap();
+        repository.restore_saved(&library, &receipt.path).unwrap();
+        assert_eq!(library.load().unwrap().unwrap().data["planner"], data["planner"]);
+    }
+}
+#[test]
+fn learned_operation_methods_round_trip_in_both_backup_formats() {
+    for automatic in [false, true] {
+        let (_dir, repository, library) = fixture();
+        let mut data = library.load().unwrap().unwrap().data;
+        data["companion"]["operations"] = json!([{
+            "id":"operation-fixture", "revision":2, "enabled":false,
+            "source":"automatic", "pattern":"web.read_page",
+            "title":"查询公开信息", "goal":"查询 {{关键词}}", "scope":"public_web",
+            "applicability":"公开来源", "keywords":["查信息"], "preconditions":"核对对象",
+            "steps":["读取当前来源并核对身份"], "completion":"明确状态及时间", "recovery":"无法确认时停下",
+            "createdAt":"2026-10-12T00:00:00Z", "updatedAt":"2026-10-12T00:00:00Z",
+            "runs":[{"id":"operation-run-fixture", "revision":1, "at":"2026-10-12T00:00:00Z", "status":"confirmed", "reason":"user_confirmed", "toolCount":2}]
+        }]);
+        data["companion"]["operationLearning"] = json!({"enabled":false,"ignoredPatterns":["todo.list"]});
+        data["companion"]["browser"] = json!({"enabled":false,"sites":["https://example.com"],"cachedLoginSites":["https://example.com"],"interactionSites":["https://example.com"],"profiles":[{"origin":"https://example.com","role":"portal","label":"学校门户","entryUrl":"https://example.com/notices"}],"preferredSites":{"portal":"https://example.com"}});
+        library.save(&data, 1).unwrap();
+        let receipt = if automatic {
+            repository.ensure_automatic(&library, 3, 3, "2026-10-12", "2026-10-12T12:00:00Z").unwrap().unwrap()
+        } else { repository.create(&library, false, "2026-10-12T12:00:00Z").unwrap() };
+        let mut changed = data.clone(); changed["companion"]["operations"] = json!([]);
+        library.save(&changed, 2).unwrap();
+        repository.restore_saved(&library, &receipt.path).unwrap();
+        assert_eq!(library.load().unwrap().unwrap().data["companion"]["operations"], data["companion"]["operations"]);
+        assert_eq!(library.load().unwrap().unwrap().data["companion"]["operationLearning"], data["companion"]["operationLearning"]);
+        assert_eq!(library.load().unwrap().unwrap().data["companion"]["browser"], data["companion"]["browser"]);
+    }
+}
+#[test]
 fn saved_lyrics_and_per_recording_calibration_round_trip_in_both_formats() {
     for automatic in [false, true] {
         let (_dir, repository, library) = fixture();

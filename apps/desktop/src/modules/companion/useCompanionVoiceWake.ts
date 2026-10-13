@@ -5,6 +5,7 @@ import { localVoice } from '../../infrastructure/localVoice'
 import type { LocalVoiceLease } from '../../infrastructure/localVoiceMonitor'
 import { createPostWakeAudio } from './postWakeAudio'
 import { openVoiceRecognition } from './voiceRecognition'
+import { useMicrophoneRevision } from './useMicrophoneRevision'
 import type { createPlaybackEchoHistory } from './playbackEcho'
 import type { CompanionDesktopSnapshot } from './companionDesktop'
 import { followUpWindowMs, hasBargeInSignal, isDuplicateUtterance, isLikelyPlaybackEcho, isMeaningfulVoiceUtterance, resolveVoiceCommand, type VoiceConversationPhase } from './voiceConversation'
@@ -24,6 +25,7 @@ interface CompanionVoiceWakeOptions {
 }
 
 export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText, recentSpeech, requestToken, setSpeechNote }: CompanionVoiceWakeOptions) {
+  const microphoneRevision=useMicrophoneRevision()
   const cloudConnection = useRef<RealtimeConnection | undefined>(undefined)
   const localMonitor = useRef<LocalVoiceLease | undefined>(undefined)
   const followUpTimer = useRef<number | undefined>(undefined)
@@ -57,6 +59,7 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
     let localRetries = 0
     let cloudRetries = 0
     let localRetryTimer: number | undefined
+    let lastMeterAt=0
     let bargeResumeTimer: number | undefined
     const echo = (text: string) => recentSpeech?.current.matches(text) ?? ((speechBusy.current || interruptionPending.current) && isLikelyPlaybackEcho(text, spokenText.current))
 
@@ -291,9 +294,10 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
           speakerVerification: voice.speakerVerification,
         }, (result) => {
           if (disposed) return
+          void emitTo('main','companion:local-voice-diagnostic',{kind:result.speakerMatched?'detected':result.reason??'speaker_mismatch'})
           localRetries = 0
           if (!result.speakerMatched) {
-            setSpeechNote(`听到了“${voice.wakeWord}”，但声纹没有通过。`)
+            setSpeechNote(result.reason==='speaker_audio_short' ? `已识别“${voice.wakeWord}”，但有效声音太短；名字后接一句话再试。` : `已识别“${voice.wakeWord}”，但声纹未通过；请按录入距离说话，或在设置中重新录入声纹。`)
             return
           }
           activateConversation()
@@ -303,7 +307,7 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
           localMonitor.current = undefined
           setSpeechNote(`本地唤醒暂不可用：${error instanceof Error ? error.message.replace(/^[A-Z_]+:/, '') : String(error)}`)
           if (++localRetries <= 3) localRetryTimer = window.setTimeout(() => void startLocalListening(), 2000 * localRetries)
-        })
+        },level=>{if(!disposed&&Date.now()-lastMeterAt>=200){lastMeterAt=Date.now();void emitTo('main','companion:local-voice-level',{level})}})
         if (disposed || armed.current || !monitor.isActive()) {
           monitor.stop()
           return
@@ -311,7 +315,10 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
         localMonitor.current = monitor
         setSpeechNote(`本地待机中，说“${voice.wakeWord}”唤醒。`)
       } catch (error) {
-        if (!disposed) setSpeechNote(`本地唤醒暂不可用：${error instanceof Error ? error.message.replace(/^[A-Z_]+:/, '') : String(error)}`)
+        if (!disposed) {
+          setSpeechNote(`本地唤醒暂不可用：${error instanceof Error ? error.message.replace(/^[A-Z_]+:/, '') : String(error)}`)
+          if (++localRetries<=3)localRetryTimer=window.setTimeout(()=>void startLocalListening(),2000*localRetries)
+        }
       }
     }
     const endRequested = (event: Event) => {
@@ -344,5 +351,5 @@ export function useCompanionVoiceWake({ voice, agentBusy, speechBusy, spokenText
       bargeInStartedAt.current = undefined
       setVoiceActivity(false)
     }
-  }, [agentBusy, recentSpeech, requestToken, setSpeechNote, speechBusy, spokenText, voice.conversationMode, voice.speakerVerification, voice.sttProviderId, voice.wakeEnabled, voice.wakeSensitivity, voice.wakeWord])
+  }, [microphoneRevision, agentBusy, recentSpeech, requestToken, setSpeechNote, speechBusy, spokenText, voice.conversationMode, voice.speakerVerification, voice.sttProviderId, voice.wakeEnabled, voice.wakeSensitivity, voice.wakeWord])
 }

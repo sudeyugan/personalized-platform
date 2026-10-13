@@ -7,13 +7,11 @@ import { useLibraryStore } from '../../state/useLibraryStore'
 import { HomeMoodCard } from '../mood/HomeMoodCard'
 import { useLiveDate } from './homeDate'
 import { TodayDesk } from './TodayDesk'
+import { continueWriting } from './continueWriting'
 
 export function HomeView() {
   const { data, navigate, selectChapter, createWork, saveMoodEntry, deleteMoodEntry, saveDailyQuestion, startDailyQuestionDiary, setCompanionDesktop } = useLibraryStore()
-  const activeWork = data.works.find((work) => work.id === data.session.activeWorkId) ?? data.works[0]
-  const latestChapter = Object.values(data.chapters).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
-  const totalWords = Object.values(data.chapters).reduce((sum, chapter) => sum + chapter.wordCount, 0)
-  const progress = activeWork ? Math.min(100, Math.round((totalWords / activeWork.targetWords) * 100)) : 0
+  const { work: activeWork, chapter: latestChapter, words: totalWords, progress } = continueWriting(data)
   const writingEnabled = data.settings.modules.find((module) => module.id === 'writing')?.enabled ?? true
   const today = useLiveDate()
   const [questionError, setQuestionError] = useState('')
@@ -68,7 +66,7 @@ export function HomeView() {
           <p>{activeWork?.description}</p>
           <div className="progress-row"><div className="progress-track"><span style={{ width: `${progress}%` }} /></div><span>{totalWords.toLocaleString()} 字 · {progress}%</span></div>
           <div className="card-actions">
-            <button className="primary-button" onClick={() => latestChapter && selectChapter(latestChapter.id)}><BookOpenText size={16} />继续写作<ArrowRight size={15} /></button>
+            <button className="primary-button" disabled={!latestChapter} onClick={() => latestChapter && selectChapter(latestChapter.id)}><BookOpenText size={16} />{activeWork?.locked ? '作品已锁定' : '继续写作'}<ArrowRight size={15} /></button>
             <button className="ghost-button" onClick={createWork}><Plus size={16} />新建作品</button>
           </div>
         </div>

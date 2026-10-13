@@ -4,11 +4,12 @@ import { AgentPermissionEngine } from './permission'
 import { AgentToolRegistry } from './toolRegistry'
 import type { AgentToolDefinition } from './types'
 import { localRitualTools } from './ritualTools'
+import { publicReadTools } from './publicReadTools'
 
-const reservedTools = new Set(['task.create', 'companion.set_state', 'screen.record_start', 'screen.record_stop'])
+const reservedTools = new Set(['task.create', 'companion.set_state', 'screen.record_start', 'screen.record_stop', 'computer.takeover', 'operation.search', 'operation.get', 'operation.prepare', 'operation.propose'])
 
 export function isTaskToolEligible(tool: AgentToolDefinition) {
-  return !reservedTools.has(tool.name) && !localRitualTools.has(tool.name)
+  return !tool.name.startsWith('browser.') && !reservedTools.has(tool.name) && !localRitualTools.has(tool.name) && !publicReadTools.has(tool.name)
 }
 
 export class TaskActionConfirmationRequired extends Error {

@@ -228,9 +228,6 @@ export function CompanionDesktopBridge() {
       void emitTo('companion-chat', 'companion:stream-text', { text: '' })
       const voice = useLibraryStore.getState().data.companion.voice
       const trust = useLibraryStore.getState().data.settings.trust
-      if (!trust.retainConversationHistory) {
-        void emitTo('companion-chat', 'companion:transient-message', { role: 'user', content: event.payload.message })
-      }
       const externalVoiceAllowed = voice.tts.providerId === 'none' || trust.externalAiProcessing
       const speechEnabled = externalVoiceAllowed && (voice.autoSpeak || event.payload.wake) && voice.tts.providerId !== 'none' && Boolean(voice.tts.voice)
       const speechLimit = replySpeechLimit(voice.longReplySpeech, event.payload.inputMode ?? 'text', event.payload.wake)
@@ -261,12 +258,16 @@ export function CompanionDesktopBridge() {
         },
       })
       void sendCompanionTurn(event.payload.message, {
+        conversationChannel:'desktop',
+        onTransientMessage: (message) => {
+          if (activeTurn.current === turn && !turn.signal.aborted) void emitTo('companion-chat', 'companion:transient-message', message)
+        },
         onStatus: (status) => { if (activeTurn.current === turn) setAgentStatus(status) },
         onTextDelta: (delta) => {
-          void emitTo('companion-chat', 'companion:stream-text', { text: delta, append: true })
+          if (activeTurn.current === turn && !turn.signal.aborted) void emitTo('companion-chat', 'companion:stream-text', { text: delta, append: true })
         },
         onTextReset: () => {
-          void emitTo('companion-chat', 'companion:stream-text', { text: '' })
+          if (activeTurn.current === turn && !turn.signal.aborted) void emitTo('companion-chat', 'companion:stream-text', { text: '' })
         },
         onVisualState: (state) => {
           if (activeTurn.current !== turn) return
@@ -299,9 +300,6 @@ export function CompanionDesktopBridge() {
         }),
       }).then((responseText) => {
         if (turn.signal.aborted) return
-        if (!trust.retainConversationHistory) {
-          void emitTo('companion-chat', 'companion:transient-message', { role: 'companion', content: responseText })
-        }
         const taskActive = useLibraryStore.getState().data.companion.tasks.some((task) => ['queued', 'preparing', 'running'].includes(task.status))
         if (taskActive) {
           setAgentStatus(undefined)

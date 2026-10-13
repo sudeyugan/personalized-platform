@@ -1,0 +1,5 @@
+.search-results .global-search-selected{background:var(--surface-soft);outline:1px solid var(--line);outline-offset:-1px}
+.global-search-group{flex:0 0 5em;color:var(--ink-soft);font-size:11px;align-self:flex-start;padding-top:3px}
+.search-results button>span:last-child{min-width:0}.search-results strong,.search-results small{overflow-wrap:anywhere}
+[data-navigation-target].navigation-target{outline:2px solid var(--accent);outline-offset:2px}
+.journal-question-reference{margin-bottom:20px;padding:18px;border-left:2px solid var(--accent);background:var(--surface-soft);color:var(--ink-soft);line-height:1.8}.journal-question-reference h2{font-size:16px;color:var(--ink)}

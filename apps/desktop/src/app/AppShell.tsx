@@ -1,13 +1,16 @@
-import { BookHeart, BookOpenText, ChevronDown, ChevronRight, CloudOff, FileText, PanelRight, Search, X } from 'lucide-react'
+import { BookHeart, BookOpenText, ChevronDown, ChevronRight, CloudOff, PanelRight, Search, X } from 'lucide-react'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { navigationItems } from './moduleManifest'
 import { resolveContentBackground } from './backgrounds'
 import { useLibraryStore } from '../state/useLibraryStore'
-import { libraryRepository, type SearchHit } from '../infrastructure/libraryRepository'
+import { GlobalSearch } from '../modules/search/GlobalSearch'
 import { BackgroundArt } from '../modules/backgrounds/BackgroundArt'
 import { backgroundPresentation } from '../modules/backgrounds/backgroundPresentation'
 import { useBackgroundImage } from '../modules/backgrounds/useBackgroundImage'
 import { PlaybackDock } from '../modules/music/PlaybackDock'
+import { TakeoverPanel } from '../modules/computer-takeover/TakeoverPanel'
+import { OperationMemoryPanel } from '../modules/operation-memory/OperationMemoryPanel'
+import { BrowserConnectionController } from '../modules/browser-connection/controller'
 
 const HomeView = lazy(() => import('../modules/home/HomeView').then((module) => ({ default: module.HomeView })))
 const AnswerBookView = lazy(() => import('../modules/answer-book/AnswerBookView').then((module) => ({ default: module.AnswerBookView })))
@@ -28,13 +31,7 @@ export function AppShell() {
   const { data, health, saveStatus, navigate, closeChapter, selectChapter, toggleRightPanel } = useLibraryStore()
   const { activeView, activeChapterId, openChapterIds } = data.session
   const [searchOpen, setSearchOpen] = useState(false)
-  const [query, setQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<SearchHit[]>([])
   const [writingNavigationOpen, setWritingNavigationOpen] = useState(() => window.localStorage.getItem('yiyu:writing-navigation-open') === 'true')
-  useEffect(() => {
-    const timer = setTimeout(() => { void libraryRepository.search(query).then(setSearchResults).catch(() => setSearchResults([])) }, 120)
-    return () => clearTimeout(timer)
-  }, [query, data.chapters])
   useEffect(() => {
     const openSearch = (event: KeyboardEvent) => { if ((event.ctrlKey || event.metaKey) && event.key.toLocaleLowerCase() === 'k') { event.preventDefault(); setSearchOpen(true) } }
     window.addEventListener('keydown', openSearch)
@@ -86,7 +83,7 @@ export function AppShell() {
           <div><strong>一隅</strong><span>安放你的故事</span></div>
         </div>
 
-        <button className="search-trigger" onClick={() => setSearchOpen(true)} type="button"><Search size={16} /><span>搜索章节</span><kbd>Ctrl K</kbd></button>
+        <button className="search-trigger" onClick={() => setSearchOpen(true)} type="button"><Search size={16} /><span>搜索整个程序</span><kbd>Ctrl K</kbd></button>
 
         <nav className="main-navigation" aria-label="主导航">
           {(['main', 'writing', 'system'] as const).map((group) => (
@@ -143,7 +140,10 @@ export function AppShell() {
 
         <div className="view-stage"><Suspense fallback={<main className="launch-screen"><p>正在打开这一页…</p></main>}>{view}</Suspense></div>
       </section>
-      {searchOpen && <div className="search-overlay" onMouseDown={() => setSearchOpen(false)}><section onMouseDown={(event) => event.stopPropagation()}><header><Search size={18} /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索章节标题和正文…" /><button onClick={() => setSearchOpen(false)}><X size={17} /></button></header><div className="search-results">{searchResults.map((hit) => <button key={hit.chapterId} onClick={() => { selectChapter(hit.chapterId); setSearchOpen(false) }}><FileText size={16} /><span><strong>{hit.title}</strong><small>{hit.excerpt}</small></span></button>)}{query && searchResults.length === 0 && <p>没有找到相关内容</p>}</div></section></div>}
+      {searchOpen && <GlobalSearch onClose={() => setSearchOpen(false)} />}
+      <TakeoverPanel />
+      <OperationMemoryPanel />
+      <BrowserConnectionController />
       {(activeView === 'music' || Boolean(data.session.currentTrackId)) && <PlaybackDock moduleEnabled={musicEnabled} showEmptyHint={activeView === 'music'} />}
     </div>
   )

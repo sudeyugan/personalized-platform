@@ -1,10 +1,13 @@
 import type { JSONContent } from '@tiptap/react'
+import type { AssignmentsActions } from './assignmentsSlice'
+import type { OperationsActions } from './operationsSlice'
+import type { BrowserActions } from './browserSlice'
 import type { ExperiencesActions } from './experiencesSlice'
 import type { AgentNavigationIntent, AgentTask, AiGeneration, AnswerBookFavorite, Asset, BackgroundSettings, CalendarEvent, CompanionAgentAuditEntry, CompanionDesktopMode, CompanionMemory, CompanionMessage, CompanionPersonality, CompanionVideoPlacement, CompanionVideoState, Course, DailyQuestion, DiaryEntry, EntityRef, LibraryData, MoodEntry, Person, Place, PlaybackContextKind, RecordType, SaveStatus, TextAnchor, ThemeId, TimelineEvent, TodoItem, Track, ViewId } from '../domain/models'
 import type { HealthStatus, RecoveryDraft } from '../infrastructure/libraryRepository'
 import type { ImportChapter } from '../infrastructure/documentTransfer'
 
-export interface LibraryStore extends ExperiencesActions {
+export interface LibraryStore extends ExperiencesActions, AssignmentsActions, OperationsActions, BrowserActions {
   drawFortune: (kind?: import('../domain/fortune').FortuneKind) => import('../domain/fortune').FortuneDraw
   data: LibraryData; ready: boolean; saveStatus: SaveStatus; health: HealthStatus | null; recoveryDrafts: Record<string, RecoveryDraft>; playback: { playing: boolean; context: PlaybackContextKind; queue: string[] }; temporaryCompanionWorkIds: string[]
   hydrate: () => Promise<void>; navigate: (view: ViewId) => void; openAgentDestination: (intent: Omit<AgentNavigationIntent, 'id'>) => void; selectWork: (id: string) => void; selectChapter: (id: string) => void; closeChapter: (id: string) => void

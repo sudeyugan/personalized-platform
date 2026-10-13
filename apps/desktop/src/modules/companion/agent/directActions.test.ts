@@ -21,6 +21,14 @@ const lowRiskTool = (name: string): AgentToolDefinition => ({
 })
 
 describe('direct computer actions', () => {
+  it('only prepares explicitly requested takeover and does not nest it into recorded tasks', () => {
+    const tools = [lowRiskTool('computer.takeover'), lowRiskTool('task.create')]
+    const intent = detectActionIntent('帮我接管这个窗口，录屏演示搜索报告', tools)
+    expect(intent.directCall).toMatchObject({ name: 'computer.takeover', arguments: { goal: '帮我接管这个窗口，录屏演示搜索报告' } })
+    expect(intent.requiresTaskPlan).toBeUndefined()
+    expect(resolveDirectAction('不要接管电脑', tools)).toBeUndefined()
+    expect(resolveDirectAction('如何接管电脑', tools)).toBeUndefined()
+  })
   it('routes an explicit plain domain through system.open with HTTPS', () => {
     expect(resolveDirectAction('打开 bilibili.com', [openTool])).toMatchObject({
       name: 'system.open',

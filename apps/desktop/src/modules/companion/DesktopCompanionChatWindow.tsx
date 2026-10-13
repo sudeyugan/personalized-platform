@@ -20,6 +20,7 @@ import { useCompanionVoiceWake } from './useCompanionVoiceWake'
 import { createPlaybackEchoHistory } from './playbackEcho'
 import { readMicrophonePreferences } from '../../infrastructure/microphonePreferences'
 import { ChatTaskPanel } from './tasks/ChatTaskPanel'
+import { conversationMessages } from './conversationMessages'
 
 export function DesktopCompanionChatWindow() {
   const [snapshot, setSnapshot] = useState(emptyCompanionDesktopSnapshot)
@@ -125,8 +126,8 @@ export function DesktopCompanionChatWindow() {
       setSpeechNote('')
       setDraft((value) => value.trim() === pending.message ? '' : value)
     }).then((value) => { stopSendAccepted = value })
-    void listen<{ role: CompanionMessage['role']; content: string }>('companion:transient-message', (event) => {
-      setTransientMessages((messages) => [...messages, { id: `transient-${crypto.randomUUID()}`, role: event.payload.role, content: event.payload.content, createdAt: new Date().toISOString() }])
+    void listen<CompanionMessage>('companion:transient-message', (event) => {
+      setTransientMessages((messages) => [...messages, { ...event.payload, id: event.payload.id ?? `transient-${crypto.randomUUID()}`, createdAt: event.payload.createdAt ?? new Date().toISOString(), localOnly: true }])
     }).then((value) => { stopTransientMessage = value })
     void listen('companion:transient-clear', () => setTransientMessages([])).then((value) => { stopTransientClear = value })
     return () => {
@@ -256,7 +257,7 @@ export function DesktopCompanionChatWindow() {
     }
   }
 
-  const latestMessages = [...snapshot.messages, ...transientMessages]
+  const latestMessages = conversationMessages(snapshot.messages, transientMessages)
   const showTask = snapshot.task && (expanded || !['completed', 'cancelled'].includes(snapshot.task.status))
   const caption = useConversationCaption({ mode, speech: speechCaption, speaking: speechActive, listening: recording || snapshot.action === 'listening',
     busy: Boolean(snapshot.agentStatus), stream: streamedReply, messages: latestMessages, reading: readingCaption })

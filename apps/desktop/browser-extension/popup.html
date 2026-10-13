@@ -1,0 +1,7 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>小鱼浏览器连接</title><link rel="stylesheet" href="popup.css"></head>
+<body><header><small>一隅 · Edge</small><h1>把当前浏览器交给小鱼读取</h1></header>
+<p>只在你发出任务时读取授权网站；使用此配置现有登录状态，不导出Cookie或密码。页面文字可能由一隅中配置的模型处理。</p>
+<section><label for="code">一隅中的连接码</label><input id="code" type="password" maxlength="64" autocomplete="off" placeholder="从设置中复制，10分钟内有效"><button id="connect">连接一隅</button><button id="disconnect" class="quiet">忘记本机连接</button></section>
+<section><h2>网站范围</h2><p>统一在一隅的「Edge浏览器连接」添加或删除网站。这里无需重复输入；新增后会自动打开确认页。</p><button id="pending">打开待确认连接</button><div id="sites"></div></section>
+<p id="status" role="status"></p><footer>可随时撤销。扩展不操作表单、发消息或提交，不查看无痕页面。</footer><script type="module" src="popup.js"></script></body></html>

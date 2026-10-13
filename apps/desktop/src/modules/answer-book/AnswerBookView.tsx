@@ -2,6 +2,7 @@ import { BookOpen, Bookmark, BookmarkCheck, Feather, PenLine, Sparkles, Trash2 }
 import { useEffect, useRef, useState } from 'react'
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { drawRandomAnswer } from './drawAnswer'
+import { useNavigationTarget } from '../search/useNavigationTarget'
 
 type RevealPhase = 'idle' | 'turning' | 'revealed'
 
@@ -15,6 +16,7 @@ function formatFavoriteTime(value: string) {
 }
 
 export function AnswerBookView() {
+  const navigationTarget = useNavigationTarget('answer_book')
   const { data, addAnswerBookFavorite, deleteAnswerBookFavorite } = useLibraryStore()
   const [question, setQuestion] = useState('')
   const [answeredQuestion, setAnsweredQuestion] = useState('')
@@ -141,7 +143,7 @@ export function AnswerBookView() {
           ) : (
             <div className="answer-favorite-list">
               {data.answerBook.favorites.map((favorite) => (
-                <article key={favorite.id}>
+                <article key={favorite.id} data-navigation-target={favorite.id} className={navigationTarget === favorite.id ? 'navigation-target' : undefined}>
                   <button aria-label="删除这条收藏" onClick={() => deleteAnswerBookFavorite(favorite.id)} title="删除收藏" type="button"><Trash2 size={14} /></button>
                   <small>{formatFavoriteTime(favorite.createdAt)}</small>
                   <p>{favorite.question}</p>

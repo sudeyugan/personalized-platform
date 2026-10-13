@@ -31,3 +31,6 @@
   .experience-editor-page .experience-editor-two { grid-template-columns: minmax(0, 1fr) minmax(100px, .6fr); gap: 10px; }
   .experience-editor-page .experience-edit-details .experience-editor-two { grid-template-columns: 1fr; }
 }
+.experience-draft-controls{margin:20px 0;color:var(--ink-soft);font-size:12px;line-height:1.8}
+.experience-draft-controls>label{display:flex;align-items:center;gap:8px}.experience-draft-controls input{width:auto}
+.experience-draft-controls small{display:block;margin-top:5px}.experience-draft-controls button{margin-right:8px}

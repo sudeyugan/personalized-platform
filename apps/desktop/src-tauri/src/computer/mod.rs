@@ -4,10 +4,11 @@ mod processes;
 mod recording;
 mod types;
 mod windows;
+mod takeover;
 
 use clipboard_win::{get_clipboard_string, set_clipboard_string};
 use serde_json::{json, Value};
-use tauri::{AppHandle, State, WebviewWindow};
+use tauri::{AppHandle, Manager, State, WebviewWindow};
 use tauri_plugin_notification::NotificationExt;
 
 pub use types::ComputerRuntime;
@@ -67,6 +68,13 @@ fn execute(
     confirmed: bool,
 ) -> Result<Value, String> {
     policy::authorize(policy, request, confirmed)?;
+    // The existing chat tools must not race a scoped takeover with global input or Shell.
+    let _desktop = runtime.desktop_operation.lock().map_err(|_| "COMPUTER_BUSY")?;
+    let active = runtime.takeover.lock().map_err(|_| "COMPUTER_BUSY")?
+        .as_ref().is_some_and(|session| session.expires > std::time::Instant::now());
+    if active && !matches!(request.action.as_str(), "app_list" | "window_list" | "screen_list_sources" | "screen_record_status" | "process_list" | "notify") {
+        return Err("TAKEOVER_BUSY:请先暂停或停止接管，再使用其他电脑工具".into());
+    }
     runtime.cancelled.store(false, std::sync::atomic::Ordering::SeqCst);
     match request.action.as_str() {
         "app_list" | "window_list" => serde_json::to_value(windows::list_windows().map_err(|error| error.to_string())?).map_err(|error| error.to_string()),
@@ -181,6 +189,30 @@ fn execute(
 }
 
 #[tauri::command]
+pub async fn computer_takeover(window: WebviewWindow, app: AppHandle, request: takeover::Request, policy: ComputerPolicy, confirmed: bool) -> Result<Value, String> {
+    require_main(&window)?;
+    let watchdog_app = app.clone(); let begin = matches!(&request, takeover::Request::Begin { .. });
+    let result = tauri::async_runtime::spawn_blocking(move || takeover::execute(&app.state::<ComputerRuntime>(), &policy, request, confirmed))
+        .await.map_err(|_| "TAKEOVER_WORKER_FAILED".to_string())?
+        ?;
+    if begin {
+        if let Some(id) = result.get("sessionId").and_then(Value::as_str).map(str::to_string) {
+            // One short-lived watchdog per active lease; clear observed text even if the renderer disappears.
+            std::thread::spawn(move || loop {
+                std::thread::sleep(std::time::Duration::from_secs(1));
+                let runtime = watchdog_app.state::<ComputerRuntime>();
+                let Ok(mut slot) = runtime.takeover.lock() else { return; };
+                let Some(session) = slot.as_ref().filter(|session| session.id == id) else { return; };
+                if session.expires <= std::time::Instant::now() {
+                    runtime.takeover_generation.fetch_add(1, std::sync::atomic::Ordering::SeqCst); *slot = None; return;
+                }
+            });
+        }
+    }
+    Ok(result)
+}
+
+#[tauri::command]
 pub fn computer_execute(
     window: WebviewWindow,
     app: AppHandle,
@@ -202,8 +234,9 @@ pub fn computer_status(window: WebviewWindow, runtime: State<'_, ComputerRuntime
 }
 
 #[tauri::command]
-pub fn computer_emergency_stop(window: WebviewWindow, runtime: State<'_, ComputerRuntime>) -> Result<Value, String> {
+pub fn computer_emergency_stop(window: WebviewWindow, app: AppHandle, runtime: State<'_, ComputerRuntime>) -> Result<Value, String> {
     require_main(&window)?;
+    crate::browser_bridge::cancel_all(&app.state::<crate::browser_bridge::BrowserRuntime>());
     Ok(json!({ "stopped": runtime.stop_all() }))
 }
 

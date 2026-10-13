@@ -300,6 +300,9 @@ export interface CompanionData {
   computer: CompanionComputerSettings
   messages: CompanionMessage[]
   memories: CompanionMemory[]
+  operations?: import('./operations/types').LearnedOperation[]
+  operationLearning?: { enabled: boolean; ignoredPatterns: string[] }
+  browser?: import('./browser').BrowserSettings
   agentAudit: CompanionAgentAuditEntry[]
   tasks: AgentTask[]
   personality: CompanionPersonality
@@ -408,6 +411,7 @@ export interface TodoItem {
   createdAt: string
 }
 export interface PlannerData {
+  assignments?: import('./assignments/types').Assignment[]
   courses: Course[]
   diaryEntries: DiaryEntry[]
   moodEntries: MoodEntry[]

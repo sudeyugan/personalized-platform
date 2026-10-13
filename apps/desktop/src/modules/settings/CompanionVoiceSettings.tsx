@@ -5,6 +5,7 @@ import { deleteCompanionVoiceKey, hasCompanionVoiceKey, storeCompanionVoiceKey }
 import { captureSpeakerSample, localVoice, type LocalVoiceInstallSnapshot, type LocalVoiceStatus } from '../../infrastructure/localVoice'
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { MicrophoneSettings } from './MicrophoneSettings'
+import { WakeNameField } from './WakeNameField'
 
 type VoiceProvider = 'none' | 'elevenlabs' | 'custom'
 
@@ -53,6 +54,7 @@ export function CompanionVoiceSettings() {
     setLocalBusy(true)
     const prompts = [`请清楚说“${wakeName}”`, `请再次说“${wakeName}”`, '请自然说：今天我想安静地写一点东西', '请再自然说一句你常用的话']
     try {
+      if(voice.wakeEnabled){setCompanionVoice({wakeEnabled:false});await localVoice.stop()}
       const samples: number[][] = []
       for (let index = 0; index < prompts.length; index += 1) {
         setLocalMessage(`${prompts[index]}（${index + 1}/${prompts.length}，约 3 秒）`)
@@ -62,7 +64,7 @@ export function CompanionVoiceSettings() {
       setLocalMessage('正在本机生成声纹，原始录音不会保存…')
       const status = await localVoice.enroll(samples)
       setLocalStatus(status)
-      setLocalMessage('声纹录入完成；四段原始录音已从内存释放。')
+      setLocalMessage('声纹录入完成；四段原始录音已从内存释放。可以重新开启语音唤醒。')
     } catch (error) {
       setLocalMessage(error instanceof Error ? error.message.replace(/^[A-Z_]+:/, '') : String(error))
     } finally { setLocalBusy(false) }
@@ -108,7 +110,7 @@ export function CompanionVoiceSettings() {
     <div className="voice-settings-body">
       <label className="setting-row"><div><strong>语音服务</strong><span>同一入口管理语音识别和语音合成</span></div><select value={provider} onChange={(event) => chooseProvider(event.target.value as VoiceProvider)}><option value="none">关闭</option><option value="elevenlabs">ElevenLabs</option><option value="custom">其他 Provider（预留）</option></select></label>
       {provider === 'elevenlabs' && <>
-        <MicrophoneSettings wakeEnabled={voice.wakeEnabled} />
+        <MicrophoneSettings wakeEnabled={voice.wakeEnabled} busy={localBusy} />
         <label className="setting-row"><div><strong>Voice ID</strong><span>使用 ElevenLabs 声音库中的 Voice ID</span></div><input value={voice.tts.voice} placeholder="例如 JBFqnCBsd6RMkjVDRZzb" onChange={(event) => setCompanionVoice({ tts: { voice: event.target.value.trim() } })} /></label>
         <div className="compact-settings-grid">
           <label className="setting-row"><div><strong><Volume2 size={13} />朗读模型</strong><span>默认低延迟多语言模型</span></div><input value={voice.tts.model} onChange={(event) => setCompanionVoice({ tts: { model: event.target.value.trim() } })} /></label>
@@ -119,16 +121,16 @@ export function CompanionVoiceSettings() {
         <section className="local-voice-settings">
           <header><Fingerprint size={16} /><span><strong>本地唤醒与声纹</strong><small>待机检测完全留在本机，通过后才连接 ElevenLabs</small></span><b>{localStatus.modelsInstalled ? localStatus.speakerEnrolled ? '已就绪' : '待录入' : '未安装'}</b></header>
           <div className="local-voice-grid">
-            <label><span>伙伴唤醒名<small>与伙伴名字一致；请在上方“伙伴名字”修改，需 2～6 个汉字</small></span><input value={wakeName} readOnly aria-label="伙伴唤醒名" /></label>
-            <label><span>唤醒灵敏度<small>越高越容易唤醒，也更可能误触发</small></span><select value={voice.wakeSensitivity} disabled={voice.wakeEnabled} onChange={(event) => setCompanionVoice({ wakeSensitivity: event.target.value as typeof voice.wakeSensitivity })}><option value="low">低</option><option value="standard">标准</option><option value="high">高</option></select></label>
+            <WakeNameField name={wakeName} busy={localBusy} />
+            <label><span>唤醒灵敏度<small>修改后自动重启监听；越高越易唤醒，也可能误触发</small></span><select aria-label="唤醒灵敏度" value={voice.wakeSensitivity} disabled={localBusy} onChange={(event) => setCompanionVoice({ wakeSensitivity: event.target.value as typeof voice.wakeSensitivity })}><option value="low">低</option><option value="standard">标准</option><option value="high">高</option></select></label>
             <label><span>模型下载源<small>国内优先速度更快；自动模式失败后切全球源</small></span><select value={voice.modelDownloadSource} disabled={modelInstall.active} onChange={(event) => setCompanionVoice({ modelDownloadSource: event.target.value as typeof voice.modelDownloadSource })}><option value="china">国内优先</option><option value="auto">自动切换</option><option value="global">GitHub / Hugging Face</option></select></label>
           </div>
-          <div className="setting-row"><div><strong>只响应已录入的声音</strong><span>声纹仅用于减少误唤醒，不能替代高风险操作确认</span></div><button aria-pressed={voice.speakerVerification} className={voice.speakerVerification ? 'switch on' : 'switch'} disabled={voice.wakeEnabled} onClick={() => setCompanionVoice({ speakerVerification: !voice.speakerVerification })}><i /></button></div>
+          <div className="setting-row"><div><strong>只响应已录入的声音</strong><span>可随时调整；声纹仅减少误唤醒，不替代高风险确认。重新录入时会暂停唤醒</span></div><button aria-label="只响应已录入的声音" aria-pressed={voice.speakerVerification} className={voice.speakerVerification ? 'switch on' : 'switch'} disabled={localBusy} onClick={() => {if(!voice.speakerVerification&&voice.wakeEnabled&&!localStatus.speakerEnrolled){setLocalMessage('请先录入声纹；录入时会自动暂停唤醒。');return}setCompanionVoice({ speakerVerification: !voice.speakerVerification })}}><i /></button></div>
           <div className="local-voice-actions">
             {!localStatus.modelsInstalled && <button disabled={localBusy || modelInstall.active} onClick={() => void installLocalModels()}><Download size={13} />{modelInstall.active ? '正在下载…' : '下载本地模型'}</button>}
             {modelInstall.active && <button className="quiet" disabled={modelInstall.cancelling} onClick={() => void localVoice.cancelInstall()}>{modelInstall.cancelling ? '正在取消…' : '取消下载'}</button>}
-            {localStatus.modelsInstalled && <button disabled={localBusy || modelInstall.active || voice.wakeEnabled} onClick={() => void enrollSpeaker()}><Mic2 size={13} />{localBusy ? '正在录入…' : localStatus.speakerEnrolled ? '重新录入声纹' : '录入声纹'}</button>}
-            {localStatus.speakerEnrolled && <button className="quiet" disabled={localBusy || modelInstall.active || voice.wakeEnabled} onClick={() => void localVoice.deleteProfile().then((status) => { setLocalStatus(status); setLocalMessage('本地声纹已删除。'); setCompanionVoice({ wakeEnabled: false }) })}><Trash2 size={13} />删除声纹</button>}
+            {localStatus.modelsInstalled && <button disabled={localBusy || modelInstall.active} onClick={() => void enrollSpeaker()}><Mic2 size={13} />{localBusy ? '正在录入…' : localStatus.speakerEnrolled ? '重新录入声纹' : '录入声纹'}</button>}
+            {localStatus.speakerEnrolled && <button className="quiet" disabled={localBusy || modelInstall.active} onClick={() => {setCompanionVoice({wakeEnabled:false});void localVoice.deleteProfile().then((status) => { setLocalStatus(status); setLocalMessage('本地声纹已删除，唤醒已暂停。') }).catch(()=>setLocalMessage('声纹删除失败，唤醒已暂停，请重试。'))}}><Trash2 size={13} />删除声纹</button>}
           </div>
           {modelInstall.active && modelInstall.progress && <div className="local-voice-download-progress">
             <div><span>{modelInstall.progress.label}</span><b>{modelInstall.progress.percent == null ? '连接中' : modelInstall.progress.percent + '%'}</b></div>

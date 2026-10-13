@@ -13,12 +13,16 @@ import { createMusicSlice, resolvePlaybackContext } from './musicSlice'
 import { createCompanionSlice } from './companionSlice'
 import { createAgentTaskSlice } from './agentTaskSlice'
 import { createPlannerSlice } from './plannerSlice'
+import { createAssignmentsSlice } from './assignmentsSlice'
+import { createOperationsSlice } from './operationsSlice'
+import { createBrowserSlice } from './browserSlice'
 import { createFortuneSlice } from './fortuneSlice'
 import { createExperiencesSlice } from './experiencesSlice'
 import { createAnswerBookSlice } from './answerBookSlice'
 import { formatLocalDate } from '../domain/localDate'
 import { viewForAgentDestination } from '../modules/companion/agent/featureContract'
 import { queueLibrarySave } from './persistence'
+import { sessionAfterRemovingChapter } from './chapterNavigation'
 
 const initialData = createSeedLibrary()
 
@@ -45,6 +49,8 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   playback: { playing: false, context: 'global', queue: [] },
   temporaryCompanionWorkIds: [],
   ...createExperiencesSlice(get, set),
+  ...createOperationsSlice(get, set),
+  ...createBrowserSlice(get, set),
 
   hydrate: async () => {
     try {
@@ -99,6 +105,9 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     const activeView = viewForAgentDestination(request.destination)
     if (!activeView) return
     const current = get().data
+    const targetChapter = request.destination === 'writing.chapter' && request.targetId ? current.chapters[request.targetId] : undefined
+    const targetWork = current.works.find(work => work.id === targetChapter?.workId)
+    if (request.destination === 'writing.chapter' && request.targetId && (!targetChapter || targetChapter.deletedAt || !targetWork || targetWork.deletedAt || targetWork.locked)) return
     const intent = { ...request, id: `agent-navigation-${crypto.randomUUID()}` }
     const nextSession = {
       ...current.session,
@@ -106,6 +115,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       agentNavigation: intent,
       ...(request.destination === 'diary.day' && request.date ? { activeDiaryDate: request.date } : {}),
       ...(request.destination === 'writing.chapter' && request.targetId && current.chapters[request.targetId] ? {
+        activeWorkId: current.chapters[request.targetId].workId,
         activeChapterId: request.targetId,
         openChapterIds: current.session.openChapterIds.includes(request.targetId) ? current.session.openChapterIds : [...current.session.openChapterIds, request.targetId],
       } : {}),
@@ -120,8 +130,9 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
 
   selectWork: (activeWorkId) => {
     const work = get().data.works.find((item) => item.id === activeWorkId)
-    if (!work) return
-    const activeChapterId = work.chapterIds[0] ?? ''
+    if (!work || work.deletedAt) return
+    // Selecting a locked work must still reach its password gate, without opening content.
+    const activeChapterId = work.locked ? '' : work.chapterIds.find(id => { const chapter = get().data.chapters[id]; return chapter && !chapter.deletedAt && chapter.workId === work.id }) ?? ''
     const openChapterIds = activeChapterId ? [activeChapterId] : []
     const data = { ...get().data, session: { ...get().data.session, activeWorkId, activeChapterId, openChapterIds } }
     set({ data })
@@ -129,22 +140,21 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
 
   selectChapter: (activeChapterId) => {
+    const chapter = get().data.chapters[activeChapterId]
+    const work = get().data.works.find(item => item.id === chapter?.workId)
+    if (!chapter || chapter.deletedAt || !work || work.deletedAt || work.locked) return
     const session = get().data.session
     const openChapterIds = session.openChapterIds.includes(activeChapterId)
       ? session.openChapterIds
       : [...session.openChapterIds, activeChapterId]
-    const data = { ...get().data, session: { ...session, activeView: 'writing' as const, activeChapterId, openChapterIds } }
+    const data = { ...get().data, session: { ...session, activeView: 'writing' as const, activeWorkId: work.id, activeChapterId, openChapterIds } }
     set({ data })
     queueLibrarySave(data, set)
   },
 
   closeChapter: (chapterId) => {
-    const session = get().data.session
-    const openChapterIds = session.openChapterIds.filter((item) => item !== chapterId)
-    const activeChapterId = session.activeChapterId === chapterId
-      ? openChapterIds.at(-1) ?? ''
-      : session.activeChapterId
-    const data = { ...get().data, session: { ...session, activeChapterId, openChapterIds } }
+    const current = get().data
+    const data = { ...current, session: sessionAfterRemovingChapter(current, chapterId, true) }
     set({ data })
     queueLibrarySave(data, set)
   },
@@ -176,7 +186,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     const works = current.works.map((work) => work.id === workId ? { ...work, deletedAt: new Date().toISOString() } : work)
     const next = works.find((work) => !work.deletedAt)
     if (!next) return
-    const activeChapterId = next.chapterIds.find((chapterId) => !current.chapters[chapterId]?.deletedAt) ?? ''
+    const activeChapterId = next.locked ? '' : next.chapterIds.find(chapterId => { const chapter = current.chapters[chapterId]; return chapter && !chapter.deletedAt && chapter.workId === next.id }) ?? ''
     const data = { ...current, works, session: { ...current.session, activeWorkId: next.id, activeChapterId, openChapterIds: activeChapterId ? [activeChapterId] : [] } }
     set({ data }); queueLibrarySave(data, set)
   },
@@ -268,9 +278,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
     const chapter = current.chapters[chapterId]
     if (!chapter) return
     const chapters = { ...current.chapters, [chapterId]: { ...chapter, deletedAt: new Date().toISOString() } }
-    const openChapterIds = current.session.openChapterIds.filter((item) => item !== chapterId)
-    const activeChapterId = current.session.activeChapterId === chapterId ? openChapterIds[0] ?? '' : current.session.activeChapterId
-    const data = { ...current, chapters, session: { ...current.session, openChapterIds, activeChapterId } }
+    const data = { ...current, chapters, session: sessionAfterRemovingChapter({ ...current, chapters }, chapterId) }
     set({ data }); queueLibrarySave(data, set)
   },
 
@@ -366,6 +374,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   ...createCompanionSlice(get, set),
   ...createAgentTaskSlice(get, set),
   ...createPlannerSlice(get, set),
+  ...createAssignmentsSlice(get, set),
   ...createAnswerBookSlice(get, set),
   ...createFortuneSlice(get, set),
 

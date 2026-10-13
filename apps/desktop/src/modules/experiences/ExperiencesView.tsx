@@ -1,16 +1,18 @@
 import { BookHeart, LayoutGrid, ListOrdered, MapPin, Plus, Search } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { categoryLabels, emptyExperiences, experienceGroup, type ExperienceCategory } from '../../domain/experiences'
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { ExperienceCard } from './ExperienceCard'
 import { ExperienceEditor } from './ExperienceEditor'
 import { TierBoard } from './TierBoard'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { ExperienceRecoveryShelf } from './ExperienceRecoveryShelf'
 import './experiences.css'
 import './experienceEditor.css'
 
 export function ExperiencesView() {
-  const { data, rankExperience, setExperienceTierLabel, permanentlyDeleteExperience, restoreExperience } = useLibraryStore()
+  const { data, health, rankExperience, setExperienceTierLabel, permanentlyDeleteExperience, restoreExperience } = useLibraryStore()
+  const recoveryScope = health?.libraryPath ?? (health?.runtime === 'tauri' ? '' : 'browser-preview')
   const experiences = data.experiences ?? emptyExperiences()
   const [group, setGroup] = useState<'works' | 'places'>('works')
   const [view, setView] = useState<'cards' | 'tiers'>('cards')
@@ -19,6 +21,14 @@ export function ExperiencesView() {
   const [editing, setEditing] = useState<{ id?: string }>()
   const [trashOpen, setTrashOpen] = useState(false)
   const [deleting, setDeleting] = useState<string>()
+  useEffect(() => {
+    const intent = data.session.agentNavigation
+    if (intent?.destination !== 'experiences' || !intent.targetId) return
+    const entry = experiences.entries.find(item => item.id === intent.targetId && !item.deletedAt)
+    if (entry) { setGroup(experienceGroup(entry.category)); setEditing({ id: entry.id }); setTrashOpen(false) }
+  // Only a new explicit navigation may open an editor; record updates must not reopen it.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.session.agentNavigation?.id])
   const needle = query.trim().toLocaleLowerCase()
   const entries = experiences.entries.filter(entry => !entry.deletedAt && experienceGroup(entry.category) === group && (!category || entry.category === category) && (!needle || [entry.title, entry.creator, entry.note, entry.dateText].some(text => text.toLocaleLowerCase().includes(needle))))
   const deleted = experiences.entries.filter(entry => entry.deletedAt && experienceGroup(entry.category) === group)
@@ -28,11 +38,12 @@ export function ExperiencesView() {
   const closeEditor = () => setEditing(undefined)
   const visible = entries
   if (editing) return <main className="experiences-view scroll-view">
-    <ExperienceEditor key={editing.id ?? 'new'} entry={selected} place={group === 'places'} labels={experiences.tierLabels} onClose={closeEditor} />
+    <ExperienceEditor key={`${recoveryScope}:${editing.id ?? 'new'}`} entry={selected} place={group === 'places'} labels={experiences.tierLabels} onClose={closeEditor} />
   </main>
   return <main className="experiences-view scroll-view">
     <header className="page-header experiences-header"><div><p className="eyebrow">私 人 经 历 册</p><h1>看过的世界，走过的路。</h1><p>不必事事记得清楚，留下名字和自己的感受就好。</p></div>
       <button type="button" className="primary-button" disabled={Boolean(editing)} onClick={() => { setEditing({}); setTrashOpen(false) }}><Plus size={16} />{group === 'places' ? '留下一处足迹' : '收进一部作品'}</button></header>
+    <ExperienceRecoveryShelf key={recoveryScope} scope={recoveryScope} entries={experiences.entries} open={(key, place) => { setGroup(place ? 'places' : 'works'); setEditing(key.startsWith('new-') ? {} : { id: key }) }} />
     <div className="experience-controls">
       <div className="experience-tabs" aria-label="经历类别"><button type="button" disabled={Boolean(editing)} aria-pressed={group === 'works'} onClick={() => { setGroup('works'); setCategory(''); setTrashOpen(false) }}><BookHeart size={15} />作品</button><button type="button" disabled={Boolean(editing)} aria-pressed={group === 'places'} onClick={() => { setGroup('places'); setCategory(''); setTrashOpen(false) }}><MapPin size={15} />足迹</button></div>
       <div className="experience-tabs" aria-label="经历呈现"><button type="button" aria-pressed={view === 'cards'} onClick={() => setView('cards')}><LayoutGrid size={15} />封面墙</button><button type="button" aria-pressed={view === 'tiers'} onClick={() => setView('tiers')}><ListOrdered size={15} />从夯到拉</button></div>

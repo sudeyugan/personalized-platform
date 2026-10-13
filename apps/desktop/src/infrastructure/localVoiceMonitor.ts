@@ -1,6 +1,6 @@
 import type { CompanionData } from '../domain/models'
 
-export interface LocalVoiceDetection { detected: boolean; speakerMatched: boolean; speakerScore?: number }
+export interface LocalVoiceDetection { detected: boolean; speakerMatched: boolean; speakerScore?: number; reason?: 'speaker_audio_short' | 'speaker_mismatch' }
 interface Capture { stop: () => void }
 export interface LocalVoiceLease extends Capture {
   isActive: () => boolean
@@ -23,7 +23,7 @@ export function createLocalVoiceMonitor(invoke: NativeInvoke, openCapture: (samp
     current?.stop()
     return enqueue(async () => { if (!current) await invoke('local_voice_stop') })
   }
-  const monitor = async (config: Config, onDetection: (result: LocalVoiceDetection) => void, onError: (error: unknown) => void) => {
+  const monitor = async (config: Config, onDetection: (result: LocalVoiceDetection) => void, onError: (error: unknown) => void, onLevel?: (level: number) => void) => {
     current?.stop()
     let capture: Capture | undefined
     let queued: number[] = []
@@ -51,7 +51,7 @@ export function createLocalVoiceMonitor(invoke: NativeInvoke, openCapture: (samp
     } }
     current = lease
     const flush = async () => {
-      if (!detecting() || processing || queued.length < 3200) return
+      if (!detecting() || processing || queued.length < 1600) return
       processing = true
       const samples = queued.splice(0, Math.min(queued.length, 6400))
       try {
@@ -64,7 +64,7 @@ export function createLocalVoiceMonitor(invoke: NativeInvoke, openCapture: (samp
         }
       } finally {
         processing = false
-        if (detecting() && queued.length >= 3200) void flush()
+        if (detecting() && queued.length >= 1600) void flush()
       }
     }
     try {
@@ -74,9 +74,10 @@ export function createLocalVoiceMonitor(invoke: NativeInvoke, openCapture: (samp
       if (!active()) return lease
       capture = await openCapture((samples) => {
         if (!active()) return
+        onLevel?.(Math.min(1, Math.sqrt(samples.reduce((sum,value)=>sum+value*value,0)/Math.max(1,samples.length))*5))
         if (consumer) { consumer(samples); return }
         queued.push(...samples)
-        if (queued.length > 16_000) queued = queued.slice(-16_000)
+        if (queued.length > 48_000) queued = queued.slice(-48_000)
         void flush()
       })
       if (!active()) capture.stop()

@@ -19,6 +19,18 @@ const task = (status: AgentTask['status']): AgentTask => ({ id: 'recording', tit
 describe('lightweight conversation', () => {
   beforeEach(() => { events.handlers.clear(); events.emit.mockClear(); Element.prototype.scrollIntoView = vi.fn(); Object.defineProperty(window, '__TAURI_INTERNALS__', { value: {}, configurable: true }) })
   afterEach(() => { Reflect.deleteProperty(window, '__TAURI_INTERNALS__') })
+  it('shows private transient replies after streams clear and removes them for a new conversation',async()=>{
+    render(<DesktopCompanionChatWindow />)
+    await waitFor(()=>expect(events.handlers.has('companion:transient-message')).toBe(true))
+    send('companion:chat-presentation',{mode:'full'})
+    send('companion:transient-message',{id:'private-query',role:'user',content:'关注谁在开播',createdAt:'2026-10-12T08:00:01Z'})
+    send('companion:transient-message',{id:'private-answer',role:'companion',content:'临时直播名单',createdAt:'2026-10-12T08:00:02Z'})
+    send('companion:stream-text',{text:''})
+    send('companion:snapshot',{...emptyCompanionDesktopSnapshot,messages:[]})
+    expect(screen.getByText('关注谁在开播')).toBeInTheDocument();expect(screen.getByText('临时直播名单')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button',{name:'新对话'}))
+    expect(screen.queryByText('临时直播名单')).not.toBeInTheDocument()
+  })
   it('does not pin completed or cancelled tasks when switching to a full WebM chat', async () => {
     render(<DesktopCompanionChatWindow />)
     await waitFor(() => expect(events.handlers.has('companion:snapshot')).toBe(true))

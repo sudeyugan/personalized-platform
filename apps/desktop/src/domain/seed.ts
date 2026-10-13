@@ -1,10 +1,14 @@
 import { normalizeLyricLibrary } from './lyricLibrary'
+import { normalizeAssignments } from './assignments/normalization'
 import { normalizeFortunes } from './fortune'
 import { emptyExperiences, normalizeExperiences } from './experiences'
 import { resolveStoredCompanionName, supportsNameWake } from './companionIdentity'
 import type { JSONContent } from '@tiptap/react'
 import { companionVideoStates, type AgentTask, type CompanionVideoLibrary, type CompanionVideoState, type Course, type CourseDay, type LibraryData, type MoodEntry, type MoodKind, type MoodPeriod, type MoodPoints, type TodoItem } from './models'
 import { normalizeCompanionPetSide, normalizeCompanionPetStyle } from './companionPetStyle'
+import { normalizeOperations } from './operations/catalog'
+import { normalizeBrowser } from './browser'
+import { normalizeOperationLearning } from './operations/learning'
 import { countChineseWords } from './wordCount'
 
 const introContent: JSONContent = {
@@ -286,7 +290,7 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
     Object.values(character.overlays).forEach((sprite) => companionAssetIds.add(spriteId(sprite)))
     Object.values(character.motions).forEach((motion) => motion.frameAssetIds.forEach((id) => companionAssetIds.add(id)))
   }
-  return {
+  const normalized: LibraryData = {
     ...data,
     volumes: data.volumes ?? [],
     people: (data.people ?? []).map((person) => ({ ...person, aliases: person.aliases ?? [], importantExperiences: person.importantExperiences ?? '', customFields: person.customFields ?? [] })),
@@ -304,6 +308,7 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
     experiences: normalizeExperiences(data.experiences),
     lyricLibrary: normalizeLyricLibrary(data.lyricLibrary),
     planner: {
+      assignments: normalizeAssignments(storedPlanner.assignments),
       courses,
       diaryEntries: storedPlanner.diaryEntries,
       moodEntries: normalizeMoodEntries(storedPlanner.moodEntries),
@@ -362,4 +367,8 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
       scrollByChapter: data.session.scrollByChapter ?? {},
     },
   }
+  normalized.companion.operations = normalizeOperations(data.companion?.operations)
+  normalized.companion.operationLearning = normalizeOperationLearning(data.companion?.operationLearning)
+  normalized.companion.browser = normalizeBrowser(data.companion?.browser)
+  return normalized
 }

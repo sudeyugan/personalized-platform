@@ -3,8 +3,8 @@ import { formatLocalDate } from './localDate'
 export type FortuneKind = 'daily' | 'love' | 'future'
 export interface FortuneDraw { date: string; signId: number }
 export interface FortuneData { today?: FortuneDraw; love?: FortuneDraw; future?: FortuneDraw }
-export const FORTUNE_COUNT = 48
-export const FORTUNE_COUNTS: Record<FortuneKind, number> = { daily: FORTUNE_COUNT, love: 24, future: 24 }
+export const FORTUNE_COUNT = 60
+export const FORTUNE_COUNTS: Record<FortuneKind, number> = { daily: FORTUNE_COUNT, love: 36, future: 36 }
 export const FORTUNE_KEYS = { daily: 'today', love: 'love', future: 'future' } as const
 
 export function normalizeFortune(value: unknown, kind: FortuneKind = 'daily'): FortuneDraw | undefined {

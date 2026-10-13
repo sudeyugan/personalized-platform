@@ -25,6 +25,7 @@ use windows::{
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WindowInfo {
+    pub window_id: String,
     pub title: String,
     pub process_id: u32,
     pub x: i32,
@@ -58,6 +59,7 @@ unsafe extern "system" fn collect_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
     windows.push((
         hwnd,
         WindowInfo {
+            window_id: format!("{:x}:{}", hwnd.0 as usize, process_id),
             title,
             process_id,
             x: rect.left,
@@ -69,7 +71,7 @@ unsafe extern "system" fn collect_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
     BOOL(1)
 }
 
-fn window_handles() -> Result<Vec<(HWND, WindowInfo)>, String> {
+pub(super) fn window_handles() -> Result<Vec<(HWND, WindowInfo)>, String> {
     let mut windows = Vec::new();
     unsafe { EnumWindows(Some(collect_window), LPARAM(&mut windows as *mut _ as isize)) }
         .map_err(|error| format!("WINDOW_ENUM:{error}"))?;

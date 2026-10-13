@@ -263,10 +263,11 @@ describe('agent runtime', () => {
     const current = fixture()
     const provider = new ScriptedProvider([
       { type: 'tool_call', call: { id: 'call-1', name: 'character.search', arguments: { query: '外婆' } } },
-      { type: 'text', text: '你写过外婆。' },
+      { type: 'text', text: JSON.stringify({version:1,blocks:[{type:'paragraph',text:'你写过外婆。'}]}) },
     ])
     const result = await runAgent({ message: '我写过外婆吗？', history: [], provider, registry: createCompanionToolRegistry(), ...current })
-    expect(result.text).toBe('你写过外婆。')
+    expect(result.text).toContain('你写过外婆。')
+    expect(result.text).toContain('## 已完成')
     expect(provider.requests[1].messages.at(-1)).toMatchObject({ role: 'tool', toolName: 'character.search' })
     expect(result.session.events.map((event) => event.type)).toEqual(['context', 'user', 'tool_call', 'tool_result', 'assistant'])
     expect(result.audit[0]).toMatchObject({ permissionDecision: 'allowed', resultStatus: 'success', toolName: 'character.search' })
@@ -286,15 +287,15 @@ describe('agent runtime', () => {
           return { type: 'tool_call', call: { id: 'call-stream-1', name: 'character.search', arguments: { query: '外婆' } } }
         }
         options?.onTextDelta?.('查到你确实写过外婆。')
-        return { type: 'text', text: '查到你确实写过外婆。' }
+        return { type: 'text', text: JSON.stringify({version:1,blocks:[{type:'paragraph',text:'查到你确实写过外婆。'}]}) }
       },
     }
     const result = await runAgent({
       message: '我写过外婆吗？', history: [], provider, registry: createCompanionToolRegistry(),
       onTextDelta: (delta) => events.push(`delta:${delta}`), onTextReset: () => events.push('reset'), ...current,
     })
-    expect(result.text).toBe('查到你确实写过外婆。')
-    expect(events).toEqual(['delta:我先凭印象回答。', 'reset', 'delta:查到你确实写过外婆。'])
+    expect(result.text).toContain('查到你确实写过外婆。')
+    expect(events).toEqual(['delta:我先凭印象回答。', 'reset'])
   })
   it('returns permission denial to the model without running the tool', async () => {
     const current = fixture(false)
@@ -303,7 +304,8 @@ describe('agent runtime', () => {
       { type: 'text', text: '人物资料尚未授权。' },
     ])
     const result = await runAgent({ message: '查人物', history: [], provider, registry: createCompanionToolRegistry(), ...current })
-    expect(result.text).toBe('人物资料尚未授权。')
+    expect(result.text).toContain('人物资料未授权')
+    expect(result.text).toContain('## 未完成')
     expect(result.audit[0]).toMatchObject({ permissionDecision: 'denied', errorCode: 'PermissionDenied' })
     expect(provider.requests[1].messages.at(-1)?.content).toContain('PermissionDenied')
   })
@@ -437,7 +439,10 @@ describe('agent runtime', () => {
       { type: 'tool_call', call: { id: 'call-1', name: 'work.get_current', arguments: {} } },
       { type: 'tool_call', call: { id: 'call-2', name: 'work.get_current', arguments: {} } },
     ])
-    await expect(runAgent({ message: '循环', history: [], provider, registry: createCompanionToolRegistry(), maxToolSteps: 1, ...current })).rejects.toMatchObject({ code: 'AgentStepLimit' } satisfies Partial<AgentRuntimeError>)
+    const result=await runAgent({ message: '循环', history: [], provider, registry: createCompanionToolRegistry(), maxToolSteps: 1, ...current })
+    expect(result.text).toContain('本轮已停止')
+    expect(result.audit).toHaveLength(1)
+    expect(result.text).toContain('最多 1 次')
   })
 
   it('normalizes provider failures as ModelError', async () => {

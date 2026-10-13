@@ -7,9 +7,12 @@ import { ExperienceArtwork } from './ExperienceArtwork'
 import { CoverPicker } from './CoverPicker'
 import { useExperienceDraft } from './useExperienceDraft'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { ExperienceDraftControls } from './ExperienceDraftControls'
+import { libraryRepository } from '../../infrastructure/libraryRepository'
 
 export function ExperienceEditor({ entry, place, labels, onClose }: { entry?: ExperienceEntry; place: boolean; labels: ExperienceData['tierLabels']; onClose: () => void }) {
-  const { draft, setDraft, file, setFile, dirty, setDirty, clearDraft } = useExperienceDraft(entry, place)
+  const { draft, setDraft, file, setFile, dirty, setDirty, clearDraft, recoveryEnabled, recoveryFailed, pending, recoveryMessage, toggleRecovery, restore, discardRecovered } = useExperienceDraft(entry, place)
+  const savedId = useRef(entry?.id)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [confirmClose, setConfirmClose] = useState(false)
@@ -22,12 +25,13 @@ export function ExperienceEditor({ entry, place, labels, onClose }: { entry?: Ex
   const update = (changes: Partial<ExperienceDraft>) => { setDraft(previous => ({ ...previous, ...changes })); setDirty(true) }
   const close = () => { if (!busy) { if (dirty) setConfirmClose(true); else onClose() } }
   const save = async (event: FormEvent) => {
-    event.preventDefault(); if (busy || !draft.title.trim()) return
+    event.preventDefault(); if (busy || pending || !draft.title.trim()) return
     setBusy(true); setMessage('正在保存到本地…')
     try {
       const store = useLibraryStore.getState()
       const cover = file ? await store.importAsset(file, { purpose: 'experience' }) : undefined
-      store.saveExperience({ ...draft, coverAssetId: cover?.id ?? draft.coverAssetId }, entry?.id)
+      savedId.current = store.saveExperience({ ...draft, coverAssetId: cover?.id ?? draft.coverAssetId }, savedId.current)
+      await libraryRepository.save(useLibraryStore.getState().data)
       clearDraft(); onClose()
     } catch (error) { setMessage(error instanceof Error ? error.message : '保存失败，请重试') }
     finally { setBusy(false) }
@@ -48,12 +52,12 @@ export function ExperienceEditor({ entry, place, labels, onClose }: { entry?: Ex
   return <aside className="experience-editor experience-editor-page" aria-label="经历卡片编辑">
     <header><div><p className="eyebrow">{entry ? '翻开这一页' : '收进一段经历'}</p><h2>{place ? '路过的地方' : '看过的作品'}</h2></div><button type="button" aria-label="关闭经历编辑" disabled={busy} onClick={close}><ArrowLeft size={18} /> 返回经历册</button></header>
     <form onSubmit={event => void save(event)}><div className="experience-edit-layout"><div className="experience-cover-column"><div className="experience-editor-preview"><ExperienceArtwork entry={draft} asset={asset} file={file} /></div>
-      <div className="experience-image-actions"><label className="ghost-button"><input type="file" disabled={busy} accept="image/jpeg,image/png,image/webp" onChange={event => void chooseImage(event)} />{place ? '选一张照片' : '选本地图片'}</label>
-        {(file || draft.coverAssetId) && <button type="button" disabled={busy} onClick={() => { setFile(undefined); update({ coverAssetId: undefined, source: undefined }) }}>改用纸封</button>}</div>
-      {!place && reusable && !draft.coverAssetId && !file && <button type="button" disabled={busy} onClick={() => { setFile(undefined); update({ coverAssetId: reusable.coverAssetId, source: reusable.source }); setMessage('已复用本地封面，无需联网') }}>复用同作品封面</button>}
-      {!place && <CoverPicker key={draft.category + draft.title + draft.creator} category={draft.category} title={draft.title} creator={draft.creator} disabled={busy} onPick={pick} />}
+      <div className="experience-image-actions"><label className="ghost-button"><input type="file" disabled={busy || Boolean(pending)} accept="image/jpeg,image/png,image/webp" onChange={event => void chooseImage(event)} />{place ? '选一张照片' : '选本地图片'}</label>
+        {(file || draft.coverAssetId) && <button type="button" disabled={busy || Boolean(pending)} onClick={() => { setFile(undefined); update({ coverAssetId: undefined, source: undefined }) }}>改用纸封</button>}</div>
+      {!place && reusable && !draft.coverAssetId && !file && <button type="button" disabled={busy || Boolean(pending)} onClick={() => { setFile(undefined); update({ coverAssetId: reusable.coverAssetId, source: reusable.source }); setMessage('已复用本地封面，无需联网') }}>复用同作品封面</button>}
+      {!place && <CoverPicker key={draft.category + draft.title + draft.creator} category={draft.category} title={draft.title} creator={draft.creator} disabled={busy || Boolean(pending)} onPick={pick} />}
       {draft.source && <p className="experience-source-note">{draft.source.credit} · <a href={draft.source.url} target="_blank" rel="noreferrer">原始来源 ↗</a></p>}
-      </div><fieldset disabled={busy}><div className="experience-editor-two"><label>名称<input autoFocus required maxLength={160} value={draft.title} placeholder={place ? '一座城，一条街，一间小店…' : '作品名称'} onChange={event => update({ title: event.target.value })} /></label>
+      </div><fieldset disabled={busy || Boolean(pending)}><div className="experience-editor-two"><label>名称<input autoFocus required maxLength={160} value={draft.title} placeholder={place ? '一座城，一条街，一间小店…' : '作品名称'} onChange={event => update({ title: event.target.value })} /></label>
         <label>类别<select value={draft.category} onChange={event => update({ category: event.target.value as ExperienceDraft['category'] })}>{experienceCategories.filter(category => place ? category === 'place' : category !== 'place').map(category => <option value={category} key={category}>{categoryLabels[category]}</option>)}</select></label></div>
       <label>留下的感想 · 可选<textarea className="experience-note-paper" maxLength={10000} rows={6} value={draft.note} placeholder="记下你自己的感受，不必写成完整评论。" onChange={event => update({ note: event.target.value })} /></label>
       <label>个人档位<select value={draft.tier ?? ''} onChange={event => update({ tier: event.target.value ? event.target.value as ExperienceDraft['tier'] : undefined })}><option value="">先不排行</option>{tierIds.map(tier => <option value={tier} key={tier}>{labels[tier]}</option>)}</select></label>
@@ -61,8 +65,9 @@ export function ExperienceEditor({ entry, place, labels, onClose }: { entry?: Ex
       <div className="experience-editor-two"><label>{place ? '所在地区 · 可选' : '作者 / 创作者 · 可选'}<input maxLength={100} value={draft.creator} onChange={event => update({ creator: event.target.value })} /></label><label>经历时间 · 可选<input maxLength={80} value={draft.dateText} placeholder="去年夏天 / 留空" onChange={event => update({ dateText: event.target.value })} /></label></div>
         <label>无图纸封<select value={draft.paperStyle} onChange={event => update({ paperStyle: event.target.value as ExperienceDraft['paperStyle'] })}><option value="linen">素纸</option><option value="ink">墨夜</option><option value="blue">清蓝</option><option value="rose">蔷薇</option></select></label></details>
       </fieldset></div>
+      <ExperienceDraftControls disabled={busy} recoveryFailed={recoveryFailed} enabled={recoveryEnabled} pending={pending} message={recoveryMessage} originalUpdatedAt={entry?.updatedAt} toggle={toggleRecovery} restore={restore} discard={discardRecovered} />
       {message && <p role="status">{message}</p>}
-      <footer className="experience-editor-footer">{entry && <button type="button" className="danger-button experience-delete-button" disabled={busy} onClick={() => setConfirmDelete(true)}>删除这张卡片</button>}<button type="button" className="ghost-button" disabled={busy} onClick={close}>先放下</button><button type="submit" className="primary-button" disabled={busy || !draft.title.trim()}>{busy ? '正在准备…' : '保存这一页'}</button></footer>
+      <footer className="experience-editor-footer">{entry && <button type="button" className="danger-button experience-delete-button" disabled={busy} onClick={() => setConfirmDelete(true)}>删除这张卡片</button>}<button type="button" className="ghost-button" disabled={busy} onClick={close}>先放下</button><button type="submit" className="primary-button" disabled={busy || Boolean(pending) || !draft.title.trim()}>{busy ? '正在准备…' : '保存这一页'}</button></footer>
     </form>
     {confirmClose && <ConfirmDialog title="先放下这张卡片？" subject={draft.title || '未命名经历'} description="尚未保存的文字和选图会放下，原有记录不会改变。" confirmLabel="放下修改" onCancel={() => setConfirmClose(false)} onConfirm={() => { clearDraft(); onClose() }} />}
     {entry && confirmDelete && <ConfirmDialog title="删除这张经历卡片？" subject={entry.title} description="卡片将从经历册和排行中移除，先放入收纳袋；可以恢复，也可以在收纳袋永久删除。未保存的修改会放下。" confirmLabel="删除并移入收纳袋" onCancel={() => setConfirmDelete(false)} onConfirm={() => { useLibraryStore.getState().trashExperience(entry.id); clearDraft(); onClose() }} />}

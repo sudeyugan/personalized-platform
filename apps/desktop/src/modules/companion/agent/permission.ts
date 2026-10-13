@@ -3,6 +3,8 @@ import type { AgentCapability, AgentToolDefinition, AgentToolResult } from './ty
 import type { AgentAccessSnapshot } from './context'
 import { featuresForTool } from './capabilityCoverage'
 import { viewForAgentDestination } from './featureContract'
+import { moduleStatus } from '../../../domain/moduleAvailability'
+import { publicReadTools } from './publicReadTools'
 
 export interface AgentPermissionPolicy { autoAllow: AgentCapability[] }
 export interface AgentPermissionEnvironment {
@@ -59,8 +61,12 @@ export class AgentPermissionEngine {
   check(tool: AgentToolDefinition, args: unknown): AgentPermissionDecision {
     const destination = tool.name === 'app.open' && args && typeof args === 'object' && 'destination' in args ? viewForAgentDestination(String(args.destination)) : undefined
     const views = destination ? [destination] : featuresForTool(tool).map((feature) => feature.view)
-    const disabled = this.environment.modules?.find((module) => views.some((view) => view === module.id) && (!module.enabled || !module.available))
+    const disabled = views.some(view => { const status = moduleStatus(this.environment.modules ?? [], view); return !status.enabled || !status.available })
     if (disabled) return { allowed: false, reason: '这个功能已关闭，请先在“功能与导航”中开启；完整程序权限不会自动打开模块' }
+    const companionStatus = moduleStatus(this.environment.modules ?? [], 'companion')
+    if (tool.name.startsWith('operation.') && (!companionStatus.enabled || !companionStatus.available)) return { allowed: false, reason: 'AI伙伴功能已关闭，不能使用操作记忆' }
+    if (tool.name.startsWith('browser.') && (!companionStatus.enabled || !companionStatus.available)) return { allowed: false, reason: 'AI伙伴功能已关闭，不能读取浏览器' }
+    if (publicReadTools.has(tool.name) && (!companionStatus.enabled || !companionStatus.available)) return { allowed: false, reason: 'AI伙伴功能已关闭，不能读取公开来源' }
     if (tool.computer) return this.checkComputer(tool, args)
     if (tool.capability === 'delete' || tool.capability === 'system' || tool.risk === 'high' || tool.risk === 'critical') return { allowed: false, reason: '高风险、删除或系统操作不向伙伴开放' }
     if (tool.capability === 'external' && tool.scope !== 'web') return { allowed: false, reason: '未登记的外部能力不向伙伴开放' }
@@ -85,6 +91,7 @@ export class AgentPermissionEngine {
       if (this.environment.resourcePermissions.writePolicy === 'balanced' && tool.risk === 'low') return { allowed: true, reason: '平衡模式允许低风险写入自动执行' }
       return { allowed: false, requiresConfirmation: true, reason: '写入操作需要用户逐次确认' }
     }
+    if (publicReadTools.has(tool.name)) return { allowed: false, requiresConfirmation: true, reason: '读取公开来源需要本次目标确认；不使用登录或电脑接管权限' }
     if (tool.capability === 'external' && tool.scope === 'web') return { allowed: true, reason: '用户已允许联网查询' }
     if (!this.environment.policy.autoAllow.includes(tool.capability)) return { allowed: false, reason: `能力 ${tool.capability} 未获自动执行许可` }
     return { allowed: true, reason: '已通过统一权限检查' }

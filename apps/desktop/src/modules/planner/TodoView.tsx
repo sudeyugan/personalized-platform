@@ -7,6 +7,7 @@ import { dayNumber, isTodoCompletedOn, isTodoHoliday, quotaTodoProgress, recurri
 import { TodoQuotaProgress } from './TodoQuotaControls'
 import { TodoSettingsDialog } from './TodoSettingsDialog'
 import { TodoWeekdayPicker } from './TodoWeekdayPicker'
+import { AssignmentsPanel } from './assignments/AssignmentsPanel'
 
 type Filter = 'today' | 'all' | 'done'
 type RepeatMode = 'none' | 'daily' | 'weekly' | 'quota'
@@ -20,14 +21,17 @@ export function TodoView() {
   const [dueDate, setDueDate] = useState(today)
   const [repeatDays, setRepeatDays] = useState<CourseDay[]>([dayNumber(today)])
   const [filter, setFilter] = useState<Filter>('today')
+  const [space, setSpace] = useState<'todos' | 'assignments'>('todos')
   const [settingsTodoId, setSettingsTodoId] = useState<string>()
   const agentNavigation = data.session.agentNavigation
   useEffect(() => {
     const navigation = agentNavigation
     if (navigation?.destination !== 'todos') return
+    if (navigation.section === 'assignments' || data.planner.assignments?.some(item => item.id === navigation.targetId && !item.deletedAt)) setSpace('assignments')
+    else if (navigation.targetId && data.planner.todos.some(todo => todo.id === navigation.targetId)) setSpace('todos')
     if (navigation.filter === 'today' || navigation.filter === 'all' || navigation.filter === 'done') setFilter(navigation.filter)
     if (navigation.targetId && data.planner.todos.some((todo) => todo.id === navigation.targetId)) setSettingsTodoId(navigation.targetId)
-  }, [agentNavigation, data.planner.todos])
+  }, [agentNavigation, data.planner.todos, data.planner.assignments])
   const holidayDates = data.planner.holidayDates ?? []
   const todayIsHoliday = isTodoHoliday(holidayDates, today)
   const completedToday = (todo: TodoItem) => isTodoCompletedOn(todo, today)
@@ -45,10 +49,11 @@ export function TodoView() {
   return (
     <main className="todo-view scroll-view">
       <header className="page-header todo-page-header">
-        <div><p className="eyebrow">轻轻理清下一步</p><h1>待办清单</h1><p>{todayIsHoliday ? '今天休假，所有待办均不需要记录。' : openCount ? `今天还有 ${openCount} 件事情，重复任务会在设定日期重新出现。` : '今天的事项已经完成。'}</p></div>
-        <button className={todayIsHoliday ? 'todo-holiday-toggle active' : 'todo-holiday-toggle'} type="button" onClick={() => toggleTodoHoliday(today)}><CalendarOff size={15} />{todayIsHoliday ? '取消今日休假' : '今天休假'}</button>
+        <div><p className="eyebrow">轻轻理清下一步</p><h1>待办清单</h1><p>{space === 'assignments' ? '本周作业和单次截止。' : todayIsHoliday ? '今天休假，待办不需要记录，作业截止仍保留。' : openCount ? `今天还有 ${openCount} 件事情，重复任务会在设定日期重新出现。` : '今天的事项已经完成。'}</p></div>
+        {space === 'todos' && <button className={todayIsHoliday ? 'todo-holiday-toggle active' : 'todo-holiday-toggle'} type="button" onClick={() => toggleTodoHoliday(today)}><CalendarOff size={15} />{todayIsHoliday ? '取消今日休假' : '今天休假'}</button>}
       </header>
-
+      <nav className="todo-space-tabs" aria-label="待办分类"><button type="button" aria-pressed={space === 'todos'} onClick={() => setSpace('todos')}>待办</button><button type="button" aria-pressed={space === 'assignments'} onClick={() => setSpace('assignments')}>作业</button></nav>
+      {space === 'assignments' ? <AssignmentsPanel /> : <>
       <form className="todo-compose" onSubmit={submit}>
         <div className="todo-compose-main">
           <ListTodo size={18} />
@@ -101,6 +106,7 @@ export function TodoView() {
         onRemoveCompletion={(completionId) => removeTodoCompletion(settingsTodo.id, completionId)}
         onDelete={() => { deleteTodo(settingsTodo.id); setSettingsTodoId(undefined) }}
       />}
+      </>}
     </main>
   )
 }

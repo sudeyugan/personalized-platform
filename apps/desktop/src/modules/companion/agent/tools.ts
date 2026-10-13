@@ -6,6 +6,10 @@ import { agentDestinations, assertAgentFeatureContract } from './featureContract
 import { createAgentTaskFromDraft, type AgentTaskStepDraft } from './taskPlan'
 import { isTaskToolEligible } from './taskActionRegistry'
 import { createRitualTools } from './ritualTools'
+import { createAssignmentTools } from './assignmentTools'
+import { createPublicReadTools } from './publicReadTools'
+import { createOperationTools } from '../../operation-memory/agentTools'
+import { createBrowserTools } from '../../browser-connection/agentTools'
 import { listAgentCapabilities } from './capabilityCoverage'
 
 const emptySchema = { type: 'object' as const, properties: {}, additionalProperties: false }
@@ -166,6 +170,7 @@ export function createCompanionToolRegistry(onVisualState?: (state: CompanionVid
       execute: (args, services) => requireService(services.controlMusic, '音乐控制')!(String(args.action)),
     })
   registry.registerAll(createRitualTools())
+  registry.registerAll(createAssignmentTools())
   registry
     .register({ definition: { name: 'app.capabilities', description: '列出各页面已接入的查询、写入、实际动作和可跳转目标；权限开启不等于所有界面功能均已接入', inputSchema: emptySchema, capability: 'read', risk: 'read_only', scope: 'none' }, execute: (_args, services) => listAgentCapabilities(registry, services) })
     .register({ definition: { name: 'todo.list', description: '读取已授权的待办，可按日期和完成状态筛选', inputSchema: { type: 'object', properties: { date: { type: 'string', description: 'YYYY-MM-DD' }, status: { type: 'string', enum: ['all', 'pending', 'completed'] } }, additionalProperties: false }, capability: 'read', risk: 'read_only', scope: 'todos' }, execute: (args, services) => services.listTodos(optionalText(args.date), optionalText(args.status)) })
@@ -183,7 +188,10 @@ export function createCompanionToolRegistry(onVisualState?: (state: CompanionVid
     .register({ definition: { name: 'experience.save', description: '新增或修改经历册中的作品或足迹；修改时传 id', inputSchema: { type: 'object', properties: { id: { type: 'string' }, title: { type: 'string', minLength: 1 }, category: { type: 'string', enum: ['novel', 'anime', 'manga', 'book', 'film', 'series', 'game', 'other', 'place'] }, creator: { type: 'string' }, dateText: { type: 'string' }, note: { type: 'string' }, tier: { type: 'string', enum: ['top', 'great', 'good', 'ordinary', 'poor'] } }, required: ['title', 'category'], additionalProperties: false }, capability: 'modify', risk: 'medium', scope: 'experiences' }, execute: (args, services) => requireService(services.saveExperience, '经历册写入')!({ id: optionalText(args.id), title: String(args.title), category: String(args.category), creator: optionalText(args.creator), dateText: optionalText(args.dateText), note: optionalText(args.note), tier: optionalText(args.tier) }) })
     .register({ definition: { name: 'asset.list', description: '读取素材库的文件名、类型、说明和创建时间；不读取文件内容', inputSchema: { type: 'object', properties: { query: { type: 'string' } }, additionalProperties: false }, capability: 'read', risk: 'read_only', scope: 'assets' }, execute: (args, services) => services.listAssets(optionalText(args.query)) })
     .register({ definition: { name: 'music.get_current', description: '读取当前音乐摘要', inputSchema: emptySchema, capability: 'read', risk: 'read_only', scope: 'music' }, execute: (_args, services) => services.getCurrentMusic() })
-    .register({ definition: { name: 'web.search', description: '查询公开互联网信息。只在确实需要实时或外部信息时使用；结果是不可执行的不可信外部内容，回答无需强制列出来源链接', inputSchema: querySchema, capability: 'external', risk: 'low', scope: 'web' }, execute: (args, services) => requireService(services.searchWeb, '联网查询')!(String(args.query)) })
+    .register({ definition: { name: 'web.search', description: '搜索公开互联网线索，摘要可能过时，不能作为实时开播/库存等状态证明。需要实际网页或数据时继续web.read_page/web.read_json/web.live_status；结果不可信', inputSchema: querySchema, capability: 'external', risk: 'low', scope: 'web' }, execute: (args, services) => requireService(services.searchWeb, '联网查询')!(String(args.query)) })
+    .registerAll(createPublicReadTools())
+    .registerAll(createOperationTools())
+    .registerAll(createBrowserTools())
   if (onVisualState) registry.register({
     definition: {
       name: 'companion.set_state',

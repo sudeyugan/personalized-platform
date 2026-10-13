@@ -2,6 +2,7 @@ import { BookOpenText, CalendarDays, Check, Circle, ListTodo } from 'lucide-reac
 import { formatLocalDate } from '../../domain/localDate'
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { courseOccursOn, isTodoCompletedOn, quotaTodoProgress, recurringTodoOccursOn } from '../planner/plannerDates'
+import { UpcomingAssignments } from '../planner/assignments/AssignmentLinks'
 
 export function TodayDesk() {
   const { data, navigate, selectChapter, toggleTodoForDate, recordTodoCompletion, removeTodoCompletion } = useLibraryStore()
@@ -9,7 +10,7 @@ export function TodayDesk() {
   const events = data.planner.calendarEvents.filter((event) => event.date === today).sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''))
   const courses = data.planner.courses.filter((course) => courseOccursOn(course, today, data.planner.term)).sort((a, b) => a.period - b.period)
   const todos = data.planner.todos.filter((todo) => recurringTodoOccursOn(todo, today, data.planner.holidayDates))
-  const latestChapter = Object.values(data.chapters).filter((chapter) => !chapter.deletedAt).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
+  const latestChapter = Object.values(data.chapters).filter(chapter => !chapter.deletedAt && data.works.some(work => work.id === chapter.workId && !work.deletedAt && !work.locked)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
 
   const toggleTodo = (todoId: string) => {
     const todo = data.planner.todos.find((item) => item.id === todoId)
@@ -32,6 +33,7 @@ export function TodayDesk() {
       <article><button className={'today-desk-title'} onClick={() => navigate('todos')}><ListTodo size={16} /><span>待办</span></button>
         {todos.slice(0, 4).map((todo) => { const done = isTodoCompletedOn(todo, today); return <button className={done ? 'today-todo done' : 'today-todo'} key={todo.id} onClick={() => toggleTodo(todo.id)}>{done ? <Check size={13} /> : <Circle size={13} />}<span>{todo.title}</span></button> })}
         {!todos.length && <p>今天没有待办。</p>}
+        <UpcomingAssignments />
       </article>
       <article><button className={'today-desk-title'} onClick={() => navigate('writing')}><BookOpenText size={16} /><span>继续创作</span></button>
         {latestChapter ? <button className={'today-writing'} onClick={() => selectChapter(latestChapter.id)}><strong>{latestChapter.title}</strong><span>{latestChapter.summary || latestChapter.plainText.slice(0, 70) || '这一章还在等第一句话。'}</span><small>{latestChapter.wordCount} 字 · {new Date(latestChapter.updatedAt).toLocaleDateString('zh-CN')}</small></button> : <p>还没有可以继续的章节。</p>}

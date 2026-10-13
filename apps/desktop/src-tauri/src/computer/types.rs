@@ -3,10 +3,10 @@ use serde_json::Value;
 use std::{
     collections::HashMap,
     process::Child,
-    sync::{atomic::AtomicBool, Mutex},
+    sync::{atomic::{AtomicBool, AtomicU64}, Mutex},
 };
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ComputerGrant {
     pub capability: String,
@@ -15,7 +15,7 @@ pub struct ComputerGrant {
     pub mode: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ComputerPolicy {
     pub enabled: bool,
@@ -49,6 +49,9 @@ pub struct ManagedChild {
 }
 
 pub struct ComputerRuntime {
+    pub desktop_operation: Mutex<()>,
+    pub takeover: Mutex<Option<super::takeover::Session>>,
+    pub takeover_generation: AtomicU64,
     pub recordings: Mutex<HashMap<String, ManagedChild>>,
     pub processes: Mutex<HashMap<String, ManagedChild>>,
     pub cancelled: AtomicBool,
@@ -57,6 +60,9 @@ pub struct ComputerRuntime {
 impl Default for ComputerRuntime {
     fn default() -> Self {
         Self {
+            desktop_operation: Mutex::new(()),
+            takeover: Mutex::new(None),
+            takeover_generation: AtomicU64::new(0),
             recordings: Mutex::new(HashMap::new()),
             processes: Mutex::new(HashMap::new()),
             cancelled: AtomicBool::new(false),
@@ -66,13 +72,16 @@ impl Default for ComputerRuntime {
 
 impl ComputerRuntime {
     pub fn is_active(&self) -> bool {
-        !self.recordings.lock().map(|items| items.is_empty()).unwrap_or(true)
+        self.takeover.lock().map(|slot| slot.as_ref().is_some_and(|session| session.expires > std::time::Instant::now())).unwrap_or(false)
+            || !self.recordings.lock().map(|items| items.is_empty()).unwrap_or(true)
             || !self.processes.lock().map(|items| items.is_empty()).unwrap_or(true)
     }
 
     pub fn stop_all(&self) -> usize {
+        self.takeover_generation.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         self.cancelled.store(true, std::sync::atomic::Ordering::SeqCst);
         let mut stopped = 0;
+        if let Ok(mut slot) = self.takeover.lock() { if slot.take().is_some() { stopped += 1; } }
         if let Ok(mut recordings) = self.recordings.lock() {
             for (_, mut managed) in recordings.drain() {
                 if let Some(stdin) = managed.child.stdin.as_mut() {

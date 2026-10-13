@@ -4,6 +4,8 @@ import { createSeedLibrary, normalizeLibrary } from './seed'
 import { fortuneSigns } from '../modules/fortune/signs'
 import { loveSigns } from '../modules/fortune/loveSigns'
 import { futureSigns } from '../modules/fortune/futureSigns'
+import { FORTUNE_GRADES } from './fortuneTradition'
+import { getFortuneSign } from '../modules/fortune/themes'
 
 describe('daily fortune compatibility', () => {
   it('keeps an existing sign during the same day and draws on the next day', () => {
@@ -13,7 +15,7 @@ describe('daily fortune compatibility', () => {
     expect(chooseFortune(undefined, '2026-10-05', () => .99999).signId).toBe(FORTUNE_COUNT)
   })
   it('rejects invalid dates and sign numbers', () => {
-    for (const value of [null, {}, { date: '2026-02-30', signId: 1 }, { date: '2026-10-05', signId: 0 }, { date: '2026-10-05', signId: 49 }, { date: '2026-10-05', signId: '2' }]) expect(normalizeFortune(value)).toBeUndefined()
+    for (const value of [null, {}, { date: '2026-02-30', signId: 1 }, { date: '2026-10-05', signId: 0 }, { date: '2026-10-05', signId: FORTUNE_COUNT + 1 }, { date: '2026-10-05', signId: '2' }]) expect(normalizeFortune(value)).toBeUndefined()
   })
   it('preserves the result and disabled module through backup normalization', () => {
     const data = createSeedLibrary()
@@ -33,7 +35,7 @@ describe('daily fortune compatibility', () => {
   it('normalizes categories independently and preserves legacy id 48', () => {
     const today = { date: '2026-10-05', signId: 48 }
     const love = { date: '2026-10-05', signId: 24 }
-    expect(normalizeFortunes({ today, love, future: { ...love, signId: 25 } })).toEqual({ today, love })
+    expect(normalizeFortunes({ today, love, future: { ...love, signId: FORTUNE_COUNTS.future + 1 } })).toEqual({ today, love })
     expect(normalizeFortunes({ today, love: { date: '2026-02-30', signId: 2 }, future: love })).toEqual({ today, future: love })
     expect(normalizeFortunes([today])).toEqual({})
     expect(normalizeFortunes(undefined)).toEqual({})
@@ -58,9 +60,9 @@ describe('daily fortune compatibility', () => {
   })
   it('provides separate stable original theme banks and all three interpretations', () => {
     const titles = new Set(fortuneSigns.map((sign) => sign.title))
-    for (const [bank, labels] of [[loveSigns, ['相遇', '心意', '行动']], [futureSigns, ['进展', '阻碍', '时机']]] as const) {
-      expect(bank).toHaveLength(24)
-      expect(bank.map((sign) => sign.id)).toEqual(Array.from({ length: 24 }, (_, index) => index + 1))
+    for (const [bank, labels, count] of [[loveSigns, ['相遇', '心意', '行动'], FORTUNE_COUNTS.love], [futureSigns, ['进展', '阻碍', '时机'], FORTUNE_COUNTS.future]] as const) {
+      expect(bank).toHaveLength(count)
+      expect(bank.map((sign) => sign.id)).toEqual(Array.from({ length: count }, (_, index) => index + 1))
       for (const sign of bank) {
         expect(titles.has(sign.title)).toBe(false); titles.add(sign.title)
         expect(sign.poem && sign.meaning && sign.advice).toBeTruthy()
@@ -68,6 +70,30 @@ describe('daily fortune compatibility', () => {
         expect(sign.entries.every((entry) => entry.text.length > 0)).toBe(true)
       }
     }
-    expect(titles.size).toBe(96)
+    expect(titles.size).toBe(FORTUNE_COUNT + FORTUNE_COUNTS.love + FORTUNE_COUNTS.future)
+  })
+  it('covers all ten reference grades in every theme, with every sign reachable', () => {
+    for (const [kind, bank] of [['daily', fortuneSigns], ['love', loveSigns], ['future', futureSigns]] as const) {
+      expect(new Set(bank.map((sign) => sign.grade))).toEqual(new Set(FORTUNE_GRADES))
+      for (const sign of bank) {
+        const draw = chooseFortune(undefined, '2026-10-09', () => (sign.id - .5) / FORTUNE_COUNTS[kind], kind)
+        expect(draw.signId).toBe(sign.id)
+        expect(getFortuneSign(kind, draw.signId)?.grade).toBe(sign.grade)
+      }
+    }
+  })
+  it('keeps legacy sign identities and does not redraw a saved legacy result', () => {
+    expect(getFortuneSign('daily', 48)).toMatchObject({ grade: '大吉', title: '山河可期' })
+    expect(getFortuneSign('love', 24)).toMatchObject({ grade: '大吉', title: '未名之花' })
+    expect(getFortuneSign('future', 24)).toMatchObject({ grade: '大吉', title: '山河未尽' })
+    for (const kind of ['daily', 'love', 'future'] as const) {
+      const saved = { date: '2026-10-09', signId: kind === 'daily' ? 48 : 24 }
+      expect(chooseFortune(saved, saved.date, () => .999, kind)).toBe(saved)
+    }
+  })
+  it('normalizes newly appended results without changing their ids', () => {
+    const data = createSeedLibrary()
+    data.fortune = { today: { date: '2026-10-09', signId: 60 }, love: { date: '2026-10-09', signId: 36 }, future: { date: '2026-10-09', signId: 36 } }
+    expect(normalizeLibrary(JSON.parse(JSON.stringify(data))).fortune).toEqual(data.fortune)
   })
 })

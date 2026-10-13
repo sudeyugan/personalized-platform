@@ -1,3 +1,4 @@
+import { emitTo } from '@tauri-apps/api/event'
 const KEY = 'yiyu:microphone-preferences'
 export interface MicrophonePreferences { deviceId: string; gain: number }
 export function readMicrophonePreferences(): MicrophonePreferences {
@@ -8,6 +9,8 @@ export function readMicrophonePreferences(): MicrophonePreferences {
 }
 export function saveMicrophonePreferences(value: MicrophonePreferences) {
   localStorage.setItem(KEY, JSON.stringify(value))
+  window.dispatchEvent(new Event('yiyu:microphone-changed'))
+  if ('__TAURI_INTERNALS__' in window) void emitTo('companion-chat','companion:microphone-changed',{}).catch(()=>undefined)
 }
 export function microphoneLevel(samples: number[]) {
   return Math.min(1, Math.sqrt(samples.reduce((sum, value) => sum + value * value, 0) / Math.max(1, samples.length)) * 5)

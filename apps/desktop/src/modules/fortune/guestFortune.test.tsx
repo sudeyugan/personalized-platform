@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createSeedLibrary } from '../../domain/seed'
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { FortuneView } from './FortuneView'
+import { FORTUNE_COUNTS } from '../../domain/fortune'
 
 vi.mock('../../state/persistence', () => ({ commitLibraryData: (data: unknown, set: (value: unknown) => void) => set({ data }), queueLibrarySave: vi.fn() }))
 
@@ -41,7 +42,7 @@ describe('guest fortune stays ephemeral', () => {
     click('再请一位来客')
     expect(screen.queryByRole('article')).not.toBeInTheDocument()
     click(/轻摇签筒/)
-    expect(screen.getByRole('article')).toHaveTextContent('第 24 签')
+    expect(screen.getByRole('article')).toHaveTextContent(`第 ${FORTUNE_COUNTS.love} 签`)
     expect(useLibraryStore.getState().data).toBe(data)
     click('为自己求签'); click('查看恋爱签')
     expect(screen.getByRole('article')).not.toHaveTextContent('客签')

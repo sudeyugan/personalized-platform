@@ -2,6 +2,7 @@ import { FortuneArtwork } from './FortuneArtwork'
 import { FortuneCylinder } from './FortuneCylinder'
 import { FortuneTable } from './FortuneTable'
 import { FortunePaper } from './FortunePaper'
+import { FortuneReference } from './FortuneReference'
 import { useFortuneRitual } from './useFortuneRitual'
 import { getFortuneTheme } from './themes'
 import './fortune.css'
@@ -35,5 +36,6 @@ export function FortuneView() {
       </div>
     </>}
     <p className="fortune-footnote">本地原创心签 · 无需写下心事 · 不是现实预测</p>
+    <FortuneReference />
   </main>
 }

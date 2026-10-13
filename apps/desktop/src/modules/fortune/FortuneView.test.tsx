@@ -13,6 +13,22 @@ describe('fortune ritual', () => {
     vi.stubGlobal('matchMedia', () => ({ matches: false }))
   })
   afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
+  it('shows a quiet, initially collapsed reference with the official source and adaptation boundary', () => {
+    render(<FortuneView />)
+    expect(screen.getByText('签运参考').closest('details')).not.toHaveAttribute('open')
+    expect(screen.getByText(/参考长崎诹访神社/)).toHaveTextContent('并非神社原签或现实预测')
+    expect(screen.getByRole('link', { name: /查看神社官方说明/ })).toHaveAttribute('href', 'https://www.osuwasan.jp/omamori/')
+  })
+  it('displays a newly appended great-misfortune paper without treating it as a prediction', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }))
+    useLibraryStore.getState().data.fortune = { future: { date: '2026-10-05', signId: 36 } }
+    render(<FortuneView />)
+    fireEvent.click(screen.getByRole('button', { name: '查看前程签' }))
+    const paper = screen.getByRole('article', { name: '前程签文' })
+    expect(paper).toHaveTextContent('大凶')
+    expect(paper).toHaveTextContent('散线归轴')
+    expect(paper).toHaveTextContent('抽签不能替代现实判断')
+  })
   it('shows the same paper selected by a companion draw, including a draw while already mounted', () => {
     const { unmount } = render(<FortuneView />)
     act(() => { createRitualServices().drawFortune!('love', false) })

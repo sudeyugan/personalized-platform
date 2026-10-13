@@ -53,6 +53,15 @@ export function DiaryView() {
     draftRef.current = { date: nextDate, title: nextTitle, content: nextContent, dirty: false }
   }
 
+  useEffect(() => {
+    const intent = data.session.agentNavigation
+    if (intent?.destination === 'diary.day' && intent.date && intent.date !== date) changeDate(intent.date)
+  // A new explicit navigation changes the day; ordinary saves must not reset the draft.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.session.agentNavigation?.id])
+  const questionReference = data.session.agentNavigation?.section === 'daily-question'
+    ? data.planner.dailyQuestions.find(item => item.id === data.session.agentNavigation?.targetId && item.date === date) : undefined
+
   useEffect(() => { openDiary(date) }, [date, openDiary])
   useEffect(() => { saveDiaryEntryRef.current = saveDiaryEntry }, [saveDiaryEntry])
   useEffect(() => {
@@ -74,5 +83,5 @@ export function DiaryView() {
         ? `已保存于 ${new Date(lastSavedAt).toLocaleString()}`
         : '这一天还没有日记'
 
-  return <main className="diary-view scroll-view"><header className="page-header"><div><p className="eyebrow">创作空间</p><h1>日记</h1><p>选择日期，安静地写下当天值得保留的内容。</p></div></header><div className="journal-layout"><section className="journal-editor"><div className="journal-date-row"><label>日期<input type="date" value={date} onChange={(event) => event.target.value && changeDate(event.target.value)} /></label><span>{scheduleDays[weekday - 1]}</span></div><input className="journal-title" value={title} onChange={(event) => { const next = event.target.value; setTitle(next); markDirty(next, content) }} placeholder="给今天一个标题" /><textarea value={content} onChange={(event) => { const next = event.target.value; setContent(next); markDirty(title, next) }} placeholder="今天发生了什么？此刻有什么想记住的？" /><footer><small>{saveHint}</small><button type="button" className="primary-button" disabled={status !== 'dirty'} onClick={() => persist()}><Save size={14} />{status === 'saving' ? '保存中…' : status === 'saved' ? '已保存' : '立即保存'}</button></footer></section></div></main>
+  return <main className="diary-view scroll-view"><header className="page-header"><div><p className="eyebrow">创作空间</p><h1>日记</h1><p>选择日期，安静地写下当天值得保留的内容。</p></div></header>{questionReference && <aside className="journal-question-reference" aria-label="搜索命中的朝问"><h2>{questionReference.question}</h2><p>{questionReference.background}</p><blockquote>{questionReference.followUp}</blockquote><small>仅供回看，不会自动写入日记。</small></aside>}<div className="journal-layout"><section className="journal-editor"><div className="journal-date-row"><label>日期<input type="date" value={date} onChange={(event) => event.target.value && changeDate(event.target.value)} /></label><span>{scheduleDays[weekday - 1]}</span></div><input className="journal-title" value={title} onChange={(event) => { const next = event.target.value; setTitle(next); markDirty(next, content) }} placeholder="给今天一个标题" /><textarea value={content} onChange={(event) => { const next = event.target.value; setContent(next); markDirty(title, next) }} placeholder="今天发生了什么？此刻有什么想记住的？" /><footer><small>{saveHint}</small><button type="button" className="primary-button" disabled={status !== 'dirty'} onClick={() => persist()}><Save size={14} />{status === 'saving' ? '保存中…' : status === 'saved' ? '已保存' : '立即保存'}</button></footer></section></div></main>
 }

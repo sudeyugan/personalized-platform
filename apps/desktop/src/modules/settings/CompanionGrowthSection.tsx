@@ -1,6 +1,7 @@
 import { Download, History, RotateCcw, Sparkles, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { useLibraryStore } from '../../state/useLibraryStore'
+import { OperationMemoryEntry } from '../operation-memory/OperationMemoryPanel'
 
 export function CompanionGrowthSection() {
   const { data, addCompanionMemory, updateCompanionMemory, deleteCompanionMemory, setCompanionGrowthEnabled, setCompanionPersonality, rollbackCompanionGrowth, resetCompanionPersonality } = useLibraryStore()
@@ -10,6 +11,7 @@ export function CompanionGrowthSection() {
 
   return <section className="settings-section companion-growth-section">
     <div className="settings-title"><Sparkles /><div><h2>记忆与性格</h2><p>记忆由你决定，变化可以查看或撤销。</p></div></div>
+    <div className="settings-subsection"><div className="settings-subsection-heading"><strong>操作记忆</strong><small>记住方法，不记住权限或历史结果；支持参数与现场核对</small></div><OperationMemoryEntry /></div>
     <div className="settings-subsection"><div className="settings-subsection-heading"><strong>可治理记忆</strong><small>只有启用的记忆才会注入对话；删除立即生效</small></div>
       <div className="memory-compose"><input aria-label="新增伙伴记忆" value={memoryDraft} onChange={(event) => setMemoryDraft(event.target.value)} placeholder="例如：我更喜欢安静的提醒" /><button className="ghost-button" onClick={() => { if (addCompanionMemory(memoryDraft, 'manual', '用户手动添加')) setMemoryDraft('') }}>添加</button><button className="ghost-button" disabled={!companion.memories.length} onClick={exportMemories}><Download size={13} />导出</button></div>
       <div className="memory-list">{companion.memories.map((memory) => <div key={memory.id}><input aria-label={`记忆内容 ${memory.sourceLabel}`} value={memory.content} onChange={(event) => updateCompanionMemory(memory.id, { content: event.target.value })} /><small>{memory.sourceLabel} · {new Date(memory.createdAt).toLocaleDateString()} · 置信度 {memory.confidence}%</small><button aria-label="切换记忆授权" aria-pressed={memory.authorized} className={memory.authorized ? 'switch on' : 'switch'} onClick={() => updateCompanionMemory(memory.id, { authorized: !memory.authorized })}><i /></button><button aria-label="删除伙伴记忆" onClick={() => deleteCompanionMemory(memory.id)}><Trash2 size={14} /></button></div>)}{!companion.memories.length && <p>还没有长期记忆。对话不会自动成为记忆。</p>}</div>

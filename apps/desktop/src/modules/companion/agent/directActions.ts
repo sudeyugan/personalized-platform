@@ -1,11 +1,15 @@
 import { DEFAULT_COMPANION_NAME, stripCompanionAddress } from '../../../domain/companionIdentity'
 import type { AgentToolCall, AgentToolDefinition } from './types'
 import { resolveRitualAction } from './ritualIntent'
+import { parseLiveRoomIntent } from './liveRoomIntent'
+import { parseLiveStatusIntent } from './liveStatusIntent'
 
 export interface AgentActionIntent {
   expectsTool: boolean
   directCall?: AgentToolCall
   requiresTaskPlan?: boolean
+  liveRoomName?: string
+  liveStatusName?: string
 }
 
 const explicitOpenIntent = /^(?:你[，,\s]*)?(?:(?:请|麻烦|帮我|替我|给我|试着|尝试)[，,\s]*)*(?:在(?:默认)?浏览器(?:里|中)?[，,\s]*)?(?:打开|访问|进入)[，,\s]*(?:一下[，,\s]*)?(?:这个[，,\s]*)?(?:网页|网站|链接)?[：:\s]*/i
@@ -57,6 +61,7 @@ const pageRoutes: Array<{ pattern: RegExp; destination: string; extras?: Record<
 
 function resolveKnownAction(message: string, tools: AgentToolDefinition[]) {
   const command = message.replace(/^(?:你[，,\s]*)?(?:(?:请|麻烦|帮我|替我|给我(?:的)?|试着|尝试)[，,\s]*)*/, '')
+  if (hasTool(tools, 'computer.takeover') && /^(?:接管(?:这台|我的)?电脑|接管(?:这个|当前)?窗口)/.test(command)) return call('computer.takeover', { goal: message.slice(0, 2000) })
   if (hasTool(tools, 'app.open')) {
     const page = pageRoutes.find((route) => route.pattern.test(command))
     if (page) return call('app.open', { destination: page.destination, ...page.extras })
@@ -78,8 +83,10 @@ export function detectActionIntent(message: string, tools: AgentToolDefinition[]
   const normalized = stripCompanionAddress(message, name)
   if (!normalized || discussionPrefix.test(normalized)) return { expectsTool: false }
   const directCall = resolveRitualAction(normalized, tools) ?? resolveWebOpen(normalized, tools) ?? resolveKnownAction(normalized, tools)
-  const requiresTaskPlan = hasTool(tools, 'task.create') && narratedRecording.test(normalized)
-  return { expectsTool: requiresTaskPlan || Boolean(directCall) || actionVerb.test(normalized), directCall, ...(requiresTaskPlan ? { requiresTaskPlan: true } : {}) }
+  const liveRoomName = directCall ? undefined : parseLiveRoomIntent(normalized)
+  const liveStatusName = directCall || liveRoomName ? undefined : parseLiveStatusIntent(normalized)
+  const requiresTaskPlan = directCall?.name !== 'computer.takeover' && hasTool(tools, 'task.create') && narratedRecording.test(normalized)
+  return { expectsTool: requiresTaskPlan || Boolean(directCall) || Boolean(liveRoomName) || Boolean(liveStatusName) || actionVerb.test(normalized), directCall, ...(requiresTaskPlan ? { requiresTaskPlan: true } : {}), ...(liveRoomName ? { liveRoomName } : {}), ...(liveStatusName ? { liveStatusName } : {}) }
 }
 
 export function resolveDirectAction(message: string, tools: AgentToolDefinition[], name = DEFAULT_COMPANION_NAME): AgentToolCall | undefined {

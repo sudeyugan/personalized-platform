@@ -5,6 +5,7 @@ import { moodOptions, moodPeriods } from './moodConfig'
 import { MoodBlendBar } from './MoodBlendBar'
 import { moodSummary } from './moodUtils'
 import { useLibraryStore } from '../../state/useLibraryStore'
+import { ReflectionVisualizations } from './visualizations/ReflectionVisualizations'
 
 import { availableSlots, datesFor, shiftReflectionDate, type ReflectionRange } from './moodReflectionDates'
 type DetailMode = 'day' | 'range'
@@ -32,15 +33,17 @@ export function MoodStats({ entries, referenceDate, range }: { entries: MoodEntr
 function MoodReflection({ entries, referenceDate }: { entries: MoodEntry[]; referenceDate: string }) {
   const navigation = useLibraryStore((state) => state.data.session.agentNavigation)
   const detailsRef = useRef<HTMLDetailsElement>(null)
-  const [range, setRange] = useState<ReflectionRange>('week')
+  const [range, setRange] = useState<ReflectionRange>('month')
   const [anchorDate, setAnchorDate] = useState(referenceDate)
   const [selectedDate, setSelectedDate] = useState(referenceDate)
   const [detailMode, setDetailMode] = useState<DetailMode>('day')
+  const [detailExpanded, setDetailExpanded] = useState(false)
   useEffect(() => {
     if (navigation?.destination !== 'mood.reflection') return
     if (navigation.range === 'week' || navigation.range === 'month') setRange(navigation.range)
     if (navigation.date) { setAnchorDate(navigation.date); setSelectedDate(navigation.date) }
     setDetailMode('day')
+    setDetailExpanded(true)
     if (detailsRef.current) detailsRef.current.open = true
   }, [navigation?.id, navigation?.destination, navigation?.range, navigation?.date])
   const stats = useMemo(() => {
@@ -53,7 +56,6 @@ function MoodReflection({ entries, referenceDate }: { entries: MoodEntry[]; refe
       .map((mood) => ({ ...mood, count: totals[mood.id] ?? 0 }))
       .filter((mood) => mood.count)
       .sort((a, b) => b.count - a.count)
-      .slice(0, range === 'month' ? 7 : 3)
     const byPeriod = Object.fromEntries(moodPeriods.map((period) => [
       period.id,
       totalsFor(selected.filter((entry) => entry.period === period.id)),
@@ -68,8 +70,8 @@ function MoodReflection({ entries, referenceDate }: { entries: MoodEntry[]; refe
   const entryFor = (date: string, period: MoodPeriod) => stats.selected.find((entry) => entry.date === date && entry.period === period)
   const activeDate = stats.dates.includes(selectedDate) ? selectedDate : anchorDate
   const activeDateLabel = new Date(`${activeDate}T12:00:00`).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'short' })
-  const chooseDate = (date: string) => { setSelectedDate(date); setDetailMode('day') }
-  const chooseAnchor = (date: string) => { setAnchorDate(date); setSelectedDate(date); setDetailMode('day') }
+  const chooseDate = (date: string) => { setSelectedDate(date); setDetailMode('day'); setDetailExpanded(true) }
+  const chooseAnchor = (date: string) => { setAnchorDate(date); setSelectedDate(date); setDetailMode('day'); setDetailExpanded(false) }
   const chooseRange = (nextRange: ReflectionRange) => { setRange(nextRange); chooseAnchor(activeDate) }
   const today = formatLocalDate()
   const isCurrent = stats.dates.includes(today)
@@ -105,6 +107,7 @@ function MoodReflection({ entries, referenceDate }: { entries: MoodEntry[]; refe
           <button type="button" disabled={isCurrent} onClick={() => chooseAnchor(today)}>回到{range === 'week' ? '本周' : '本月'}</button>
         </nav>
 
+        <ReflectionVisualizations dates={stats.dates} entries={stats.selected} activeDate={activeDate} onChooseDate={chooseDate}>
         {stats.selected.length ? <>
           <section className="mood-overall-tone" aria-label={`${rangeLabel}情绪底色`}>
             <div><span>{rangeLabel}情绪底色</span><small>{moodSummary(stats.totals)}</small></div>
@@ -131,7 +134,7 @@ function MoodReflection({ entries, referenceDate }: { entries: MoodEntry[]; refe
           </section>}
 
           <section className="mood-composition">
-            <header><span>主要情绪</span><small>按五枚心情点累计</small></header>
+            <header><span>情绪构成</span><small>按五枚心情点累计</small></header>
             {stats.composition.map((mood) => {
               const share = Math.round((mood.count / stats.totalPoints) * 100)
               return <div style={{ '--mood-color': mood.color, '--mood-share': `${share}%` } as CSSProperties} key={mood.id}>
@@ -140,7 +143,11 @@ function MoodReflection({ entries, referenceDate }: { entries: MoodEntry[]; refe
             })}
           </section>
 
-          <section className="mood-day-detail" aria-label={`${activeDateLabel}早中晚心情详情`}>
+        </> : <p>这个范围内还没有心情记录。</p>}
+        </ReflectionVisualizations>
+        {stats.selected.length > 0 &&
+          <details className="mood-day-detail" open={detailExpanded} onToggle={(event) => setDetailExpanded(event.currentTarget.open)} aria-label={`${activeDateLabel}早中晚心情详情`}>
+            <summary>查看{activeDateLabel}的原始记录</summary>
             <header><span>{detailMode === 'day' ? activeDateLabel : `${rangeLabel}时段汇总`}</span><div className="mood-detail-switch"><button type="button" className={detailMode === 'day' ? 'active' : ''} aria-pressed={detailMode === 'day'} onClick={() => setDetailMode('day')}>当日</button><button type="button" className={detailMode === 'range' ? 'active' : ''} aria-pressed={detailMode === 'range'} onClick={() => setDetailMode('range')}>{rangeLabel}汇总</button></div></header>
             <div className="mood-period-stats">
               {moodPeriods.map((period) => {
@@ -150,8 +157,8 @@ function MoodReflection({ entries, referenceDate }: { entries: MoodEntry[]; refe
                 return <div key={period.id}><span>{period.label}</span>{hasRecord && points ? <MoodBlendBar compact points={points} /> : <span className="mood-reflection-empty" />}<small>{hasRecord && points ? moodSummary(points) : '未记录'}</small>{detailMode === 'day' && entry?.note && <p>{entry.note}</p>}{detailMode === 'range' && hasRecord && <p>已记录 {stats.byPeriodCount[period.id]} 次</p>}</div>
               })}
             </div>
-          </section>
-        </> : <p>这个范围内还没有心情记录。</p>}
+          </details>
+        }
       </div>
     </details>
   )

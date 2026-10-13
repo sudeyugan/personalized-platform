@@ -21,6 +21,7 @@ function toolAnswer(message: AgentMessage): string {
     return '工具返回了无法解析的结果，我没有据此作出判断。'
   }
   if (!result.success) return `这次无法完成查询：${result.error?.message ?? '未知工具错误'}。`
+  if (message.toolName === 'computer.takeover') return '接管准备面板已打开，还没有操作电脑。请选定窗口并确认本次任务后开始。'
   const rows = Array.isArray(result.data) ? result.data as Record<string, unknown>[] : undefined
   if (message.toolName === 'character.search') {
     if (!rows?.length) return '在当前获准读取的人物资料里，没有找到相符的人物。'

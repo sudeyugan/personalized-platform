@@ -23,7 +23,7 @@ export const agentFeatureContracts: Record<ViewId, AgentFeatureContract> = {
   answerBook: { id: 'answer-book', view: 'answerBook', description: '本地答案之书翻页与收藏查询', readScope: 'answer_book', destinations: ['answer_book'], tools: ['answer_book.draw', 'answer_book.list_favorites'] },
   truth: { id: 'truth', view: 'truth', description: '本地真心话抽卡（不收集回答）', readScope: 'truth', destinations: ['truth'], tools: ['truth.draw'] },
   calendar: { id: 'calendar', view: 'calendar', description: '日历、事务与课表', readScope: 'calendar', destinations: ['calendar.day', 'calendar.schedule'], tools: ['calendar.list_events', 'course.list', 'course.create', 'course.update'] },
-  todos: { id: 'todos', view: 'todos', description: '待办与周期任务', readScope: 'todos', destinations: ['todos'], tools: ['todo.list'] },
+  todos: { id: 'todos', view: 'todos', description: '待办、周期任务与作业截止', readScope: 'todos', destinations: ['todos'], tools: ['todo.list', 'assignment.list', 'assignment.create', 'assignment.set_submitted', 'assignment.set_period'] },
   writing: { id: 'writing', view: 'writing', description: '作品与章节写作', readScope: 'chapters', destinations: ['writing.chapter'], tools: ['work.create', 'work.get_current', 'chapter.search', 'chapter.get'] },
   diary: { id: 'diary', view: 'diary', description: '日期日记', readScope: 'diary', destinations: ['diary.day'], tools: ['diary.search', 'diary.get'] },
   people: { id: 'people', view: 'people', description: '人物资料', readScope: 'records', destinations: ['record.person'], tools: ['character.search', 'record.get'] },

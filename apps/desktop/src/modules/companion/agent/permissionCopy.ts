@@ -17,6 +17,12 @@ export function describeAgentPermission(request: AgentPermissionRequest) {
     }
   }
   switch (request.call.name) {
+    case 'web.read_page':
+    case 'web.read_json': return { title: '读取这个公开来源？', subject: value(args.url), detail: '仅HTTPS GET，无登录/Cookie，不下载文件；读取内容可能进入已配置的对话模型分析，沿用外发保护。' }
+    case 'web.live_status': return { title: '查询这位主播的开播状态？', subject: `${value(args.expectedName)} · ${value(args.roomUrl)}`, detail: '向 api.live.bilibili.com 匿名读取房间状态及主播昵称两个固定接口，不打开浏览器或使用视觉；接口受限会明确无法确认。' }
+    case 'assignment.create': return { title: '记下这份作业？', subject: value(args.title), detail: `${value(args.date)} ${value(args.time) || '当天结束'} · ${args.repeat === 'weekly' ? `每周 ${Array.isArray(args.weekdays) ? args.weekdays.join('、') : ''}` : '单次'}` }
+    case 'assignment.set_submitted': return { title: '更新本期提交记录？', subject: value(args.id), detail: `${value(args.key)} · ${args.submitted === true ? '标为已交' : '撤销已交'}，其他期不变` }
+    case 'assignment.set_period': return { title: '调整这期作业？', subject: value(args.id), detail: [value(args.key), value(args.date), args.time === '' ? '当天结束' : value(args.time), args.skipped === true ? '本期停交' : args.skipped === false ? '恢复本期' : ''].filter(Boolean).join(' · ') }
     case 'fortune.draw': return { title: '让伙伴抽这支签？', subject: args.kind === 'love' ? '恋爱签' : args.kind === 'future' ? '前程签' : '今日签', detail: args.guest === true ? '临时客签，不占个人每日签' : '各筒每日一支，已有今日结果会直接复用' }
     case 'todo.create': return { title: '创建待办？', subject: value(args.title), detail: value(args.dueDate) || '今天' }
     case 'todo.update': return { title: '修改待办？', subject: value(args.title) || value(args.id), detail: [value(args.dueDate), value(args.priority), value(args.note)].filter(Boolean).join(' · ') || '修改现有信息' }

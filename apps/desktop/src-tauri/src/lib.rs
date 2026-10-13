@@ -11,6 +11,8 @@ mod local_voice;
 mod repositories;
 mod services;
 mod web_search;
+mod public_web;
+mod browser_bridge;
 mod experience_covers;
 #[cfg(test)]
 mod spikes;
@@ -54,6 +56,7 @@ fn install_tray(app: &mut tauri::App) -> tauri::Result<()> {
             "companion-quiet" => { let _ = app.emit_to("main", "companion:tray-action", "quiet"); }
             "companion-hide" => { let _ = app.emit_to("main", "companion:tray-action", "hide"); }
             "computer-stop" => {
+                browser_bridge::cancel_all(&app.state::<browser_bridge::BrowserRuntime>());
                 let stopped = computer::emergency_stop(&app.state::<computer::ComputerRuntime>());
                 let _ = app.emit_to("main", "computer:emergency-stop", stopped);
             }
@@ -100,6 +103,7 @@ pub fn run() {
         })
         .manage(BackgroundWakeRuntime::new())
         .manage(computer::ComputerRuntime::default())
+        .manage(browser_bridge::BrowserRuntime::default())
         .setup(|app| {
             repositories::install_panic_marker(app.handle())?;
             install_tray(app)?;
@@ -113,6 +117,14 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            browser_bridge::browser_bridge_configure,
+            browser_bridge::browser_bridge_status,
+            browser_bridge::browser_bridge_connect,
+            browser_bridge::browser_bridge_disconnect,
+            browser_bridge::browser_bridge_cancel,
+            browser_bridge::browser_bridge_request,
+            browser_bridge::browser_bridge_export,
+            browser_bridge::browser_bridge_setup,
             companion_pointer::companion_primary_button_down,
             companion_feedback::companion_feedback_publish,
             companion_feedback::companion_feedback_subscribe,
@@ -156,6 +168,8 @@ pub fn run() {
             commands::companion_chat_completion,
             commands::companion_chat_completion_stream,
             web_search::web_search,
+            public_web::public_web_read,
+            public_web::public_web_live_status,
             experience_covers::experience_cover_search,
             experience_covers::experience_cover_link,
             experience_covers::experience_cover_image,
@@ -172,6 +186,7 @@ pub fn run() {
             local_voice::local_voice_stop,
             set_background_wake_runtime,
             computer::computer_execute,
+            computer::computer_takeover,
             computer::computer_status,
             computer::computer_emergency_stop,
             computer::computer_detect_ffmpeg,

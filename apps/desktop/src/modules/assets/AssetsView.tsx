@@ -1,5 +1,5 @@
 import { ImagePlus, Link2, Pencil, RotateCcw, ScanSearch, Trash2, X } from 'lucide-react'
-import { useMemo, useState, type ChangeEvent, type DragEvent } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from 'react'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { orphanAssets, referencedAssetIds } from '../../state/assetsSlice'
 import { useLibraryStore } from '../../state/useLibraryStore'
@@ -9,6 +9,13 @@ export function AssetsView() {
   const { data, importAsset, updateAsset, trashAsset, restoreAsset, permanentlyDeleteAsset } = useLibraryStore()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showOrphans, setShowOrphans] = useState(false)
+  useEffect(() => {
+    const intent = data.session.agentNavigation
+    if (intent?.destination !== 'assets' || !intent.targetId) return
+    if (data.assets.some(asset => asset.id === intent.targetId && !asset.deletedAt && (!asset.purpose || asset.purpose === 'creative'))) { setShowOrphans(false); setSelectedId(intent.targetId) }
+  // Record updates must not reopen a panel closed by the user.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.session.agentNavigation?.id])
   const [pendingDeletion, setPendingDeletion] = useState<{ id: string; name: string; references: number; permanent: boolean } | null>(null)
   const [message, setMessage] = useState('可选择、拖放或粘贴 JPG、PNG、WebP，导入后不再依赖原文件。')
   const referenced = useMemo(() => referencedAssetIds(data), [data])

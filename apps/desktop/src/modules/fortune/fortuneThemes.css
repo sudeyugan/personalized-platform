@@ -5,6 +5,13 @@
 .fortune-recipient button:disabled{cursor:default;opacity:.65}
 .fortune-recipient button:focus-visible{outline:2px solid var(--fortune-accent);outline-offset:2px}
 .fortune-recipient-note{flex-shrink:0;max-width:400px;margin:10px 0 0;font-size:10px;line-height:1.8;color:#998a73}
+.fortune-reference{flex-shrink:0;width:min(100%,440px);margin-top:6px;color:#89785f;font-size:11px;line-height:1.9;text-align:left}
+.fortune-reference summary{text-align:center;cursor:pointer;font-size:10px;list-style:none}
+.fortune-reference summary::-webkit-details-marker{display:none}
+.fortune-reference summary:focus-visible{outline:2px solid var(--fortune-accent);outline-offset:3px}
+.fortune-reference p{margin:12px 0}.fortune-reference dl{margin:0}.fortune-reference dl>div{display:grid;grid-template-columns:5em 1fr;gap:10px;margin:5px 0}
+.fortune-reference dt{color:var(--fortune-accent)}.fortune-reference dd{margin:0}.fortune-reference a{color:inherit;text-underline-offset:3px}
+[data-theme=dark] .fortune-reference{color:#bdb099}[data-theme=dark] .fortune-reference dt{color:var(--fortune-label)}
 .fortune-actions .fortune-next-guest{padding:8px 15px;margin-top:12px;font:11px var(--sans);letter-spacing:.05em}
 [data-theme=dark] .fortune-recipient{background:#ffffff05;border-color:#bdb09930}
 [data-theme=dark] .fortune-recipient button,[data-theme=dark] .fortune-recipient-note{color:#bdb099}

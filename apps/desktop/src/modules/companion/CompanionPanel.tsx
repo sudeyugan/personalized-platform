@@ -10,6 +10,8 @@ import type { CompanionMessage } from '../../domain/models'
 import type { PrivacyReviewRequest } from '../privacy'
 import { PrivacyReviewCard } from './PrivacyReviewCard'
 import { AgentTaskCard } from './tasks/AgentTaskCard'
+import { conversationMessages } from './conversationMessages'
+import { isLegacyBrowserSummary } from './browserHistorySummary'
 
 const phaseLabel = (status: AgentRuntimeStatus | undefined) => {
   if (!status) return ''
@@ -39,6 +41,7 @@ export function CompanionPanel() {
   const hasTemporaryGrant = Boolean(work && temporaryCompanionWorkIds.includes(work.id))
   const encryptedNeedsGrant = Boolean(work?.encrypted && !work.locked && encryptedAuthorized && !hasTemporaryGrant)
   const task = [...data.companion.tasks].reverse().find((item) => item.status !== 'cancelled')
+  const savedMessages = data.companion.messages.filter(message => !isLegacyBrowserSummary(message))
   const stopTurn = () => {
     activeTurn.current?.controller.abort()
     activeTurn.current = undefined
@@ -55,17 +58,16 @@ export function CompanionPanel() {
     const turn = { id: crypto.randomUUID(), controller: new AbortController() }
     activeTurn.current = turn
     setDraft(''); setBusy(true); setError(''); setStreamedReply('')
-    if (!data.settings.trust.retainConversationHistory) setTransientMessages((messages) => [...messages, { id: `transient-${crypto.randomUUID()}`, role: 'user', content: message, createdAt: new Date().toISOString() }])
     try {
-      const response = await sendCompanionTurn(message, {
+      await sendCompanionTurn(message, {
         signal: turn.controller.signal,
+        onTransientMessage: (message) => { if (activeTurn.current?.id === turn.id) setTransientMessages((messages) => [...messages, message]) },
         onStatus: (status) => { if (activeTurn.current?.id === turn.id) setAgentStatus(status) },
         onTextDelta: (delta) => { if (activeTurn.current?.id === turn.id) setStreamedReply((value) => value + delta) },
         onTextReset: () => { if (activeTurn.current?.id === turn.id) setStreamedReply('') },
         requestPermission: (request) => new Promise((resolve) => setPermissionRequest({ request, resolve })),
         requestPrivacyReview: (request) => new Promise((resolve) => setPrivacyReview({ request, resolve })),
       })
-      if (!data.settings.trust.retainConversationHistory) setTransientMessages((messages) => [...messages, { id: `transient-${crypto.randomUUID()}`, role: 'companion', content: response, createdAt: new Date().toISOString() }])
     }
     catch (reason) {
       if (!turn.controller.signal.aborted && activeTurn.current?.id === turn.id) setError(reason instanceof Error ? reason.message : '伙伴暂时无法回应')
@@ -80,11 +82,11 @@ export function CompanionPanel() {
     }
   }
   return <section className="companion-panel context-section">
-    <header><div><span className={`companion-avatar ${data.companion.expression} hair-${data.companion.appearance.hair} outfit-${data.companion.appearance.outfit}`}>隅</span><span><strong>{data.companion.name}</strong><small>{context.activeChapter?.title ?? context.activeWork?.title ?? '未授权任何创作上下文'}</small></span></div>{data.companion.messages.length + transientMessages.length > 0 && <button aria-label="清空伙伴对话" onClick={() => { clearCompanionMessages(); setTransientMessages([]) }}><Trash2 size={13} /></button>}</header>
+    <header><div><span className={`companion-avatar ${data.companion.expression} hair-${data.companion.appearance.hair} outfit-${data.companion.appearance.outfit}`}>隅</span><span><strong>{data.companion.name}</strong><small>{context.activeChapter?.title ?? context.activeWork?.title ?? '未授权任何创作上下文'}</small></span></div>{savedMessages.length + transientMessages.length > 0 && <button aria-label="清空伙伴对话" onClick={() => { clearCompanionMessages(); setTransientMessages([]) }}><Trash2 size={13} /></button>}</header>
     {encryptedNeedsGrant && <button className="temporary-grant" onClick={() => grantTemporaryCompanionWork(work!.id, true)}><LockKeyhole size={13} />仅本次解锁会话允许读取《{work!.title}》</button>}
     {hasTemporaryGrant && work?.encrypted && <button className="temporary-grant" onClick={() => grantTemporaryCompanionWork(work.id, false)}><LockKeyhole size={13} />撤销本次会话的文稿读取权限</button>}
     {task && <AgentTaskCard task={task} onPause={() => pauseAgentTask(task.id)} onResume={() => resumeAgentTask(task.id)} onConfirm={() => confirmAgentTaskStep(task.id)} onCancel={() => cancelAgentTask(task.id)} />}
-    <div className="companion-messages">{[...data.companion.messages.slice(-8), ...transientMessages].map((message) => <div className={message.role} key={message.id}><small>{message.role === 'user' ? '你' : data.companion.name}</small><CompanionRichText text={message.content} />{message.role === 'companion' && <button className="remember-message" disabled={Boolean(work?.encrypted)} title={work?.encrypted ? '加密作品对话不能保存为普通长期记忆' : '保存为可治理记忆'} onClick={() => addCompanionMemory(message.content, 'conversation', '伙伴对话', work?.id)}><BookmarkPlus size={12} />记住</button>}</div>)}{streamedReply && <div className="companion streaming"><small>{data.companion.name}</small><CompanionRichText text={`${streamedReply}▋`} /></div>}{!data.companion.messages.length && !transientMessages.length && !streamedReply && <div className="companion-empty"><Sparkles size={18} /><p>我不会主动读取内容。你可以在权限中心决定这次谈话带上什么。</p></div>}</div>
+    <div className="companion-messages">{conversationMessages(savedMessages.slice(-8), transientMessages).map((message) => <div className={message.role} key={message.id}><small>{message.role === 'user' ? '你' : data.companion.name}</small><CompanionRichText text={message.content} />{message.role === 'companion' && !transientMessages.some(item => item.id === message.id) && <button className="remember-message" disabled={Boolean(work?.encrypted)} title={work?.encrypted ? '加密作品对话不能保存为普通长期记忆' : '保存为可治理记忆'} onClick={() => addCompanionMemory(message.content, 'conversation', '伙伴对话', work?.id)}><BookmarkPlus size={12} />记住</button>}</div>)}{streamedReply && <div className="companion streaming"><small>{data.companion.name}</small><CompanionRichText text={`${streamedReply}▋`} /></div>}{!savedMessages.length && !transientMessages.length && !streamedReply && <div className="companion-empty"><Sparkles size={18} /><p>我不会主动读取内容。你可以在权限中心决定这次谈话带上什么。</p></div>}</div>
     {permissionRequest && <AgentPermissionCard request={permissionRequest.request} onDecision={(allowed) => { permissionRequest.resolve(allowed); setPermissionRequest(undefined) }} />}
     {privacyReview && <PrivacyReviewCard request={privacyReview.request} onDecision={(allowed) => { privacyReview.resolve(allowed); setPrivacyReview(undefined) }} />}
     {agentStatus && <p className="companion-agent-status">{phaseLabel(agentStatus)}</p>}
