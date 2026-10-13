@@ -8,6 +8,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { getAllWindows, getCurrentWindow } from '@tauri-apps/api/window'
 import { usePetMenuActions } from './pixel-pet/usePetMenuActions'
 import { usePetPoseSync } from './pixel-pet/usePetPoseSync'
+import { usePixelPetPerceptionBridge } from './pixel-pet/v2/usePixelPetPerceptionBridge'
 import { isPetModeShortcut, usePetModeShortcut } from './pixel-pet/usePetModeShortcut'
 import { register, unregister } from '@tauri-apps/plugin-global-shortcut'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -63,6 +64,7 @@ export function CompanionDesktopBridge() {
   }, [data.companion.voice.wakeEnabled, data.companion.computer.backgroundReminders])
   const taskDetailsOpened = useCallback(() => { setDesktopModeOverride('interactive'); chatVisible.current = true }, [])
   useTaskFeedbackBridge(snapshot, taskDetailsOpened)
+  usePixelPetPerceptionBridge(snapshot)
   useLyricsWindowBridge(snapshot)
   const snapshotRef = useRef(snapshot)
   snapshotRef.current = snapshot

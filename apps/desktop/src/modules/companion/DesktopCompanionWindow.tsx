@@ -1,6 +1,9 @@
 import type { CompanionHeartRateInput } from '../heart-rate/companionHeartRate'
 import type { ListeningInput } from '../music-companion/listeningNotice'
 import { needsTaskConfirmation } from './feedback/taskFeedback'
+import { normalizePixelEnhancements } from '../../domain/pixelPetEnhancements'
+import { useWindowAttachment } from './pixel-pet/v2/desktop/useWindowAttachment'
+import { petConversationState } from './pixel-pet/conversation'
 import { ListeningBadge } from '../music-companion/ListeningBadge'
 import { HeartRateBadge } from '../heart-rate/HeartRateBadge'
 import { normalizeCompanionPetSide } from '../../domain/companionPetStyle'
@@ -26,6 +29,8 @@ export function DesktopCompanionWindow() {
   const drag = useCompanionPlacement(nativeLayout, setLayout, receivedSnapshot)
   const pixelEnabled = snapshot.pixelPetEnabled && !preview
   const pixelSide = normalizeCompanionPetSide(snapshot.pixelPetSide)
+  const enhanced=normalizePixelEnhancements(snapshot.pixelEnhancements)
+  const attachment=useWindowAttachment(nativeLayout,setLayout,pixelEnabled&&snapshot.desktopVisible&&snapshot.pixelPetStyle==='pixel'&&enhanced.enabled,enhanced.windowMode,drag.dragging,petConversationState(snapshot)!=='idle')
   useEffect(() => {
     let disposed = false
     const stops: (() => void)[] = []
@@ -53,6 +58,8 @@ export function DesktopCompanionWindow() {
     variant={pixelEnabled ? 'pixel' : 'webm'} style={snapshot.pixelPetStyle} input={heartInput} pose={drag.dragging ? 'float' : layout.pose ?? layout.side ?? pixelSide} />
   const listening = <ListeningBadge input={listeningInput} visible={snapshot.desktopVisible && (!pixelEnabled || layout.ready)} pixel={pixelEnabled} side={drag.dragging ? 'float' : layout.pose ?? layout.side ?? pixelSide} quiet={snapshot.desktopMode === 'quiet'} busy={drag.dragging || Boolean(snapshot.agentStatus && snapshot.agentStatus.phase !== 'error') || ['listening', 'speaking'].includes(snapshot.action) || ['running', 'preparing'].includes(snapshot.task?.status ?? '') || Boolean(snapshot.task && needsTaskConfirmation(snapshot.task))} />
   if (pixelEnabled) return <>{heartRate}{listening}<PixelPetWindow snapshot={snapshot} layout={layout} drag={drag} heartInput={heartInput} listeningInput={listeningInput} onPose={async (pose) => {
+    attachment.pause()
+    await nativeLayout.endAttachment(false)
     const next = pose === 'float' ? await nativeLayout.float() : await nativeLayout.apply(true, pose, true)
     setLayout(next)
     if (pose !== 'float') await emitTo('main', 'companion:pet-menu-action', { kind: 'side', value: pose })

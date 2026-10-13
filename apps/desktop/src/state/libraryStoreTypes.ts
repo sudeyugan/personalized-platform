@@ -8,6 +8,7 @@ import type { HealthStatus, RecoveryDraft } from '../infrastructure/libraryRepos
 import type { ImportChapter } from '../infrastructure/documentTransfer'
 
 export interface LibraryStore extends ExperiencesActions, AssignmentsActions, OperationsActions, BrowserActions {
+  setCompanionPixelEnhancements: (changes: Partial<import('../domain/pixelPetEnhancements').PixelPetEnhancements>) => void
   drawFortune: (kind?: import('../domain/fortune').FortuneKind) => import('../domain/fortune').FortuneDraw
   data: LibraryData; ready: boolean; saveStatus: SaveStatus; health: HealthStatus | null; recoveryDrafts: Record<string, RecoveryDraft>; playback: { playing: boolean; context: PlaybackContextKind; queue: string[] }; temporaryCompanionWorkIds: string[]
   hydrate: () => Promise<void>; navigate: (view: ViewId) => void; openAgentDestination: (intent: Omit<AgentNavigationIntent, 'id'>) => void; selectWork: (id: string) => void; selectChapter: (id: string) => void; closeChapter: (id: string) => void

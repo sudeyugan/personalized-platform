@@ -280,7 +280,7 @@ export interface CompanionData {
   name: string
   expression: 'calm' | 'warm' | 'thinking'
   appearance: { hair: 'ink' | 'short' | 'long'; outfit: 'linen' | 'night' | 'sage'; portraitAssetId?: string }
-  desktop: { visible: boolean; pixelPetEnabled?: boolean; pixelPetStyle?: CompanionPetStyle; pixelPetSide?: CompanionPetSide; mode: CompanionDesktopMode; visual: CompanionVisual; videoAssets?: Partial<Record<CompanionVideoState, string>>; videoClips?: CompanionVideoLibrary; videoPlacements?: CompanionVideoPlacements; toggleShortcut: string; quietShortcut: string; characterPackage?: CompanionCharacterPackage }
+  desktop: { visible: boolean; pixelPetEnabled?: boolean; pixelPetStyle?: CompanionPetStyle; pixelPetSide?: CompanionPetSide; pixelEnhancements?: import('./pixelPetEnhancements').PixelPetEnhancements; mode: CompanionDesktopMode; visual: CompanionVisual; videoAssets?: Partial<Record<CompanionVideoState, string>>; videoClips?: CompanionVideoLibrary; videoPlacements?: CompanionVideoPlacements; toggleShortcut: string; quietShortcut: string; characterPackage?: CompanionCharacterPackage }
   provider: { providerId: 'mock' | 'deepseek' | 'custom'; endpoint: string; model: string }
   voice: {
     stt: { providerId: 'none' | 'elevenlabs' | 'custom'; endpoint: string; model: string }

@@ -11,6 +11,8 @@ const inactive: PixelLayout = { scale: 1, pixelRatio: 1, ready: false }
 export function createPixelWindowLayout(appWindow: PetWindow, monitors: () => Promise<PixelMonitor[]> = availableMonitors, storage?: PlacementStorage | null) {
   const placements = createPlacementStore(storage)
   let mode: PlacementMode | undefined, currentSide: CompanionPetSide = 'right-edge'
+  let attachmentOriginal:WindowGeometry|undefined,attachmentPose:CompanionPetSide|undefined
+  let attachmentOwner:string|undefined
   let queue: Promise<PixelLayout> = Promise.resolve(inactive)
   const serial = (operation: () => Promise<PixelLayout>) => { queue = queue.catch(() => inactive).then(operation); return queue }
   const geometry = async () => {
@@ -22,11 +24,11 @@ export function createPixelWindowLayout(appWindow: PetWindow, monitors: () => Pr
     await appWindow.setSize(new PhysicalSize(next.size.width, next.size.height))
     await appWindow.setPosition(new PhysicalPosition(next.position.x, next.position.y))
   }
-  const layout = async (scale = 1): Promise<PixelLayout> => {
+  const layout = async (scale?:number): Promise<PixelLayout> => {
     const current = await geometry(), monitor = nearestPixelMonitor(await monitors(), current)
-    return { scale, pixelRatio: await appWindow.scaleFactor(), ready: mode === 'pixel',
+    return { scale:scale??(monitor&&mode==='pixel'?edgeGeometry(monitor).scale:1), pixelRatio: await appWindow.scaleFactor(), ready: mode === 'pixel',
       side: mode === 'pixel' ? currentSide : undefined,
-      pose: mode === 'pixel' && monitor ? placementPose(current, monitor, currentSide) : undefined }
+      pose: mode === 'pixel' && monitor ? attachmentPose??placementPose(current, monitor, currentSide) : undefined }
   }
   const save = (kind: PlacementMode, value: WindowGeometry, monitor: PixelMonitor) => placements.save(kind, { geometry: value, monitor, ...(kind === 'pixel' ? { side: currentSide } : {}) })
   return {
@@ -35,7 +37,11 @@ export function createPixelWindowLayout(appWindow: PetWindow, monitors: () => Pr
         const current = await geometry(), all = await monitors(), currentMonitor = nearestPixelMonitor(all, current)
         if (!currentMonitor) throw new Error('未找到可用显示器')
         if (!enabled) {
-          if (mode === 'pixel') save('pixel', current, currentMonitor)
+          if (mode === 'pixel') {
+            const saved=attachmentOriginal??current
+            save('pixel',saved,nearestPixelMonitor(all,saved)??currentMonitor)
+          }
+          attachmentOriginal=undefined;attachmentPose=undefined;attachmentOwner=undefined
           const saved = placements.get('webm')
           if (saved && mode !== 'webm') {
             const monitor = savedMonitor(saved, all) ?? currentMonitor
@@ -60,6 +66,31 @@ export function createPixelWindowLayout(appWindow: PetWindow, monitors: () => Pr
         return layout(dock.scale)
       })
     },
+    attach(next:WindowGeometry,pose:CompanionPetSide,owner?:string):Promise<PixelLayout> {
+      return serial(async()=>{
+        if(mode!=='pixel')return inactive
+        const current=await geometry(),monitor=nearestPixelMonitor(await monitors(),next)
+        if(!monitor)throw new Error('未找到可用显示器')
+        if(!attachmentOriginal)attachmentOriginal={position:{...current.position},size:{...current.size}}
+        attachmentPose=pose
+        attachmentOwner=owner
+        const scale=edgeGeometry(monitor).scale
+        await move(clampGeometry({...next,size:{width:192*scale,height:240*scale}},monitor),true)
+        return layout(scale) // never save temporary attachment into device placements
+      })
+    },
+    endAttachment(restore=true,owner?:string):Promise<PixelLayout> {
+      return serial(async()=>{
+        if(owner&&owner!==attachmentOwner)return mode==='pixel'?layout():inactive
+        const original=attachmentOriginal;attachmentOriginal=undefined;attachmentPose=undefined;attachmentOwner=undefined
+        if(!original||mode!=='pixel')return mode==='pixel'?layout():inactive
+        const monitor=nearestPixelMonitor(await monitors(),original)
+        if(!monitor)throw new Error('未找到可用显示器')
+        const scale=edgeGeometry(monitor).scale
+        if(restore)await move(clampGeometry({...original,size:{width:192*scale,height:240*scale}},monitor),true)
+        return layout(scale)
+      })
+    },
     float(): Promise<PixelLayout> {
       return serial(async () => {
         if (mode !== 'pixel') return inactive
@@ -77,6 +108,7 @@ export function createPixelWindowLayout(appWindow: PetWindow, monitors: () => Pr
         if (!mode) return inactive
         const current = await geometry(), all = await monitors(), monitor = nearestPixelMonitor(all, current)
         if (!monitor) throw new Error('未找到可用显示器')
+        if(mode==='pixel'&&attachmentOriginal&&!snap)return layout(edgeGeometry(monitor).scale)
         if (mode === 'webm') {
           const next = clampGeometry(current, monitor)
           if (next.position.x !== current.position.x || next.position.y !== current.position.y) await appWindow.setPosition(new PhysicalPosition(next.position.x, next.position.y))

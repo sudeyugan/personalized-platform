@@ -21,7 +21,7 @@ import { loadPreparedArt, type PreparedArt } from './art/prepareArt'
 import { PIXEL_PET_SIZE, type PixelPoint, type PixelPetPose } from './types'
 import './pixelPet.css'
 
-interface Props {
+export interface PixelPetRendererProps {
   listeningInput?: ListeningInput
   heartInput?: CompanionHeartRateInput
   name?: string
@@ -39,7 +39,7 @@ interface Props {
   pixelRatio?: number
   active?: boolean
 }
-export function PixelPetRenderer({ name = '小鱼', engaged = false, dragging = false, dragMotion, restPreview = false, conversation = 'idle', response, headPat, pointer, pose = 'right-edge', style = 'chibi', scale = 1, pixelRatio = 1, active = true, heartInput, listeningInput }: Props) {
+export function PixelPetRenderer({ name = '小鱼', engaged = false, dragging = false, dragMotion, restPreview = false, conversation = 'idle', response, headPat, pointer, pose = 'right-edge', style = 'chibi', scale = 1, pixelRatio = 1, active = true, heartInput, listeningInput }: PixelPetRendererProps) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const painted = useRef(false)
   const musicNotice = useRef(createListeningNotice())

@@ -10,6 +10,7 @@ export interface ArtProfile {
   style: CompanionPetStyle; label: string; src: string
   width: number; height: number; edgeX: number; edgeY?: number; floating?: boolean; pixelated: boolean
   hands: ArtPolygon[]; eyes: ArtEye[]
+  placement?: { scale:number;x:number;y:number }
 }
 const hands: ArtPolygon[] = [
   [[.87, .37], [1, .37], [1, .49], [.90, .49]],
@@ -47,6 +48,7 @@ export const ART_PROFILES: Record<CompanionPetStyle, ArtProfile> = {
 }
 export const PET_STYLES = Object.values(ART_PROFILES)
 export function artPlacement(profile: ArtProfile) {
+  if(profile.placement)return profile.placement // v2 atlas calibration; old profiles unchanged
   if (profile.floating) {
     const scale = Math.min(188 / profile.width, 236 / profile.height)
     return { scale, x: (192 - profile.width * scale) / 2, y: 2 }

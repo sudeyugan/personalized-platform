@@ -73,7 +73,16 @@ update_desktop_exe() {
     echo "未找到 Windows Release：$release_exe" >&2
     exit 1
   fi
-  cp -f "$release_exe" "$desktop_exe"
+  local delivery_script="$(wslpath -w "$repo_root/scripts/windows-desktop-delivery.ps1")"
+  local release_windows="$(wslpath -w "$release_exe")"
+  local desktop_windows="$(wslpath -w "$desktop_exe")"
+  local delivery_exit=0
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$delivery_script" -Source "$release_windows" -Destination "$desktop_windows" || delivery_exit=$?
+  if ((delivery_exit == 20)); then
+    echo "检测到一隅运行，桌面替换已中断；候选包保留，不杀进程或自动重试。"
+    return 0
+  fi
+  if ((delivery_exit != 0)); then return "$delivery_exit"; fi
   echo "桌面直接运行版已更新：$desktop_exe"
 }
 

@@ -13,6 +13,9 @@ importers:
       '@elevenlabs/client':
         specifier: ^1.25.0
         version: 1.25.0(@types/dom-mediacapture-record@1.0.22)
+      '@mediapipe/tasks-vision':
+        specifier: 1.1.0
+        version: 1.1.0
       '@tauri-apps/api':
         specifier: ^2.11.1
         version: 2.11.1
@@ -205,6 +208,9 @@ packages:
 
   '@livekit/protocol@1.50.4':
     resolution: {integrity: sha512-L1uggNQAqyY21smQY8AllyOYbcv9Me9TaxwuLytL1R8ck9nbYPmQLNwEDi3pOFGAMa5F8I2nUi2Jc59W5awxlA==}
+
+  '@mediapipe/tasks-vision@1.1.0':
+    resolution: {integrity: sha512-ZJqh0wMKOINorfSffvDAxzyO1//c+FiG3IkzOdNDnLqvBB3DbMfj0bB/tys2SNf9S914sgoIbIpF4HTOi336cg==}
 
   '@oxc-project/types@0.143.0':
     resolution: {integrity: sha512-u6JZdLBTLotrNC9Vd6vPssINdzcCzleKAH6EJKImQb7GtYvX5keN2dxkoK44stCc4tffE6QQRtZTXVSzsLUlWA==}
@@ -1577,6 +1583,8 @@ snapshots:
   '@livekit/protocol@1.50.4':
     dependencies:
       '@bufbuild/protobuf': 1.10.1
+
+  '@mediapipe/tasks-vision@1.1.0': {}
 
   '@oxc-project/types@0.143.0': {}
 

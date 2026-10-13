@@ -4,6 +4,7 @@ mod music_companion;
 mod lyrics_lookup;
 mod companion_asset_protocol;
 mod companion_pointer;
+mod pixel_desktop;
 mod companion_feedback;
 mod companion_lyrics;
 mod computer;
@@ -93,6 +94,7 @@ pub fn run() {
         .manage(lyrics_lookup::LyricsRuntime::default())
         .manage(experience_covers::CoverRuntime::default())
         .manage(companion_feedback::CompanionFeedbackRuntime::default())
+        .manage(pixel_desktop::PixelDesktopRuntime::default())
         .manage(companion_lyrics::CompanionLyricsRuntime::default())
         .register_asynchronous_uri_scheme_protocol("yiyu-companion", |context, request, responder| {
             let app = context.app_handle().clone();
@@ -187,6 +189,10 @@ pub fn run() {
             set_background_wake_runtime,
             computer::computer_execute,
             computer::reply_links::open_reply_link,
+            pixel_desktop::pixel_desktop_watch,
+            pixel_desktop::pixel_pet_activation,
+            pixel_desktop::pixel_pet_activation_subscribe,
+            pixel_desktop::pixel_pet_activation_unsubscribe,
             computer::computer_takeover,
             computer::computer_status,
             computer::computer_emergency_stop,

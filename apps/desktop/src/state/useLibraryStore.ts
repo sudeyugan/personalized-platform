@@ -16,6 +16,7 @@ import { createPlannerSlice } from './plannerSlice'
 import { createAssignmentsSlice } from './assignmentsSlice'
 import { createOperationsSlice } from './operationsSlice'
 import { createBrowserSlice } from './browserSlice'
+import { createPixelPetEnhancementsSlice } from './pixelPetEnhancementsSlice'
 import { createFortuneSlice } from './fortuneSlice'
 import { createExperiencesSlice } from './experiencesSlice'
 import { createAnswerBookSlice } from './answerBookSlice'
@@ -51,6 +52,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   ...createExperiencesSlice(get, set),
   ...createOperationsSlice(get, set),
   ...createBrowserSlice(get, set),
+  ...createPixelPetEnhancementsSlice(get, set),
 
   hydrate: async () => {
     try {

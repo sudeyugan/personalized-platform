@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PixelPoint } from './types'
 import type { createPixelWindowLayout, PixelLayout } from './windowLayout'
 
-export function useCompanionPlacement(controller: Pick<ReturnType<typeof createPixelWindowLayout>, 'settle'>, onLayout: (layout: PixelLayout) => void, enabled: boolean) {
+export function useCompanionPlacement(controller: Pick<ReturnType<typeof createPixelWindowLayout>, 'settle'> & Partial<Pick<ReturnType<typeof createPixelWindowLayout>,'endAttachment'>>, onLayout: (layout: PixelLayout) => void, enabled: boolean) {
   const latest = useRef({ onLayout, enabled })
   latest.current = { onLayout, enabled }
   const draggingRef = useRef(false)
@@ -38,7 +38,7 @@ export function useCompanionPlacement(controller: Pick<ReturnType<typeof createP
   }, [settle])
   return {
     dragging, motion,
-    onDragStart: useCallback(() => { draggingRef.current = true; lastPosition.current = undefined; motion.current = { x: 0, y: 0 }; setDragging(true) }, []),
+    onDragStart: useCallback(() => { draggingRef.current = true; void controller.endAttachment?.(false).catch(()=>{}); lastPosition.current = undefined; motion.current = { x: 0, y: 0 }; setDragging(true) }, [controller]),
     onDragEnd: useCallback(() => { draggingRef.current = false; void (latest.current.enabled ? settle(true) : Promise.resolve()).finally(() => { if (alive.current) setDragging(false) }) }, [settle]),
     onDragError: useCallback(() => { draggingRef.current = false; void (latest.current.enabled ? settle(false) : Promise.resolve()).finally(() => { if (alive.current) setDragging(false) }) }, [settle]),
   }
