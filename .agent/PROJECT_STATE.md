@@ -15,7 +15,7 @@
 - 本轮用户明确要求的动作比例/绘画/部件运动和上方中央摄像头收敛已实现并候选交付，原像素默认/切回、其他造型/WebM与原素材保留；不是完整DEC-095或正式新版本完成。独立五v3原画编辑、修复三手草图、当前基础姿态校准/有界缓存、分通道缓动/臂部入场/220ms过渡、位置主导侧头+连接转向、1-Euro滤波、单RAF与加载回退，详见下方证据，不新增采集/电脑权限或依赖。
 - 最终10文件41定向、类型/目标oxlint、docs:check/diff及实际隔离Edge Canvas通过。基础neutral0通道差异，六姿态表情缓存脸外0差异，三摆放/左右方向截图已检视；初始GPU/CPU漂移已修正且未放宽断言。真实眼神＋头转40样本median14.2ms/P9525.1ms/mean16.655ms/max32.8ms，仅特定隔离浏览器条件，不能保证设备帧率/精确眼球朝向。独立浏览器和临时Vite已结束，无真实摄像头、个人浏览器、AI Provider操作，未运行full/全量测试。
 - Windows Release4m43s、NSIS、桌面保护交付整体退出0，YIYU_DELIVERY_UPDATED；应用源/新增v2与Windows镜像一致。Release/桌面EXE SHA256同`54ef7ec584438aac68dee6a599d7d978052bb1e33bbe9b5231f92ca5f786b281`，NSIS仅项目target/release/bundle/nsis，SHA256 `a1f5faa905b8d029a34d348c1facb9b39f24704af779631f2bc2fcfd6e2d2fae`；检测未运行才替换，没有结束用户进程。原生3处BOOL/Web分包提示既有，无新增原生源码/CSP/模型或秘密。高置信密钥模式/本机文件排除与diff检查无命中。
-- 素材路径v2/rig/assets/{wave,touch-hair,chin,stretch,sleep}-v3.png；内置imagegen提示词/来源见README及PROMPTS-v3。User原反馈/批准范围已同步DEC095_PLAN/DECISIONS/BRIEF/ROADMAP，只提交源/正式素材/文档，不提交安装包/.inputs证据/临时profile。正在按持续偏好普通提交推送origin/main，成功事实随后登记，不强推。
+- 素材路径v2/rig/assets/{wave,touch-hair,chin,stretch,sleep}-v3.png；内置imagegen提示词/来源见README及PROMPTS-v3。User原反馈/批准范围已同步DEC095_PLAN/DECISIONS/BRIEF/ROADMAP；源码/正式素材/交付记录提交`c7533a9`已普通推送origin/main（6dba405→c7533a9，退出0），不提交安装包/.inputs证据/临时profile、不强推。本后补检查点和提示词EOF空白修正仅文档，不重新构建或扩大验证，最终远端与本地核对后交付。
 - 下一步用户重开桌面候选、正坐点一次居中校准，集中回看五动作大小/绘画/转场及左右位置的自然侧头效果；硬件观感由用户确认，不把模拟当验收。R055、距离联动、原生附着/摄像头激活失联闭合/长期性能仍待完整阶段推进；本轮无新增方向、权限或成本决策，正式2.0.0/M12/官方哈希不变。
 
 ### 2026-10-14：Pixel Pet 2.0动作质量/自然跟随前端收口，候选构建待（交付前检查点）

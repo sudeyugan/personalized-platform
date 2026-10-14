@@ -30,5 +30,3 @@ Use case: identity-preserve. Asset type: one production desktop-companion animat
 ## touch-hair repair
 
 Use case: precise-object-edit. Edit this transparent pixel-art pose. Correct ONLY the lower-waist hand/arm anatomy: currently the character has a raised hand beside her hair PLUS two clasped hands at the waist, totaling THREE hands. Keep the raised viewer-right hand at the temple exactly unchanged. Replace the clasped pair at the waist with ONE relaxed hand emerging from the viewer-left lower sleeve, resting across the waist. Remove the duplicated lower wrist/cuff that belongs to the already raised arm; reconstruct only the correct underlying costume folds. Exactly TWO arms and TWO hands in the entire image, one raised beside the hair and one at waist. Keep head/face/eyes, all hair and ornaments, torso, pixel-grid texture, scale, composition, lighting/colors and transparency completely unchanged. No reframing, no atlas, no new backdrop or accessories.
-
-
