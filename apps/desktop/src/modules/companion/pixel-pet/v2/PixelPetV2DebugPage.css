@@ -1,0 +1,10 @@
+.pixel-v2-debug { grid-template-columns: minmax(240px,320px) 1fr; gap:40px; color:#dfe7f4; }
+.pixel-v2-debug .shortcut-picker { display:grid; grid-template-columns:80px 1fr; align-items:center; gap:12px; padding:10px 0; background:none; border:0; }
+.pixel-v2-debug .shortcut-picker span { color:#afbdd0; font-size:13px; }
+.pixel-v2-debug select { background:#303a4b; border:1px solid #49546a; border-radius:9px; color:#e5ecf8; padding:9px 12px; font:inherit; }
+.pixel-v2-debug input { accent-color:#9ebce8; width:100%; }
+.pixel-v2-debug button { border:1px solid #49546a; border-radius:9px; padding:9px 14px; background:#303a4b; color:#e5ecf8; font:inherit; cursor:pointer; }
+.pixel-v2-debug .pet-preview-controls { flex-wrap:wrap; }
+.pixel-v2-debug figure { background:#2c3442; border-radius:16px; margin:0; padding:16px 0; }
+.pixel-v2-debug figcaption { color:#b9c7da; }
+@media(max-width:1000px) { .pixel-v2-debug { grid-template-columns:1fr; } }

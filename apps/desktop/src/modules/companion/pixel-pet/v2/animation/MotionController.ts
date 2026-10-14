@@ -7,11 +7,13 @@ import type { PixelPoint } from '../../types'
 export function createMotionController(random=Math.random, eyeCenter:PixelPoint={x:96,y:72}) {
   const mixer=createAnimationMixer(),springs=new Map<string,ReturnType<typeof createSpring>>()
   let previous:number|undefined,nextBlink=2500+random()*2500,blinkStart=-Infinity
+  let lastPose:BehaviorOutput['pose']='neutral',poseStarted=0
   const smooth=(key:string,target:number,dt:number,initial=0)=>{
-    let spring=springs.get(key);if(!spring){spring=createSpring(initial);springs.set(key,spring)}return spring.step(target,dt)
+    let spring=springs.get(key);if(!spring){const speed=key.startsWith('face:')?20:key.startsWith('hair:')?7:key.startsWith('head:')?11:9;spring=createSpring(initial,speed);springs.set(key,spring)}return spring.step(target,dt)
   }
   return { update(now:number,behavior:BehaviorOutput,reduced=false,movement?:PixelPoint):RigFrame {
     const dt=previous===undefined?0:(now-previous)/1000;previous=now
+    if(lastPose!==behavior.pose){lastPose=behavior.pose;poseStarted=now}
     if(now>=nextBlink){blinkStart=now;nextBlink=now+2600+random()*5000}
     const blinkTime=now-blinkStart,blink=blinkTime>=0&&blinkTime<180?Math.abs(blinkTime-90)/90:1
     const frame=neutralRigFrame(),face={...FACE_PRESETS[behavior.expression]}
@@ -21,15 +23,17 @@ export function createMotionController(random=Math.random, eyeCenter:PixelPoint=
     face.gazeX=gazeX;face.gazeY+=gazeY;face.eyeOpen*=blink
     if(behavior.speaking)face.mouthOpen=.18+(Math.sin(now/105)+1)*.28
     for(const key of Object.keys(face) as (keyof FaceParameters)[])frame.face[key]=smooth('face:'+key,face[key],dt,key==='eyeOpen'?1:0)
-    frame.joints.head={x:smooth('head:x',reduced?0:headX*2.8,dt),y:smooth('head:y',reduced?0:behavior.pat?1.8:headY*1.6,dt),angle:smooth('head:a',reduced?0:headX*.043,dt)}
-    frame.joints.body.y=smooth('body:y',reduced?0:Math.sin(now/1400)*.35,dt)
-    frame.joints.body.angle=smooth('body:a',reduced?0:Math.sin(now/3700)*.008,dt)
+    frame.joints.head={x:smooth('head:x',reduced?0:headX*2.2,dt),y:smooth('head:y',reduced?0:behavior.pat?1.4:headY*1.4,dt),angle:smooth('head:a',reduced?0:headX*.085,dt)}
+    frame.headTurn=smooth('head:turn',reduced?0:headX*.75,dt)
+    frame.joints.body.y=smooth('body:y',reduced?0:Math.sin(now/1800)*.22,dt)
+    frame.joints.body.angle=smooth('body:a',reduced?0:headX*.008+Math.sin(now/4300)*.003,dt)
     frame.joints.hair.x=smooth('hair:x',reduced?0:frame.joints.head.x*.35-(movement?.x??0)*1.4,dt)
-    frame.joints.hair.angle=smooth('hair:a',reduced?0:Math.sin(now/2100)*.012,dt)
+    frame.joints.hair.angle=smooth('hair:a',reduced?0:frame.joints.head.angle*.15+Math.sin(now/2700)*.003,dt)
     frame.joints.root.x=smooth('root:x',reduced?0:-(movement?.x??0)*1.2,dt)
     frame.joints.root.y=smooth('root:y',reduced?0:-(movement?.y??0)*.8,dt)
-    if(behavior.pose==='wave')frame.joints.leftArm.angle=reduced?0:Math.sin(now/180)*.07
-    if(behavior.pose==='touch-hair')frame.joints.rightArm.y=reduced?0:Math.sin(now/420)*.4
+    const elapsed=Math.max(0,now-poseStarted),ease=Math.min(1,elapsed/450)
+    frame.joints.leftArm.angle=smooth('arm:left',reduced||behavior.pose!=='wave'?0:Math.sin(elapsed/280)*.045*ease,dt)
+    frame.joints.rightArm.y=smooth('arm:right',reduced||behavior.pose!=='touch-hair'?0:Math.sin(elapsed/600)*.25*ease,dt)
     frame.poses=mixer.update(now,behavior.pose,reduced);frame.gazeTarget=behavior.target
     return frame
   } }

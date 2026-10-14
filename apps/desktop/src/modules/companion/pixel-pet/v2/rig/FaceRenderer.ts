@@ -3,6 +3,17 @@ import { drawOriginalEye } from '../../art/eyeRaster'
 import { artPlacement } from '../../art/artProfiles'
 import type { RigFrame } from '../animation/types'
 import type { PixelRig } from './PixelRig'
+export function rigFacePatchBounds(art:PreparedArt,rig:PixelRig) {
+  const r=art.resolution,fit=artPlacement(art.profile)
+  let left=(rig.mouth.x-6)*r,right=(rig.mouth.x+6)*r,top=(rig.mouth.y-5)*r,bottom=(rig.mouth.y+5)*r
+  for(const eye of art.eyes){left=Math.min(left,eye.x);right=Math.max(right,eye.x+eye.width);top=Math.min(top,eye.y);bottom=Math.max(bottom,eye.y+eye.height)}
+  for(const eye of art.profile.eyes){
+    const x=(fit.x+eye.x*fit.scale)*r,y=(fit.y+eye.y*fit.scale)*r
+    left=Math.min(left,x-7*r);right=Math.max(right,x+7*r);top=Math.min(top,y-12*r);bottom=Math.max(bottom,y+12*r)
+  }
+  const x=Math.max(0,Math.floor(left-2)),y=Math.max(0,Math.floor(top-2))
+  return {x,y,width:Math.min(art.source.width,Math.ceil(right+2))-x,height:Math.min(art.source.height,Math.ceil(bottom+2))-y}
+}
 export function prepareRigFace(art:PreparedArt,rig:PixelRig,frame:RigFrame) {
   const {face}=frame,changed=face.eyeOpen!==1||face.gazeX!==0||face.gazeY!==0||face.smile>.01||face.blush>.01||face.browRaise>.01||face.mouthOpen>.01
   if(!changed)return art.source

@@ -19,7 +19,7 @@ export function CameraSettings() {
     <small role="status">{labels[status.phase]}{status.phase==='active'?(status.geometry?.present?' · 单人目标可见':' · 未确认单人目标'):''}</small>
     <details onToggle={event=>{if(event.currentTarget.open)void refresh()}}><summary>摄像头与校准</summary>
       <label><span>设备</span><select aria-label="桌宠摄像头设备" value={preferences.deviceId} onChange={event=>change({deviceId:event.target.value,calibration:null})}><option value="">系统默认摄像头</option>{devices.map((device,index)=><option key={device.deviceId} value={device.deviceId}>{device.label||`摄像头 ${index+1}`}</option>)}</select></label>
-      <label><span>安装位置</span><select aria-label="摄像头安装位置" value={preferences.mount} onChange={event=>change({mount:event.target.value as typeof preferences.mount})}><option value="top">屏幕上方</option><option value="bottom">屏幕下方</option><option value="left">屏幕左侧</option><option value="right">屏幕右侧</option></select></label>
+      <small>摄像头位置：屏幕上方中央</small>
       <label className="pet-v2-check"><input type="checkbox" aria-label="镜像摄像头方向" checked={preferences.mirror} onChange={event=>change({mirror:event.target.checked})}/>镜像方向</label>
       <div className="pet-v2-actions"><button className="ghost-button" disabled={!status.geometry?.present} onClick={()=>{const raw=status.geometry;if(raw?.present)change({calibration:{x:raw.x,y:raw.y,size:raw.size,deviceId:preferences.deviceId}})}}>居中校准</button><button className="ghost-button" onClick={()=>change({calibration:null})}>重置校准</button><button className="ghost-button" onClick={()=>change({enabled:preferences.enabled})}>重试感知</button></div>
       <small>正坐并看向屏幕后校准。只估计相对远近与头部朝向，不识别身份，也不是精确眼球视线。隐藏桌宠、切回原版或其他造型/WebM时停止采集。</small>

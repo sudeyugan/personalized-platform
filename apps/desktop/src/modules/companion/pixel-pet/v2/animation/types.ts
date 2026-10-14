@@ -10,9 +10,10 @@ export type RigJoint = 'root' | 'body' | 'head' | 'leftArm' | 'rightArm' | 'hair
 export interface RigFrame {
   joints: Record<RigJoint, JointTransform>
   face: FaceParameters
+  headTurn: number
   poses: { pose: RigPose; weight: number }[]
   gazeTarget: PixelPoint | null
 }
 export const NEUTRAL_FACE: FaceParameters = { eyeOpen:1, gazeX:0, gazeY:0, browRaise:0, smile:0, blush:0, mouthOpen:0 }
 export const joint = (): JointTransform => ({ x:0, y:0, angle:0 })
-export const neutralRigFrame = (): RigFrame => ({ joints:{ root:joint(), body:joint(), head:joint(), leftArm:joint(), rightArm:joint(), hair:joint() }, face:{ ...NEUTRAL_FACE }, poses:[{pose:'neutral',weight:1}],gazeTarget:null })
+export const neutralRigFrame = (): RigFrame => ({ joints:{ root:joint(), body:joint(), head:joint(), leftArm:joint(), rightArm:joint(), hair:joint() }, face:{ ...NEUTRAL_FACE }, headTurn:0,poses:[{pose:'neutral',weight:1}],gazeTarget:null })

@@ -2,7 +2,9 @@ import type { RigPose } from './types'
 export function createAnimationMixer() {
   let current: RigPose='neutral',base=[{pose:'neutral' as RigPose,weight:1}],started=-Infinity
   const sample=(now:number,reduced=false)=>{
-    const t=reduced?1:Math.max(0,Math.min(1,(now-started)/360)),weight=t*t*(3-2*t)
+    // Short identity-aligned crossfade avoids lingering double hands/silhouettes;
+    // joint springs provide the longer settle, not two full pictures overlaid.
+    const t=reduced?1:Math.max(0,Math.min(1,(now-started)/220)),weight=t*t*(3-2*t)
     if(weight===1)return [{pose:current,weight:1}]
     const weights=new Map(base.map(item=>[item.pose,item.weight*(1-weight)]))
     weights.set(current,(weights.get(current)??0)+weight)

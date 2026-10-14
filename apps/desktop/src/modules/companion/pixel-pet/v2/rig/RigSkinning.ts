@@ -2,7 +2,8 @@ import type { PreparedArt } from '../../art/prepareArt'
 import type { RigFrame } from '../animation/types'
 import { clamp,createPixelRig,skinWeights } from './PixelRig'
 import { artEyeCenter } from '../../art/artProfiles'
-import { prepareRigFace } from './FaceRenderer'
+import { prepareRigFace,rigFacePatchBounds } from './FaceRenderer'
+import { headTurnOffset } from './HeadTurn'
 
 // Continuous inverse skinning: write every destination pixel from one connected
 // texture. No cut-out neck/sleeve/hair islands, no invented exposed surfaces.
@@ -11,6 +12,9 @@ export function createRigSkinning(art:PreparedArt) {
   const output=document.createElement('canvas');output.width=w;output.height=h
   const ctx=output.getContext('2d')!
   const pixels=ctx.createImageData(w,h)
+  const original=art.source.getContext('2d',{willReadFrequently:true})!.getImageData(0,0,w,h).data
+  const facePixels=original.slice()
+  const facePatch=rigFacePatchBounds(art,rig)
   // Use a 2-logical-pixel influence grid; bilinear joint weights stay continuous.
   const rows=Array.from({length:h},(_,i)=>{
     const y=i/r,head=skinWeights(rig.head.x,y,rig).head
@@ -23,18 +27,27 @@ export function createRigSkinning(art:PreparedArt) {
   const quant=(n:number)=>Math.round(clamp(n,-3,3)*r)/r
   return {rig,draw(target:CanvasRenderingContext2D,frame:RigFrame) {
     const texture=prepareRigFace(art,rig,frame),j=frame.joints
-    const still=Object.values(j).every(b=>!b.x&&!b.y&&!b.angle)
+    const still=!frame.headTurn&&Object.values(j).every(b=>!b.x&&!b.y&&!b.angle)
     if(still){target.drawImage(texture,0,0,192,240);return}
-    const input=texture.getContext('2d',{willReadFrequently:true})!.getImageData(0,0,w,h).data
-    const hx=quant(j.head.x),hy=quant(j.head.y),ha=clamp(j.head.angle,-.045,.045)
+    let input=original
+    if(texture!==art.source){
+      // Only eyes/brows/blush/mouth differ from the approved base. Reuse the
+      // full buffer and read back this bounded patch, not 1.6MB every frame.
+      const {x,y,width:fw,height:fh}=facePatch
+      const patch=texture.getContext('2d',{willReadFrequently:true})!.getImageData(x,y,fw,fh).data
+      for(let row=0;row<fh;row++)facePixels.set(patch.subarray(row*fw*4,(row+1)*fw*4),((y+row)*w+x)*4)
+      input=facePixels
+    }
+    const hx=quant(j.head.x),hy=quant(j.head.y),ha=clamp(j.head.angle,-.09,.09)
     const bx=quant(j.body.x),by=quant(j.body.y),ba=clamp(j.body.angle,-.018,.018)
     const rx=quant(j.root.x),ry=quant(j.root.y),hair=quant(j.hair.x),hairAngle=clamp(j.hair.angle,-.015,.015),la=clamp(j.leftArm.angle,-.08,.08),ra=clamp(j.rightArm.angle,-.08,.08)
+    const turnOffsets=columns.map(col=>headTurnOffset(col.x-rig.head.x,1,frame.headTurn))
     for(let y=0;y<h;y++){
       const row=rows[y],arm=clamp((row.y-rig.head.y-24)/20,0,1)*(1-clamp((row.y-215)/25,0,1))
       const hairY=clamp((row.y-rig.head.y-12)/78,0,1),armY=row.y-rig.head.y-47
       for(let x=0;x<w;x++){
         const col=columns[x],dx=col.x-rig.head.x,dy=row.y-rig.neckY
-        const sx=Math.round(x-((rx+(hx-dy*ha)*row.head+(bx-(row.y-150)*ba)*row.body+(hair+hairAngle*(row.y-rig.head.y))*col.hair*hairY+la*armY*col.left*arm+ra*armY*col.right*arm)*col.anchor)*r)
+        const sx=Math.round(x-((rx+(hx-dy*ha+turnOffsets[x])*row.head+(bx-(row.y-150)*ba)*row.body+(hair+hairAngle*(row.y-rig.head.y))*col.hair*hairY+la*armY*col.left*arm+ra*armY*col.right*arm)*col.anchor)*r)
         const sy=Math.round(y-((ry+(hy+dx*ha)*row.head+(by+dx*ba)*row.body+j.leftArm.y*col.left*arm+j.rightArm.y*col.right*arm)*row.anchor)*r)
         const dst=(y*w+x)*4
         if(sx<0||sy<0||sx>=w||sy>=h){pixels.data[dst+3]=0;continue}

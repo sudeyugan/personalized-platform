@@ -1,5 +1,27 @@
 # Pixel Pet 2.0 key poses (candidate)
 
+## Current v3 individual poses
+
+Runtime now uses wave-v3.png, touch-hair-v3.png, chin-v3.png, stretch-v3.png and
+sleep-v3.png: five independent 1024×1536 RGBA edits of approved pixel-free-v1,
+with pixel.png as the style reference, using built-in image_gen (not CLI).
+The rejected three-handed hair-touch draft is not shipped; its repaired result
+has one raised hand and one waist hand. Prompts: [PROMPTS-v3.md](PROMPTS-v3.md).
+No webcam or user image was used. Approved original images remain untouched.
+
+PoseCalibration fits the full eye-span vector and eye center to the actual
+side/free/bottom neutral. A single transform preserves head/torso proportions;
+it does not match every pose to the free center or scale the head independently.
+Neutral remains the original prepared PNG. The old six-cell atlas below stays
+in source history/provenance, but is no longer loaded by the runtime.
+
+Read-only RGBA inspection: node scripts/pixel-pet-art-check.mjs. All five files
+have genuine transparent pixels (382590–424201), and sampled crown/forehead RGB
+mean absolute deviation from the original free image is 5.176–7.454 / 255.
+This is a limited pixel/style check, not an anatomy or subjective quality score.
+
+## Previous v2 atlas (not used)
+
 `pixel-keyposes-v2.png` is a separate 2-column × 3-row RGBA atlas, generated with
 the built-in image_gen tool from the existing pixel-free-v1 identity reference.
 The approved neutral/side/bottom/free textures are not edited or replaced.

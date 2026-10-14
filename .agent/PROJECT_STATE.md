@@ -10,6 +10,29 @@
 人工验收：待验收
 <!-- generated:project-status:end -->
 
+### 2026-10-14：Pixel Pet 2.0动作质量与自然看人候选已更新
+
+- 本轮用户明确要求的动作比例/绘画/部件运动和上方中央摄像头收敛已实现并候选交付，原像素默认/切回、其他造型/WebM与原素材保留；不是完整DEC-095或正式新版本完成。独立五v3原画编辑、修复三手草图、当前基础姿态校准/有界缓存、分通道缓动/臂部入场/220ms过渡、位置主导侧头+连接转向、1-Euro滤波、单RAF与加载回退，详见下方证据，不新增采集/电脑权限或依赖。
+- 最终10文件41定向、类型/目标oxlint、docs:check/diff及实际隔离Edge Canvas通过。基础neutral0通道差异，六姿态表情缓存脸外0差异，三摆放/左右方向截图已检视；初始GPU/CPU漂移已修正且未放宽断言。真实眼神＋头转40样本median14.2ms/P9525.1ms/mean16.655ms/max32.8ms，仅特定隔离浏览器条件，不能保证设备帧率/精确眼球朝向。独立浏览器和临时Vite已结束，无真实摄像头、个人浏览器、AI Provider操作，未运行full/全量测试。
+- Windows Release4m43s、NSIS、桌面保护交付整体退出0，YIYU_DELIVERY_UPDATED；应用源/新增v2与Windows镜像一致。Release/桌面EXE SHA256同`54ef7ec584438aac68dee6a599d7d978052bb1e33bbe9b5231f92ca5f786b281`，NSIS仅项目target/release/bundle/nsis，SHA256 `a1f5faa905b8d029a34d348c1facb9b39f24704af779631f2bc2fcfd6e2d2fae`；检测未运行才替换，没有结束用户进程。原生3处BOOL/Web分包提示既有，无新增原生源码/CSP/模型或秘密。高置信密钥模式/本机文件排除与diff检查无命中。
+- 素材路径v2/rig/assets/{wave,touch-hair,chin,stretch,sleep}-v3.png；内置imagegen提示词/来源见README及PROMPTS-v3。User原反馈/批准范围已同步DEC095_PLAN/DECISIONS/BRIEF/ROADMAP，只提交源/正式素材/文档，不提交安装包/.inputs证据/临时profile。正在按持续偏好普通提交推送origin/main，成功事实随后登记，不强推。
+- 下一步用户重开桌面候选、正坐点一次居中校准，集中回看五动作大小/绘画/转场及左右位置的自然侧头效果；硬件观感由用户确认，不把模拟当验收。R055、距离联动、原生附着/摄像头激活失联闭合/长期性能仍待完整阶段推进；本轮无新增方向、权限或成本决策，正式2.0.0/M12/官方哈希不变。
+
+### 2026-10-14：Pixel Pet 2.0动作质量/自然跟随前端收口，候选构建待（交付前检查点）
+
+- 五张1024×1536 RGBA独立v3姿态已接入仓库assets，wave/touch-hair/chin/stretch/sleep以原pixel-free-v1编辑、pixel为风格参考；三手hair草图弃用，仅exec-7f8af0a0修复版接入，其他原图/旧atlas保留。PROMPTS-v3保存内置imagegen完整提示词。只桌宠原画进生成工具，未采集或提供真实摄像头。只读PNG检查全部真实透明；限于额头区域RGB平均差5.176–7.454/255，不称整张身份/解剖质量分数。
+- 实际当前side/free/bottom眼距向量/中心校准、两套缓存上限、短220ms过渡；眼/头/身体/头发不同缓动与臂部渐入、连续轻侧头/2.5D连接转向（head=.085rad、turn=.75上限）、top固定、原许可/设备/镜像/校准保持、1-Euro独立数学无依赖、位置主导不模仿用户yaw。Renderer晚加载/可见性只有一个RAF循环与回退保留，旧像素默认行为不变。
+- 最终10文件41定向（含旧眼/视线与设置）、typecheck、目标oxlint、docs:check/diff通过；未运行full。实际独立Edge默认/五动作/左右镜像/半身/底部均就绪并保存隔离截图；neutral逐像素diff0。脸部cache检查先发现GPU/CPU往返在新图半透明处导致外区21415→13376通道各±1漂移，没有放宽断言；共享prepareEye新增默认关闭的软件回读，仅v2启用，与working CPU路径一致后六姿态脸部patch外diff0。
+- 每帧只读小脸部patch/复用原RGBA，实际有眼神的40帧独立Edge样本：median14.2ms、P9525.1ms、mean16.655ms、max32.8ms；不当作真实WebView2/摄像头/所有机器30FPS保证。证据.inputs/pixel-v3-quality-final和pixel-v3-quality-cpu-eyes（Windows镜像，排除Git）；所有本轮独立浏览器已关闭，临时Vite43082已Ctrl-C退出130，无真实用户配置/模型调用。初次本机服务被sandbox阻止后仅回环授权启动，不将探针启动失败当产品故障；一次测试-0和一次测试Map类型纠正已在最终41/类型覆盖。
+- 现在冻结源码后保护Windows候选构建/桌面更新与已授权main推送；未生成本轮EXE/NSIS、未替换/提交推送前不标交付。摄像头方向/美术是用户明确批准收敛，不改正式2.0.0/M12/官方哈希；完整DEC-095与R055生命周期/原生/长期性能仍待，不顺手扩大其他能力。下一步记录实际产物/是否跳过替换，用户正坐居中后自然回看跟随。
+
+### 2026-10-14：Pixel Pet 2.0动作美术/比例与自然看人优化进行中（收口前检查点）
+
+- 用户要求全部动作比例/绘画/部件运动优化，摄像头仅屏幕上方中央，侧头看人而不是两侧没在看。原版保持，当前Git基线6dba405。定位旧atlas风格与比例不匹配、仅眼距校准和free中心不随neutral姿态，以及用户yaw混入look方向/线性放大提前饱和；正在独立五PNG/统一头颈肩校准、分通道缓动/臂部入场/连续2.5D头转、top固定及自适应滤波，不改Rust/采集许可或上传帧。
+- imagegen技能与两参考文件完整已读/原pixel-free-v1与pixel已见；只桌宠原画作为参考，不涉及个人摄像头。五独立图内置生成：wave exec-84249b4e-c336-4714-88b4-d00bcc100fb8，touch-hair exec-b99ad3c4-da4f-4c8f-82bf-cd010524e104（发现下部保留原双手导致三手，cell66针对性修复中，不接受此草图），chin exec-f4063af0-dcd4-4427-abe6-bcdbcb93a38d，stretch exec-62634226-e451-413b-9eef-4b5b50244030，sleep exec-84ad0135-6d7f-456e-aaf4-6524160819d3；均在/home/su/.codex/generated_images/01a1198b-ba74-7282-b86a-b00c3313a62a/，尚未接入仓库/宣布美术验收。prompts/result保存在functions store，本轮未更改原PNG。
+- 源码已开始CameraPreferences mount仅top/UI收敛、独立AdaptiveFilter与GazeController、CameraLook位置主导tanh（不模仿用户头朝向）、RigFrame.headTurn与HeadTurn连续位移、MotionController分频道速度/轻侧头/臂部渐入及RigSkinning转头场，尚未运行本轮测试/构建/推送。旧CameraLook/边界测试和旧atlas loader测试需随新契约更新，不用旧17项当本轮证据。后续完成五图校准/接入与实际隔离Canvas比较/方向、针对滤波/缩放/切换/比例回归，再候选保护构建与main推送；完成前不扩大到整体未完权限/窗口互动，不自动full。
+- 技术调研只主来源：1-Euro作者https://gery.casiez.net/1euro/与官方Google FaceLandmarker web指引，独立实现滤波数学，无新依赖/远程视觉。实际头部视角、画风与长期性能仍需验证，不以数值测试等同主观质量。
+
 ### 2026-10-14：Pixel Pet 2.0重复姿态取消、追踪响应增强，桌面已更新
 
 - 用户截图与候选atlas第六格peek对应：姿态重复基础扒边且混入相邻轮廓。取消其RigPose/调度/加载采样，atlas与原PNG保留不改；寻找只以原neutral/curious表达，其他五动作继续。新增loader回归证明只采样前五格、neutral仍用批准原素材。本次是用户明确要求的局部体验调整，不涉及其他造型/WebM或重新生成美术。

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { isTauri } from '@tauri-apps/api/core'
 import type { CompanionPetSide, CompanionPetStyle } from '../../../domain/models'
 import { normalizeCompanionPetSide, normalizeCompanionPetStyle } from '../../../domain/companionPetStyle'
@@ -10,6 +10,7 @@ import { PixelV2Settings } from './v2/PixelV2Settings'
 import { PET_MODE_REBIND, PET_MODE_STATUS } from './usePetModeShortcut'
 import { PET_STYLES } from './art/artProfiles'
 import './PixelPetSettings.css'
+const PixelPetV2DebugPage=lazy(()=>import('./v2/PixelPetV2DebugPage').then(module=>({default:module.PixelPetV2DebugPage})))
 
 function StylePicker({ value, onChange }: { value: CompanionPetStyle; onChange: (style: CompanionPetStyle) => void }) {
   return <label className="shortcut-picker"><span>桌宠造型</span>
@@ -65,6 +66,9 @@ export function PixelPetSettings() {
   </div>
 }
 export function PixelPetDebugPage() {
+  return new URLSearchParams(location.search).get('engine')==='v2'?<Suspense fallback={null}><PixelPetV2DebugPage/></Suspense>:<LegacyPetDebugPage/>
+}
+function LegacyPetDebugPage() {
   const [style, setStyle] = useState(() => normalizeCompanionPetStyle(new URLSearchParams(location.search).get('style')))
   const [side, setSide] = useState<CompanionPetSide>(() => normalizeCompanionPetSide(new URLSearchParams(location.search).get('side')))
   const [conversation, setConversation] = useState<PetConversationState>('idle')

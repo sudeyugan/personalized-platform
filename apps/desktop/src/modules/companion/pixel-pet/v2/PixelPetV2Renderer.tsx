@@ -17,7 +17,7 @@ export interface PixelPetV2Props extends PixelPetRendererProps {
   camera?:RefObject<FaceAttention|null>;previewPose?:RigPose;previewExpression?:PetExpression;neutralPreview?:boolean
 }
 export function PixelPetV2Renderer(props:PixelPetV2Props) {
-  const {pose='right-edge',active=true,scale=1,pixelRatio=1}=props
+  const {pose='right-edge',active=true,scale=1,pixelRatio=1,headGeometry}=props
   const canvas=useRef<HTMLCanvasElement>(null),latest=useRef(props);latest.current=props
   const [ready,setReady]=useState(false),[error,setError]=useState('')
   const previewPointer=useRef<PixelPoint|null>(null),previewPat=useRef(0),previewResponse=useRef(0)
@@ -41,23 +41,24 @@ export function PixelPetV2Renderer(props:PixelPetV2Props) {
       const frame=p.neutralPreview?neutralRigFrame():motion.update(now,b,Boolean(reduced?.matches),p.dragMotion?.current)
       applyPoseTransform(ctx,side)
       const head=renderer.draw(ctx,frame)
-      if(p.headGeometry)p.headGeometry.current={...head,x:side==='left-edge'?192-head.x:head.x}
+      if(headGeometry)headGeometry.current={...head,x:side==='left-edge'?192-head.x:head.x}
     }
     const tick=(now:number)=>{
-      if(stopped||document.hidden||!active)return
+      request=0
+      if(stopped||document.hidden||!active||!renderer||!motion)return
       if(now-lastDraw>=1000/30){lastDraw=now;draw(now)}
       request=requestAnimationFrame(tick)
     }
-    const visibility=()=>{cancelAnimationFrame(request);if(active&&!document.hidden)request=requestAnimationFrame(tick)}
+    const visibility=()=>{cancelAnimationFrame(request);request=0;if(!stopped&&renderer&&motion&&active&&!document.hidden)request=requestAnimationFrame(tick)}
     void loadRigAssets(pose).then(textures=>{
       if(stopped)return
       renderer=createRigRenderer(textures);motion=createMotionController(Math.random,renderer.center)
       draw(performance.now());setReady(true)
-      if(active&&!document.hidden)request=requestAnimationFrame(tick)
-    }).catch(()=>{if(!stopped){setError('像素2.0加载失败，已回退原版。');if(latest.current.headGeometry)latest.current.headGeometry.current=null}})
+      visibility()
+    }).catch(()=>{if(!stopped){setError('像素2.0加载失败，已回退原版。');if(headGeometry)headGeometry.current=null}})
     document.addEventListener('visibilitychange',visibility)
-    return()=>{stopped=true;cancelAnimationFrame(request);document.removeEventListener('visibilitychange',visibility);if(latest.current.headGeometry)latest.current.headGeometry.current=null}
-  },[pose,active])
+    return()=>{stopped=true;cancelAnimationFrame(request);document.removeEventListener('visibilitychange',visibility);if(headGeometry)headGeometry.current=null}
+  },[pose,active,headGeometry])
   useEffect(()=>{
     if(!props.desktop)return
     const lease=crypto.randomUUID()

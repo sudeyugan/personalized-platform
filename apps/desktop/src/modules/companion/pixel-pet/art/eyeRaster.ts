@@ -11,7 +11,7 @@ export interface PreparedEye {
   canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D; pixels: ImageData
 }
 const skinColor = (r: number, g: number, b: number) => r > 205 && g > 145 && b > 125 && r - g < 65 && g - b < 55 && r > g * 1.025 && g > b * 1.015
-export function prepareEye(source: ImageData, eye: ArtEye, profile: ArtProfile, resolution: number): PreparedEye {
+export function prepareEye(source: ImageData, eye: ArtEye, profile: ArtProfile, resolution: number, softwareReadback = false): PreparedEye {
   const fit = artPlacement(profile), cosine = Math.cos(eye.angle), sine = Math.sin(eye.angle)
   const cx = (fit.x + eye.x * fit.scale) * resolution, cy = (fit.y + eye.y * fit.scale) * resolution
   const rx = eye.rx * fit.scale * resolution, ry = eye.ry * fit.scale * resolution
@@ -19,7 +19,9 @@ export function prepareEye(source: ImageData, eye: ArtEye, profile: ArtProfile, 
   const x = Math.max(0, Math.floor(cx - radius)), y = Math.max(0, Math.floor(cy - radius))
   const width = Math.min(source.width - x, radius * 2 + 2), height = Math.min(source.height - y, radius * 2 + 2)
   const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height
-  const ctx = canvas.getContext('2d')
+  // V2 reads a CPU-backed face patch each frame; keep the eye source on the
+  // same path to avoid GPU round-trip alpha/color rounding. Legacy is unchanged.
+  const ctx = softwareReadback ? canvas.getContext('2d', { willReadFrequently: true }) : canvas.getContext('2d')
   if (!ctx) throw new Error('当前环境不支持 Canvas 2D')
   const pixels = ctx.createImageData(width, height), original = new Uint8ClampedArray(pixels.data.length)
   const aperture = new Uint8Array(width * height), affected = new Uint8Array(width * height)
