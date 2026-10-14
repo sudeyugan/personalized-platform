@@ -16,6 +16,8 @@ export function PixelPetV2DebugPage() {
   const [placement, setPlacement] = useState<PixelPetPose>(() => query.get('pose')==='float'?'float':query.get('side')==='left-edge'?'left-edge':query.get('side')==='bottom-edge'?'bottom-edge':'right-edge')
   const [x,setX] = useState(()=>{const value=Number(query.get('look')??0);return Number.isFinite(value)?Math.max(-.6,Math.min(.6,value)):0}), [scale,setScale] = useState(2)
   const camera = useRef<FaceAttention|null>(null)
+  const [failure,setFailure]=useState('')
+  const diagnose=(cause:unknown)=>setFailure(cause instanceof Error?`${cause.name}: ${cause.message}`:String(cause))
   useEffect(()=>{
     const update=()=>{camera.current={present:true,x,y:0,yaw:0,pitch:0,distance:1,at:performance.now()}}
     update();const timer=setInterval(update,100);return()=>{clearInterval(timer);camera.current=null}
@@ -28,8 +30,9 @@ export function PixelPetV2DebugPage() {
       <div className="pet-preview-controls"><button onClick={()=>setX(0)}>居中</button><button onClick={()=>setScale(scale===2?1:2)}>实际大小 / 放大</button></div>
     </section>
     <div className="pet-comparison">
-      <figure><PixelPetV2Renderer enhancements={config} pose={placement} scale={scale} neutralPreview/><figcaption>基础原画 · 不变形</figcaption></figure>
-      <figure><PixelPetV2Renderer enhancements={config} pose={placement} scale={scale} camera={camera} previewPose={pose}/><figcaption>同一尺度 · 实时{poses.find(([name])=>name===pose)?.[1]}</figcaption></figure>
+      <figure><PixelPetV2Renderer enhancements={config} pose={placement} scale={scale} neutralPreview onRenderError={diagnose}/><figcaption>基础原画 · 不变形</figcaption></figure>
+      <figure><PixelPetV2Renderer enhancements={config} pose={placement} scale={scale} camera={camera} previewPose={pose} previewExpression={pose==='wave'?'happy':pose==='chin'?'curious':pose==='sleep'?'sleepy':'natural'} onRenderError={diagnose}/><figcaption>同一尺度 · 实时{poses.find(([name])=>name===pose)?.[1]}</figcaption></figure>
     </div>
+    {failure&&<p role="status">预览绘制诊断：{failure}</p>}
   </main>
 }

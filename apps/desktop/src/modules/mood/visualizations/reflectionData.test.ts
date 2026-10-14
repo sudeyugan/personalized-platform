@@ -38,9 +38,9 @@ describe('emotion reflection chart data', () => {
     expect(bubbleDiameter(-1)).toBe(0)
     expect(bubbleDiameter(2)).toBe(26)
   })
-  it('includes all twelve emotions and exactly the recorded total in composition', () => {
+  it('includes all eighteen emotions and exactly the recorded total in composition', () => {
     const result = emotionDistribution(reflectionDays(dates, entries))
-    expect(result).toHaveLength(12)
+    expect(result).toHaveLength(18)
     expect(result.find((mood) => mood.id === 'anxious')?.points).toBe(0)
     expect(result.reduce((sum, mood) => sum + mood.points, 0)).toBe(15)
   })

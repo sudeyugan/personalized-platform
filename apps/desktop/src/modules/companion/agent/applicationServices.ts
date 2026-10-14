@@ -58,7 +58,7 @@ export interface AgentApplicationServices extends AgentRitualServices, AgentAssi
   updateCalendarEvent?(input: { id: string; title?: string; date?: string; time?: string; note?: string }): unknown
   appendDiary?(date: string, title: string | undefined, content: string): unknown
   writeDiary?(date: string, title: string, content: string): unknown
-  saveMood?(date: string, period: string, pointsJson: string, note?: string): unknown
+  saveMood?(date: string, period: string, pointsJson: string): unknown
   createWork?(title: string): unknown
   renameCurrentWork?(title: string): unknown
   createChapter?(title: string): unknown

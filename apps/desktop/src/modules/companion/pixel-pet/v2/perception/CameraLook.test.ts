@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cameraLook } from './CameraLook'
+import { cameraLook, restingLook } from './CameraLook'
 import { createMotionController } from '../animation/MotionController'
 import type { FaceAttention } from './types'
 
@@ -13,7 +13,9 @@ describe('pixel2 visible continuous camera tracking', () => {
     expect(right.target.x - center.x).toBeCloseTo(Math.tanh(.25)*100)
     expect(left.target.x - center.x).toBeCloseTo(-Math.tanh(.25)*100)
     expect(right.headLook.x).toBeCloseTo(Math.tanh(.25))
-    expect(cameraLook(0, { ...face(.1), yaw: .2 }, center, true)).toEqual(left)
+    const mirrored = cameraLook(0, face(.1), center, 'left-edge')!
+    expect(mirrored).toEqual(cameraLook(0, face(-.1), center, 'right-edge'))
+    expect(mirrored.headLook.x).toBeLessThan(0)
   })
   it('ignores missing, stale and nonfinite input instead of locking the avatar onto an old face', () => {
     expect(cameraLook(0, null, center)).toBeNull()
@@ -52,5 +54,21 @@ describe('pixel2 visible continuous camera tracking', () => {
     const positive=cameraLook(0,{...face(.3),yaw:-1,pitch:-1},center)!
     expect(positive.headLook.x).toBeGreaterThan(0)
     expect(positive).toEqual(cameraLook(0,{...face(.3),yaw:1,pitch:1},center))
+  })
+  it('looks up from a bottom grip and into the screen from either side, including idle',()=>{
+    const bottom=cameraLook(0,face(),center,'bottom-edge')!
+    expect(bottom.headLook.y).toBeLessThan(-.6)
+    expect(cameraLook(0,{...face(),y:.2},center,'bottom-edge')!.headLook.y).toBeLessThan(-.4)
+    expect(restingLook(center,'bottom-edge')).toEqual(bottom)
+    for(const pose of ['right-edge','left-edge'] as const){
+      expect(cameraLook(0,face(),center,pose)!.headLook.x).toBeLessThan(0)
+      expect(restingLook(center,pose).headLook.y).toBeLessThan(0)
+    }
+  })
+  it('does not add a downward expression bias to an explicit person target',()=>{
+    const motion=createMotionController(()=>.5,center)
+    let frame
+    for(let now=0;now<=1000;now+=33)frame=motion.update(now,{pose:'neutral',expression:'shy',target:{x:96,y:27},pat:false,speaking:false})
+    expect(frame!.face.gazeY).toBeCloseTo(-.5,3)
   })
 })

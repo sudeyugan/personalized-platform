@@ -33,7 +33,6 @@
 .mood-choice-grid button i{width:8px;height:8px;border-radius:50%;background:var(--mood-color)}
 .mood-choice-grid button b{color:var(--accent-strong);font-size:8px}
 .mood-choice-grid button:disabled{opacity:.4}
-.mood-editor>input{min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:8px;color:var(--ink);background:var(--surface-soft);font:9px var(--serif)}
 .mood-editor>footer{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .mood-editor>footer>div{display:flex;gap:6px}
 .mood-editor>footer>div button{display:inline-flex;align-items:center;gap:4px;padding:7px;border-radius:7px;color:var(--ink-faint);background:transparent;font-size:8px}

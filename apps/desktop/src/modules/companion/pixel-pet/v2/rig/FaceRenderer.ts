@@ -15,6 +15,9 @@ export function rigFacePatchBounds(art:PreparedArt,rig:PixelRig) {
   return {x,y,width:Math.min(art.source.width,Math.ceil(right+2))-x,height:Math.min(art.source.height,Math.ceil(bottom+2))-y}
 }
 export function prepareRigFace(art:PreparedArt,rig:PixelRig,frame:RigFrame) {
+  // Closed-eye key art already contains its expression. Do not paint a second
+  // pair of brows or a code-generated mouth over the approved drawing.
+  if (!art.eyes.length) return art.source
   const {face}=frame,changed=face.eyeOpen!==1||face.gazeX!==0||face.gazeY!==0||face.smile>.01||face.blush>.01||face.browRaise>.01||face.mouthOpen>.01
   if(!changed)return art.source
   const ctx=art.ctx,r=art.resolution
@@ -28,7 +31,7 @@ export function prepareRigFace(art:PreparedArt,rig:PixelRig,frame:RigFrame) {
     if(face.browRaise>.03){ctx.globalAlpha=face.browRaise*.55;ctx.fillStyle='#7288b5';ctx.fillRect(Math.round(x-3),Math.round(y-6-face.browRaise*2),5,1)}
     if(face.blush>.03){ctx.globalAlpha=face.blush*.35;ctx.fillStyle='#ef9caa';ctx.fillRect(Math.round(x-4),Math.round(y+7),7,2)}
   }
-  if(face.mouthOpen>.04||face.smile>.04){
+  if(face.mouthOpen>.04){
     const x=Math.round(rig.mouth.x),y=Math.round(rig.mouth.y)
     // Small raster differences over sampled artwork, no stretched mouth polygon.
     const colour=art.source.getContext('2d')!.getImageData(Math.max(0,(x+3)*r),Math.max(0,(y-2)*r),1,1).data

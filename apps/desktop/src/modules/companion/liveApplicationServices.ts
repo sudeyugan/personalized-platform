@@ -1,5 +1,6 @@
 import type { JSONContent } from '@tiptap/react'
 import type { CourseDay, CoursePeriod, LibraryData, MoodKind, MoodPeriod } from '../../domain/models'
+import { moodKinds } from '../../domain/moods'
 import { searchWeb } from '../../infrastructure/webSearch'
 import { createComputerService } from '../../infrastructure/computerService'
 import { useLibraryStore } from '../../state/useLibraryStore'
@@ -115,10 +116,10 @@ export function createLiveCompanionApplicationServices(
       useLibraryStore.getState().saveDiaryEntry({ date, title: title.trim(), content: content.trim(), updatedAt: new Date().toISOString() })
       return { saved: true, date, characters: content.trim().length }
     },
-    saveMood: (date, period, pointsJson, note) => {
+    saveMood: (date, period, pointsJson) => {
       requireDate(date, '情绪日期')
       if (!['morning', 'afternoon', 'evening'].includes(period)) throw new Error('情绪时段无效')
-      const allowed = new Set<MoodKind>(['happy', 'satisfied', 'hopeful', 'relaxed', 'calm', 'empty', 'anxious', 'irritated', 'angry', 'sad', 'lonely', 'tired'])
+      const allowed = new Set(moodKinds)
       let raw: unknown
       try { raw = JSON.parse(pointsJson) } catch { throw new Error('情绪点必须是有效 JSON') }
       if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('情绪点必须是对象')
@@ -127,7 +128,7 @@ export function createLiveCompanionApplicationServices(
         return [kind, count]
       })) as Partial<Record<MoodKind, number>>
       if (Object.values(points).reduce((sum, count) => sum + (count ?? 0), 0) !== 5) throw new Error('情绪点合计必须为 5')
-      useLibraryStore.getState().saveMoodEntry({ date, period: period as MoodPeriod, points, note })
+      useLibraryStore.getState().saveMoodEntry({ date, period: period as MoodPeriod, points })
       return { saved: true, date, period }
     },
     createWork: (title) => {

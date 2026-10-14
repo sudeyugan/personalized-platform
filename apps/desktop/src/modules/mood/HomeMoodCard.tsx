@@ -15,7 +15,6 @@ export function HomeMoodCard({ date, entries, onSave, onDelete }: {
   const [day, setDay] = useState<'today' | 'yesterday'>('today')
   const [editing, setEditing] = useState<MoodPeriod>()
   const [allocation, setAllocation] = useState<MoodKind[]>([])
-  const [note, setNote] = useState('')
   const yesterday = useMemo(() => {
     const value = new Date(`${date}T12:00:00`)
     value.setDate(value.getDate() - 1)
@@ -32,12 +31,11 @@ export function HomeMoodCard({ date, entries, onSave, onDelete }: {
     const entry = dayEntries.find((item) => item.period === period)
     setEditing(period)
     setAllocation(entry ? expandMoodPoints(entry.points) : [])
-    setNote(entry?.note ?? '')
   }
-  const close = () => { setEditing(undefined); setAllocation([]); setNote('') }
+  const close = () => { setEditing(undefined); setAllocation([]) }
   const save = () => {
     if (!editing || allocation.length !== 5) return
-    onSave({ date: targetDate, period: editing, points: collapseMoodPoints(allocation), note })
+    onSave({ date: targetDate, period: editing, points: collapseMoodPoints(allocation) })
     close()
   }
   const suggested = currentMoodPeriod()
@@ -68,7 +66,6 @@ export function HomeMoodCard({ date, entries, onSave, onDelete }: {
           })}
         </div>
         <div className="mood-choice-grid">{moodOptions.map((mood) => <button type="button" style={{ '--mood-color': mood.color } as React.CSSProperties} disabled={allocation.length >= 5} key={mood.id} onClick={() => setAllocation((items) => [...items, mood.id])}><i />{mood.label}<b>{allocation.filter((kind) => kind === mood.id).length || ''}</b></button>)}</div>
-        <input maxLength={80} value={note} onChange={(event) => setNote(event.target.value)} placeholder="想补充一句吗？（可选）" />
         <footer>
           <div>{allocation.length > 0 && <button type="button" onClick={() => setAllocation([])}><RotateCcw size={13} />重新分配</button>}{dayEntries.find((entry) => entry.period === editing) && <button type="button" className="mood-clear" onClick={() => { const entry = dayEntries.find((item) => item.period === editing); if (entry) onDelete(entry.id); close() }}><Trash2 size={13} />清除记录</button>}</div>
           <button type="button" className="primary-button" disabled={allocation.length !== 5} onClick={save}><Check size={14} />保存五点心情</button>

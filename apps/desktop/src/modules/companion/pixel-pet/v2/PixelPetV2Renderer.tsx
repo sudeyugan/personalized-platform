@@ -10,11 +10,12 @@ import { loadRigAssets } from './rig/RigAssets'
 import { createRigRenderer,type HeadHitGeometry } from './rig/RigRenderer'
 import { neutralRigFrame,type PetExpression,type RigPose } from './animation/types'
 import type { FaceAttention } from './perception/types'
-import { cameraLook } from './perception/CameraLook'
+import { cameraLook, restingLook } from './perception/CameraLook'
 
 export interface PixelPetV2Props extends PixelPetRendererProps {
   enhancements:PixelPetEnhancements;desktop?:boolean;headGeometry?:RefObject<HeadHitGeometry|null>
   camera?:RefObject<FaceAttention|null>;previewPose?:RigPose;previewExpression?:PetExpression;neutralPreview?:boolean
+  onRenderError?:(cause:unknown)=>void
 }
 export function PixelPetV2Renderer(props:PixelPetV2Props) {
   const {pose='right-edge',active=true,scale=1,pixelRatio=1,headGeometry}=props
@@ -35,9 +36,9 @@ export function PixelPetV2Renderer(props:PixelPetV2Props) {
       const cameraTarget=camera?{...camera,x:side==='left-edge'?-camera.x:camera.x}:null
       const b=behavior.update({now,settings:p.enhancements,pointer:posePointer(rawPointer,side),camera:cameraTarget,conversation:p.conversation??'idle',dragging:Boolean(p.dragging),engaged:Boolean(p.engaged),pat:p.headPat?.current??previewPat.current,response:p.response?.current??previewResponse.current,reduced:Boolean(reduced?.matches),previewPose:p.restPreview?'sleep':p.previewPose,previewExpression:p.previewExpression})
       // Camera/dialog targets are relative to the actual face, not canvas center.
-      const look=cameraLook(now,camera,center,side==='left-edge')
+      const look=cameraLook(now,camera,center,pose)
       if(look&&!p.dragging&&!p.engaged&&(p.conversation??'idle')==='idle'&&!b.pat){b.target=look.target;b.headLook=look.headLook}
-      else if((p.conversation??'idle')!=='idle')b.target={...center}
+      else if(!p.dragging&&!p.engaged&&!b.pat&&((p.conversation??'idle')!=='idle'||!b.target))Object.assign(b,restingLook(center,pose))
       const frame=p.neutralPreview?neutralRigFrame():motion.update(now,b,Boolean(reduced?.matches),p.dragMotion?.current)
       applyPoseTransform(ctx,side)
       const head=renderer.draw(ctx,frame)
@@ -55,7 +56,7 @@ export function PixelPetV2Renderer(props:PixelPetV2Props) {
       renderer=createRigRenderer(textures);motion=createMotionController(Math.random,renderer.center)
       draw(performance.now());setReady(true)
       visibility()
-    }).catch(()=>{if(!stopped){setError('像素2.0加载失败，已回退原版。');if(headGeometry)headGeometry.current=null}})
+    }).catch(cause=>{if(!stopped){latest.current.onRenderError?.(cause);setError('像素2.0加载失败，已回退原版。');if(headGeometry)headGeometry.current=null}})
     document.addEventListener('visibilitychange',visibility)
     return()=>{stopped=true;cancelAnimationFrame(request);document.removeEventListener('visibilitychange',visibility);if(headGeometry)headGeometry.current=null}
   },[pose,active,headGeometry])

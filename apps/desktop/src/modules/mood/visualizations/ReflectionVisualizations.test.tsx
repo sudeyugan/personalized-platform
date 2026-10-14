@@ -129,7 +129,7 @@ describe('bubble matrix and ribbon reflection views', () => {
     expect(container.querySelector('.mood-day-detail')).toHaveAttribute('open')
     expect(screen.getByText('生气的原始备注')).toBeVisible()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
-    expect(screen.getByText('本段记录中未出现的 9 种情绪')).toBeInTheDocument()
+    expect(screen.getByText('本段记录中未出现的 15 种情绪')).toBeInTheDocument()
     expect(JSON.stringify(rareEntries)).toBe(before)
   })
   it('honors the existing ribbon preference and keeps all nonzero emotions', () => {
@@ -138,6 +138,6 @@ describe('bubble matrix and ribbon reflection views', () => {
     const { container } = render(<MoodStats entries={allEmotions} referenceDate="2026-09-12" />)
     container.querySelector('details')!.open = true
     expect(screen.getByRole('button', { name: '色带' })).toHaveAttribute('aria-pressed', 'true')
-    expect(container.querySelectorAll('.mood-composition > div')).toHaveLength(12)
+    expect(container.querySelectorAll('.mood-composition > div')).toHaveLength(18)
   })
 })

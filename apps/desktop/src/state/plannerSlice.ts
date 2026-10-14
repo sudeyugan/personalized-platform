@@ -40,10 +40,10 @@ export function createPlannerSlice(get: () => LibraryStore, set: SetStore): Pick
     saveMoodEntry: (entry) => {
       const planner = get().data.planner
       if (Object.values(entry.points).reduce((sum, count) => sum + (count ?? 0), 0) !== 5) return
-      const note = entry.note?.trim()
       const existing = planner.moodEntries.find((item) => item.date === entry.date && item.period === entry.period)
       const now = new Date().toISOString()
-      const saved = { ...entry, note: note || undefined, id: existing?.id ?? makeId('mood'), createdAt: existing?.createdAt ?? now, updatedAt: now }
+      // Notes are retired for new writes. Editing points must not erase historical notes.
+      const saved = { ...entry, note: existing?.note, id: existing?.id ?? makeId('mood'), createdAt: existing?.createdAt ?? now, updatedAt: now }
       updatePlanner({ ...planner, moodEntries: existing ? planner.moodEntries.map((item) => item.id === existing.id ? saved : item) : [...planner.moodEntries, saved] })
     },
     deleteMoodEntry: (id) => {

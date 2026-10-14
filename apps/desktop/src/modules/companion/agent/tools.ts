@@ -97,8 +97,8 @@ export function createCompanionToolRegistry(onVisualState?: (state: CompanionVid
       execute: (args, services) => requireService(services.writeDiary, '日记改写')!(String(args.date), String(args.title), String(args.content)),
     })
     .register({
-      definition: { name: 'mood.save', description: '记录或修改指定日期和时段的五枚情绪点；pointsJson 是情绪英文 ID 到点数的 JSON，点数合计必须为 5；可用 ID 为 happy、satisfied、hopeful、relaxed、calm、empty、anxious、irritated、angry、sad、lonely、tired', inputSchema: { type: 'object', properties: { date: { type: 'string', minLength: 10, description: 'YYYY-MM-DD' }, period: { type: 'string', enum: ['morning', 'afternoon', 'evening'] }, pointsJson: { type: 'string', minLength: 2, description: '例如 calm 3、anxious 1、lonely 1' }, note: { type: 'string' } }, required: ['date', 'period', 'pointsJson'], additionalProperties: false }, capability: 'modify', risk: 'low', scope: 'mood' },
-      execute: (args, services) => requireService(services.saveMood, '情绪记录')!(String(args.date), String(args.period), String(args.pointsJson), optionalText(args.note)),
+      definition: { name: 'mood.save', description: '记录或修改指定日期和时段的五枚情绪点，不附文字；pointsJson 是情绪英文 ID 到点数的 JSON，点数合计必须为 5；可用 ID 为 happy、satisfied、hopeful、relaxed、calm、empty、anxious、irritated、angry、sad、lonely、tired、lost（迷茫）、lighthearted（轻松）、uneasy（不安）、grateful（感激）、secure（安心）、wronged（委屈）', inputSchema: { type: 'object', properties: { date: { type: 'string', minLength: 10, description: 'YYYY-MM-DD' }, period: { type: 'string', enum: ['morning', 'afternoon', 'evening'] }, pointsJson: { type: 'string', minLength: 2, description: '例如 calm 3、lost 1、uneasy 1' } }, required: ['date', 'period', 'pointsJson'], additionalProperties: false }, capability: 'modify', risk: 'low', scope: 'mood' },
+      execute: (args, services) => requireService(services.saveMood, '情绪记录')!(String(args.date), String(args.period), String(args.pointsJson)),
     })
     .register({
       definition: { name: 'work.create', description: '创建一个新作品并将其设为当前作品', inputSchema: { type: 'object', properties: { title: { type: 'string', minLength: 1 } }, required: ['title'], additionalProperties: false }, capability: 'create', risk: 'medium', scope: 'none' },

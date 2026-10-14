@@ -9,10 +9,14 @@ The rejected three-handed hair-touch draft is not shipped; its repaired result
 has one raised hand and one waist hand. Prompts: [PROMPTS-v3.md](PROMPTS-v3.md).
 No webcam or user image was used. Approved original images remain untouched.
 
-PoseCalibration fits the full eye-span vector and eye center to the actual
-side/free/bottom neutral. A single transform preserves head/torso proportions;
-it does not match every pose to the free center or scale the head independently.
-Neutral remains the original prepared PNG. The old six-cell atlas below stays
+PoseCalibration fits each pose's eye-span vector and eye center to the actual
+side/free/bottom neutral. PoseAppearance preserves the head transform and smoothly
+aligns side-gesture chest position to the original grip's lean; bottom/free retain
+the uniform fit. The wave has a bounded wrist-local mask, not a generic lower-arm
+warp. Contact poses reduce head motion, native closed-eye expressions are kept,
+and transitions select one solid silhouette rather than additive double hands.
+Neutral keeps the exact original source, with an independent V2 CPU expression
+surface so legacy GPU readback does not affect it. The old six-cell atlas below stays
 in source history/provenance, but is no longer loaded by the runtime.
 
 Read-only RGBA inspection: node scripts/pixel-pet-art-check.mjs. All five files
