@@ -14,6 +14,7 @@
 
 - 根因是2.0把共享response（身体点击/菜单激活）计数解释成2.4秒招手；改为UI唤醒/重置闲置/中断动作，不启动招手，激活当帧优先于摄像头回来，取消后不补播。摄像头招呼仍独立、摸头/原像素点击反馈保持；不改Renderer/Rig/原生/权限。4文件23定向、类型/目标oxlint、docs/diff通过，包含生产Window/真实interaction hook的模拟Pointer事件→chat-toggle→Behavior/Motion帧（没有wave帧）、摸头/菜单及异步状态/同帧摄像头/休息唤醒回归；是DOM/状态模拟，不称真实Windows手势或摄像头验收。首次patch上下文校验拒绝后重新应用，未产生部分源码；各改动模块A级。未跑full/全量或重复Canvas预览。
 - Windows Release55.37s、NSIS与保护交付整体退出0，检测未运行后YIYU_DELIVERY_UPDATED，不结束用户进程。项目/镜像/桌面EXE SHA256同`6fb9d4a0fdc467c80003e1a92611676fabe22ed65df65423fefd6b53088bc29f`，NSIS仅项目target、SHA256 `c17755f8afec4d301a4d0d0e8d92bc9237813cc9488e47e1fef29487da140938`；3项改动/新增应用源与镜像一致。既有原生3处BOOL/分包提示保持。按已授权origin/main普通提交推送收口，不提交产物/临时数据、不强推；正式2.0.0/M12及官方哈希不改，DEC095/R055待验保持。下一步用户重开候选回看点击/摸头和摄像头招呼，无新增方向/权限决策。
+- 修复及回归提交`1189bd0f35c0f2527919e8ac345ad152d816f2cb`已普通推送origin/main（ad3fff9→1189bd0，退出0），远端ls-remote与本地一致；秘密模式/本机产物排除与diff检查通过。本后补仅文档，不重复构建或完整门禁。
 
 ### 2026-10-14：「安心」替换「厌恶」候选已更新
 
