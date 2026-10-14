@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { MoodEntry, MoodKind, MoodPeriod, MoodPoints } from '../../domain/models'
 import { formatLocalDate } from '../../domain/localDate'
-import { moodOptions, moodPeriods } from './moodConfig'
+import { moodCatalog, moodPeriods } from './moodConfig'
 import { MoodBlendBar } from './MoodBlendBar'
 import { moodSummary } from './moodUtils'
 import { useLibraryStore } from '../../state/useLibraryStore'
@@ -52,7 +52,7 @@ function MoodReflection({ entries, referenceDate }: { entries: MoodEntry[]; refe
     const selected = entries.filter((entry) => dateSet.has(entry.date))
     const totals = totalsFor(selected)
     const totalPoints = Object.values(totals).reduce((sum, count) => sum + (count ?? 0), 0)
-    const composition = moodOptions
+    const composition = moodCatalog
       .map((mood) => ({ ...mood, count: totals[mood.id] ?? 0 }))
       .filter((mood) => mood.count)
       .sort((a, b) => b.count - a.count)

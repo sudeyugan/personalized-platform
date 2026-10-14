@@ -127,7 +127,7 @@ try{
     await evaluate(`document.querySelector('#mood-ui-fixture .home-mood-periods button').click()`)
     await wait(250);await screenshot('mood-desktop')
     const mood=await evaluate(`(()=>{const root=document.querySelector('#mood-ui-fixture');const options=[...root.querySelectorAll('.mood-choice-grid button')];return {count:options.length,noteInputs:root.querySelectorAll('input[maxlength="80"]').length,labels:options.map(b=>b.textContent),rows:options.map(b=>b.getBoundingClientRect().top)}})()`)
-    if(mood.count!==18||mood.noteInputs!==0||mood.labels.join(',')!=='开心,满足,期待,感激,轻松,放松,平静,安心,迷茫,不安,空落,疲惫,孤独,难过,委屈,焦虑,烦躁,生气'||new Set(mood.rows).size!==3)throw new Error('Mood row/input UI mismatch: '+JSON.stringify(mood))
+    if(mood.count!==18||mood.noteInputs!==0||mood.labels.join(',')!=='开心,满足,期待,感激,轻松,放松,平静,厌恶,迷茫,不安,空落,疲惫,孤独,难过,委屈,焦虑,烦躁,生气'||new Set(mood.rows).size!==3)throw new Error('Mood row/input UI mismatch: '+JSON.stringify(mood))
     await page.send('Emulation.setDeviceMetricsOverride',{width:360,height:850,deviceScaleFactor:1,mobile:false})
     await wait(250);await screenshot('mood-narrow')
     console.log(JSON.stringify({mood}))

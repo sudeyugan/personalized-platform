@@ -1,17 +1,17 @@
 import type { CSSProperties } from 'react'
 import type { MoodKind, MoodPoints } from '../../domain/models'
-import { moodByKind, moodOptions } from './moodConfig'
+import { moodByKind, moodCatalog } from './moodConfig'
 
 export const moodPointTotal = (points: MoodPoints) => Object.values(points).reduce((sum, count) => sum + (count ?? 0), 0)
 
-export const expandMoodPoints = (points: MoodPoints): MoodKind[] => moodOptions.flatMap((option) => Array.from({ length: points[option.id] ?? 0 }, () => option.id))
+export const expandMoodPoints = (points: MoodPoints): MoodKind[] => moodCatalog.flatMap((option) => Array.from({ length: points[option.id] ?? 0 }, () => option.id))
 
 export const collapseMoodPoints = (allocation: MoodKind[]): MoodPoints => allocation.reduce<MoodPoints>((points, kind) => {
   points[kind] = (points[kind] ?? 0) + 1
   return points
 }, {})
 
-export const moodSummary = (points: MoodPoints) => moodOptions
+export const moodSummary = (points: MoodPoints) => moodCatalog
   .map((option) => ({ ...option, count: points[option.id] ?? 0 }))
   .filter((option) => option.count > 0)
   .sort((a, b) => b.count - a.count)
@@ -19,7 +19,7 @@ export const moodSummary = (points: MoodPoints) => moodOptions
   .join(' · ')
 
 export function moodGradientStyle(points: MoodPoints): CSSProperties {
-  const values = moodOptions
+  const values = moodCatalog
     .map((option) => ({ color: option.color, count: points[option.id] ?? 0 }))
     .filter((item) => item.count > 0)
     .sort((a, b) => b.count - a.count)

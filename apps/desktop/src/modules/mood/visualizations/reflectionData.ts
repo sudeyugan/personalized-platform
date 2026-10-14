@@ -1,5 +1,5 @@
 import type { MoodEntry, MoodPoints } from '../../../domain/models'
-import { moodOptions } from '../moodConfig'
+import { moodCatalog, moodOptions } from '../moodConfig'
 import { moodPointTotal, moodSummary } from '../moodUtils'
 
 export interface ReflectionDay {
@@ -19,7 +19,7 @@ export function reflectionDays(dates: string[], entries: MoodEntry[]): Reflectio
   return dates.map((date) => {
     const dayEntries = entries.filter((entry) => entry.date === date)
     const points: MoodPoints = {}
-    for (const entry of dayEntries) for (const mood of moodOptions) {
+    for (const entry of dayEntries) for (const mood of moodCatalog) {
       const count = entry.points[mood.id] ?? 0
       if (Number.isFinite(count) && count > 0) points[mood.id] = (points[mood.id] ?? 0) + count
     }
@@ -28,7 +28,7 @@ export function reflectionDays(dates: string[], entries: MoodEntry[]): Reflectio
 }
 
 export function emotionDistribution(days: ReflectionDay[]) {
-  return moodOptions.map((mood) => ({
+  return moodCatalog.filter(mood => moodOptions.some(option => option.id === mood.id) || days.some(day => (day.points[mood.id] ?? 0) > 0)).map((mood) => ({
     ...mood,
     points: days.reduce((sum, day) => sum + (day.points[mood.id] ?? 0), 0),
   })).sort((a, b) => b.points - a.points)

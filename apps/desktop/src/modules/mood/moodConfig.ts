@@ -8,7 +8,7 @@ export const moodOptions: { id: MoodKind; label: string; color: string; ink: str
   { id: 'lighthearted', label: '轻松', color: '#b3cc94', ink: '#293821' },
   { id: 'relaxed', label: '放松', color: '#78abb2', ink: '#17383d' },
   { id: 'calm', label: '平静', color: '#91b5a3', ink: '#233a30' },
-  { id: 'secure', label: '安心', color: '#9cbbb4', ink: '#233a30' },
+  { id: 'disgusted', label: '厌恶', color: '#627142', ink: '#ffffff' },
   { id: 'lost', label: '迷茫', color: '#9992ae', ink: '#252136' },
   { id: 'uneasy', label: '不安', color: '#a68196', ink: '#33232e' },
   { id: 'empty', label: '空落', color: '#787888', ink: '#ffffff' },
@@ -21,7 +21,9 @@ export const moodOptions: { id: MoodKind; label: string; color: string; ink: str
   { id: 'angry', label: '生气', color: '#b65358', ink: '#ffffff' },
 ]
 
-export const moodByKind = Object.fromEntries(moodOptions.map((mood) => [mood.id, mood])) as Record<MoodKind, typeof moodOptions[number]>
+// Retired choices are read-only historical meanings, not renamed negative emotions.
+export const moodCatalog = [...moodOptions, { id: 'secure' as const, label: '安心', color: '#9cbbb4', ink: '#233a30' }]
+export const moodByKind = Object.fromEntries(moodCatalog.map((mood) => [mood.id, mood])) as Record<MoodKind, typeof moodOptions[number]>
 
 export const moodPeriods: { id: MoodPeriod; label: string; range: string }[] = [
   { id: 'morning', label: '早上', range: '起床后' },

@@ -65,7 +65,7 @@ const legacyCompanionVideoStates: Record<string, CompanionVideoState> = {
   shoulder_relax: 'stretching',
 }
 const normalizeCompanionVideoState = (value: string): CompanionVideoState | undefined => legacyCompanionVideoStates[value] ?? (companionVideoStateSet.has(value) ? value as CompanionVideoState : undefined)
-const isMoodKind = (value: unknown): value is MoodKind => typeof value === 'string' && moodKinds.includes(value as MoodKind)
+const isMoodKind = (value: unknown): value is MoodKind => value === 'secure' || typeof value === 'string' && moodKinds.includes(value as MoodKind)
 const normalizeMoodKind = (value: unknown): MoodKind | undefined => value === 'excited' ? 'empty' : isMoodKind(value) ? value : undefined
 const isMoodPeriod = (value: unknown): value is MoodPeriod => value === 'morning' || value === 'afternoon' || value === 'evening'
 const periodFromTime = (value: unknown): MoodPeriod => {
