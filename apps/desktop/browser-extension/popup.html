@@ -4,4 +4,5 @@
 <p>只在你发出任务时读取授权网站；使用此配置现有登录状态，不导出Cookie或密码。页面文字可能由一隅中配置的模型处理。</p>
 <section><label for="code">一隅中的连接码</label><input id="code" type="password" maxlength="64" autocomplete="off" placeholder="从设置中复制，10分钟内有效"><button id="connect">连接一隅</button><button id="disconnect" class="quiet">忘记本机连接</button></section>
 <section><h2>网站范围</h2><p>统一在一隅的「Edge浏览器连接」添加或删除网站。这里无需重复输入；新增后会自动打开确认页。</p><button id="pending">打开待确认连接</button><div id="sites"></div></section>
-<p id="status" role="status"></p><footer>可随时撤销。扩展不操作表单、发消息或提交，不查看无痕页面。</footer><script type="module" src="popup.js"></script></body></html>
+<section><h2>登录接续 · 可选</h2><label class="trusted-login-option"><input id="trustedLogin" type="checkbox">可信登录点击</label><p>Edge 会申请较强的浏览器调试权限。小鱼仅在本次任务、已授权且允许自动登录的网站，短暂点击唯一登录按钮；不读取密码、Cookie或网络请求，不保存网页数据。验证码、二次验证仍由你处理。</p><small id="trustedLoginStatus" role="status"></small></section>
+<p id="status" role="status"></p><footer>可随时撤销；不查看无痕页面。默认只读，页面导航与登录须另行授权。</footer><script type="module" src="popup.js"></script></body></html>

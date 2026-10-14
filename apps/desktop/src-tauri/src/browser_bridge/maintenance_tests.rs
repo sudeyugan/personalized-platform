@@ -3,7 +3,7 @@ use std::time::{Duration,Instant};
 use super::{assets,state::{Request,Job},maintenance::SetupReply,tests::connected};
 fn reply(id:&str, action:&str, sites:Option<Vec<String>>)->SetupReply{SetupReply{id:id.into(),action:action.into(),sites}}
 #[test] fn canonical_manifest_is_the_version_source_and_old_clients_cannot_read(){
-    let mut state=connected();assert_eq!(assets::version(),"0.4.0");
+    let mut state=connected();assert_eq!(assets::version(),"0.4.1");
     state.report_version(Some("0.3.0".into())).unwrap();assert!(!state.compatible());
     state.report_version(Some("0.2.0".into())).unwrap();assert!(!state.compatible());
     state.report_version(None).unwrap();assert!(!state.compatible());assert!(state.check(&Request{kind:"tabs".into(),origin:state.sites[0].clone(),tab_id:None,cached_login:false,target_url:None,interaction:None}).unwrap_err().contains("UPDATE_REQUIRED"));

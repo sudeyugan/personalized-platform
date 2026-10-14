@@ -16,11 +16,13 @@ const FILES: &[(&str,&str)] = &[
     ("page.js", include_str!("../../../browser-extension/page.js")),
     ("login.js", include_str!("../../../browser-extension/login.js")),
     ("login-form.js", include_str!("../../../browser-extension/login-form.js")),
+    ("trusted-login.js", include_str!("../../../browser-extension/trusted-login.js")),
     ("controls.js", include_str!("../../../browser-extension/controls.js")),
     ("task-driver.js", include_str!("../../../browser-extension/task-driver.js")),
     ("policy.js", include_str!("../../../browser-extension/policy.js")),
     ("popup.html", include_str!("../../../browser-extension/popup.html")),
     ("popup.js", include_str!("../../../browser-extension/popup.js")),
+    ("trusted-login-permission.js", include_str!("../../../browser-extension/trusted-login-permission.js")),
     ("popup.css", include_str!("../../../browser-extension/popup.css")),
     ("manifest.json", include_str!("../../../browser-extension/manifest.json")),
 ];

@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { continueCachedLogin } from './login.js'
+const trusted=vi.hoisted(()=>({enabled:vi.fn(),click:vi.fn()}))
+vi.mock('./trusted-login.js',()=>({hasTrustedLoginClick:trusted.enabled,clickTrustedLogin:trusted.click}))
 const job={kind:'page',origin:'https://mail.example.com',tabId:7,cachedLogin:true,id:'fictional-job'}
 let active
 beforeEach(()=>{
   vi.useFakeTimers();active=vi.fn(async()=>{})
+  trusted.enabled.mockReset().mockResolvedValue(false);trusted.click.mockReset().mockResolvedValue('submitted')
   vi.stubGlobal('chrome',{permissions:{contains:vi.fn(async()=>true)},tabs:{get:vi.fn(async()=>({url:'https://mail.example.com/login',status:'complete'}))},scripting:{executeScript:vi.fn(async()=>[{result:{status:'ready'}}])}})
 })
 afterEach(()=>{vi.useRealTimers();vi.unstubAllGlobals()})
@@ -47,5 +50,25 @@ describe('cached login is bounded and separate from query completion',()=>{
     chrome.permissions.contains.mockResolvedValue(false);await expect(continueCachedLogin(job,active)).rejects.toThrow('permission')
     chrome.permissions.contains.mockResolvedValue(true);chrome.tabs.get.mockResolvedValue({url:'https://other.example.com/',incognito:false});await expect(continueCachedLogin(job,active)).rejects.toThrow('tab_changed')
     chrome.tabs.get.mockResolvedValue({url:'https://mail.example.com/login',incognito:true});await expect(continueCachedLogin(job,active)).rejects.toThrow('tab_changed');expect(chrome.scripting.executeScript).not.toHaveBeenCalled()
+  })
+  it('reports a rejected submit separately from empty credentials and never retries', async()=>{
+    chrome.scripting.executeScript.mockResolvedValueOnce(answer('ready')).mockResolvedValueOnce(answer('submitted')).mockResolvedValue(answer('rejected'))
+    const pending=continueCachedLogin(job,active);await vi.runAllTimersAsync()
+    expect(await pending).toBe('submit_rejected')
+    expect(chrome.scripting.executeScript.mock.calls.filter(([request])=>request.args[0]===true)).toHaveLength(1)
+  })
+  it('selects the trusted helper only after opt-in and never also issues a script click', async()=>{
+    trusted.enabled.mockResolvedValue(true)
+    chrome.scripting.executeScript.mockResolvedValueOnce(answer('ready')).mockResolvedValue(answer('none'))
+    const pending=continueCachedLogin(job,active);await vi.runAllTimersAsync()
+    expect(await pending).toBe('continued');expect(trusted.click).toHaveBeenCalledExactlyOnceWith(job,'https://mail.example.com/login',active)
+    expect(chrome.scripting.executeScript.mock.calls.some(([request])=>request.args[0]===true)).toBe(false)
+  })
+  it('does not fall back on a debugger conflict, or continue after revocation', async()=>{
+    trusted.enabled.mockResolvedValue(true);trusted.click.mockRejectedValueOnce(new Error('another debugger attached'))
+    expect(await continueCachedLogin(job,active)).toBe('needs_user')
+    trusted.click.mockRejectedValueOnce(new Error('permission'))
+    await expect(continueCachedLogin(job,active)).rejects.toThrow('permission')
+    expect(chrome.scripting.executeScript.mock.calls.every(([request])=>!request.args.length)).toBe(true)
   })
 })

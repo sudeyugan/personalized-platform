@@ -15,7 +15,7 @@ export function CameraSettings() {
   }
   useEffect(()=>{if(status.phase==='active')void refresh()},[status.phase])
   return <section className="pet-v2-camera">
-    <label className="pet-v2-toggle"><span><strong>摄像头视觉感知</strong><small>只在本机看位置，不保存图像，不发送给AI</small></span><input type="checkbox" aria-label="开启桌宠本地摄像头感知" checked={preferences.enabled} onChange={event=>change({enabled:event.target.checked})}/></label>
+    <label className="pet-v2-toggle"><span><strong>开启本地追踪</strong><small>首次需要你的摄像头授权；切换版本不会替你授权</small></span><input type="checkbox" aria-label="开启桌宠本地摄像头感知" checked={preferences.enabled} onChange={event=>change({enabled:event.target.checked})}/></label>
     <small role="status">{labels[status.phase]}{status.phase==='active'?(status.geometry?.present?' · 单人目标可见':' · 未确认单人目标'):''}</small>
     <details onToggle={event=>{if(event.currentTarget.open)void refresh()}}><summary>摄像头与校准</summary>
       <label><span>设备</span><select aria-label="桌宠摄像头设备" value={preferences.deviceId} onChange={event=>change({deviceId:event.target.value,calibration:null})}><option value="">系统默认摄像头</option>{devices.map((device,index)=><option key={device.deviceId} value={device.deviceId}>{device.label||`摄像头 ${index+1}`}</option>)}</select></label>

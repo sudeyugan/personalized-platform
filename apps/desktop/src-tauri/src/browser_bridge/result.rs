@@ -19,7 +19,7 @@ struct Control {id:String,name:String,operation:String}
 struct Action {tab_id:u64,origin:String,action_status:String}
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all="snake_case")]
-enum LoginState { NotAllowed, Unfilled, NeedsUser, Continued, Pending }
+enum LoginState { NotAllowed, Unfilled, NeedsUser, Continued, Pending, SubmitRejected }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Room { uid: u64, room_id: u64, name: String, title: String, live_status: u8 }
@@ -41,7 +41,7 @@ pub fn validate(request: &Request, value: Value) -> Result<Value, String> {
         },
         "page" | "observe" => {
             let page: Page = serde_json::from_value(value).map_err(|_| invalid)?;
-            if !request.cached_login && matches!(page.login_state, Some(LoginState::Continued | LoginState::Pending)) { return Err(invalid.into()); }
+            if !request.cached_login && matches!(page.login_state, Some(LoginState::Continued | LoginState::Pending | LoginState::SubmitRejected)) { return Err(invalid.into()); }
             if page.observation_id.as_ref().is_some_and(|id|!reference(id))||page.controls.len()>60||page.controls.iter().any(|control|!reference(&control.id)||!text(&control.name,100)||!["invoke","search"].contains(&control.operation.as_str()))||!page.controls.is_empty()&&page.observation_id.is_none(){return Err(invalid.into())}
             if Some(page.tab_id) != request.tab_id || page.origin != request.origin || !safe_url(&page.url, Some(&request.origin)) || !text(&page.title, 200) || !text(&page.text, 12000) || page.links.len() > 40 || page.links.iter().any(|link| !text(&link.text, 100) || !safe_url(&link.url, None)) { return Err(invalid.into()); }
             serde_json::to_value(page)
@@ -78,8 +78,9 @@ fn reference(id:&str)->bool{id.len()==36&&id.bytes().all(|b|b.is_ascii_hexdigit(
         let mut request=Request{kind:"page".into(),origin:"https://example.com".into(),tab_id:Some(1),cached_login:false,target_url:None,interaction:None};
         let base=json!({"tabId":1,"origin":"https://example.com","url":"https://example.com/login","title":"登录","text":"","links":[],"truncated":false,"loading":false});
         for state in ["not_allowed","unfilled","needs_user"] { let mut value=base.clone();value["loginState"]=json!(state);assert!(validate(&request,value).is_ok()); }
-        for state in ["continued","pending","success","password=secret"] {let mut value=base.clone();value["loginState"]=json!(state);assert!(validate(&request,value).is_err());}
+        for state in ["continued","pending","submit_rejected","success","password=secret"] {let mut value=base.clone();value["loginState"]=json!(state);assert!(validate(&request,value).is_err());}
         request.cached_login=true;
+        let mut rejected=base.clone();rejected["loginState"]=json!("submit_rejected");assert!(validate(&request,rejected).is_ok());
         let mut value=base.clone();value["loginState"]=json!("continued");assert!(validate(&request,value.clone()).is_ok());
         value["password"]=json!("fictional-secret");assert!(validate(&request,value).is_err());
     }

@@ -9,7 +9,9 @@ import { getAllWindows, getCurrentWindow } from '@tauri-apps/api/window'
 import { usePetMenuActions } from './pixel-pet/usePetMenuActions'
 import { usePetPoseSync } from './pixel-pet/usePetPoseSync'
 import { usePixelPetPerceptionBridge } from './pixel-pet/v2/usePixelPetPerceptionBridge'
-import { isPetModeShortcut, usePetModeShortcut } from './pixel-pet/usePetModeShortcut'
+import { usePetModeShortcut } from './pixel-pet/usePetModeShortcut'
+import { reservedPetShortcutLabel } from './pixel-pet/petShortcutKeys'
+import { usePetVersionShortcut } from './pixel-pet/usePetVersionShortcut'
 import { register, unregister } from '@tauri-apps/plugin-global-shortcut'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CompanionDesktopMode, CompanionVideoState } from '../../domain/models'
@@ -55,6 +57,7 @@ export function CompanionDesktopBridge() {
   usePetPoseSync()
   usePetMenuActions()
   usePetModeShortcut(data.companion.desktop.toggleShortcut, data.companion.desktop.quietShortcut, data.companion.computer.enabled ? data.companion.computer.emergencyShortcut : '', switchPetMode)
+  usePetVersionShortcut(data.companion.desktop.toggleShortcut, data.companion.desktop.quietShortcut, data.companion.computer.enabled ? data.companion.computer.emergencyShortcut : '')
   const [agentStatus, setAgentStatus] = useState<AgentRuntimeStatus>()
   const snapshot = useMemo(() => companionDesktopSnapshot(data.companion, data.session.activeView, playback.playing, data.assets, visualState, agentStatus, data.settings.trust.externalAiProcessing, desktopModeOverride), [data.companion, data.session.activeView, playback.playing, data.assets, visualState, agentStatus, data.settings.trust.externalAiProcessing, desktopModeOverride])
   useEffect(() => {
@@ -395,7 +398,7 @@ export function CompanionDesktopBridge() {
       window.localStorage.setItem('yiyu:companion-shortcut-status', message)
       window.dispatchEvent(new CustomEvent('yiyu:companion-shortcut-status', { detail: message }))
     }
-    if (isPetModeShortcut(shortcut)) { report('Ctrl+Alt+Q 已保留给桌宠 / WebM 切换，请为显隐另选组合。'); return }
+    if (reservedPetShortcutLabel(shortcut)) { report(`${reservedPetShortcutLabel(shortcut)}，请为显隐另选组合。`); return }
     void unregister(shortcut).catch(() => undefined).then(() => {
       if (disposed) return
       return register(shortcut, (event) => {
@@ -423,7 +426,7 @@ export function CompanionDesktopBridge() {
       window.localStorage.removeItem('yiyu:companion-quiet-shortcut-status')
       return
     }
-    if (isPetModeShortcut(shortcut)) { report('Ctrl+Alt+Q 已保留给桌宠 / WebM 切换，请为安静穿透另选组合。'); return }
+    if (reservedPetShortcutLabel(shortcut)) { report(`${reservedPetShortcutLabel(shortcut)}，请为安静穿透另选组合。`); return }
     if (shortcut === visibilityShortcut) {
       report('与显示 / 隐藏快捷键冲突，请更换组合。')
       return
@@ -456,7 +459,7 @@ export function CompanionDesktopBridge() {
     if (!isTauri() || !data.companion.computer.enabled) return
     const shortcut = data.companion.computer.emergencyShortcut
     if (!shortcut) return
-    if (isPetModeShortcut(shortcut)) { window.localStorage.setItem('yiyu:computer-shortcut-status', 'Ctrl+Alt+Q 已保留给桌宠 / WebM 切换，请为紧急停止另选组合。'); return }
+    if (reservedPetShortcutLabel(shortcut)) { window.localStorage.setItem('yiyu:computer-shortcut-status', `${reservedPetShortcutLabel(shortcut)}，请为紧急停止另选组合。`); return }
     if ([data.companion.desktop.toggleShortcut, data.companion.desktop.quietShortcut].includes(shortcut)) {
       window.localStorage.setItem('yiyu:computer-shortcut-status', '紧急停止快捷键与伙伴快捷键冲突。')
       return

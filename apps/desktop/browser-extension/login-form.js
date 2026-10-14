@@ -2,7 +2,7 @@
 // browser credentials, storage, page JS or credential-bearing HTML.
 export function inspectLoginForm(commit = false, expectedUrl = '', deadline = 0) {
   const state = status => ({ status })
-  if (commit && (location.href !== expectedUrl || Date.now() > deadline)) return state('changed')
+  if (commit && commit !== 'submitted_check' && (location.href !== expectedUrl || Date.now() > deadline)) return state('changed')
   const visible = node => Boolean(node?.isConnected && !node.closest('[hidden],[aria-hidden="true"],[data-private]') && node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden')
   const challenges = document.querySelectorAll('input[autocomplete="one-time-code"],input[name*="captcha" i],input[name*="verify" i],input[name*="otp" i],input[name*="code" i],iframe[src*="captcha" i],img[src*="captcha" i],[class*="second-auth"],[id*="captcha" i]')
   if ([...challenges].some(visible)) return state('needs_user')
@@ -23,6 +23,11 @@ export function inspectLoginForm(commit = false, expectedUrl = '', deadline = 0)
   if (accounts.length !== 1 || accounts[0].disabled || accounts[0].readOnly) return state('needs_user')
   const extra = [...form.querySelectorAll('input,select,textarea')].some(node => visible(node) && ![password,accounts[0]].includes(node) && !['hidden','checkbox','submit','button'].includes(node.type))
   if (extra) return state('needs_user')
+  if (commit === 'submitted_check') {
+    // Return only a fixed classification, never an error message or credentials.
+    const errors = form.querySelectorAll('[role="alert"],[aria-live="assertive"],.error,.errMsg,[id*="error" i],#warnOrErrDiv')
+    if ([...errors].some(node => visible(node) && /密码(?:未输入|不能为空)|请输入密码|password\s+(?:is\s+)?(?:required|empty)/i.test((node.textContent ?? '').slice(0, 300)))) return state('rejected')
+  }
   // Only boolean browser state, never the value or value attribute. Some
   // password managers/sites fill controls without Chromium's autofill marker.
   // :placeholder-shown is meaningful only if the control has a placeholder;
@@ -43,7 +48,18 @@ export function inspectLoginForm(commit = false, expectedUrl = '', deadline = 0)
     if (method !== 'post' || target.protocol !== 'https:' || target.origin !== location.origin || target.username || target.password || target.port || !['','_self'].includes(destination)) return state('needs_user')
   } catch { return state('needs_user') }
   // Re-evaluated in this same synchronous invocation, not a replayed selector.
-  if (!commit) return state('ready')
+  if (!commit || commit === 'submitted_check') return state('ready')
+  if (commit === 'target' || commit === 'validate_target') {
+    const rect = button.getBoundingClientRect(), x = rect.left + rect.width / 2, y = rect.top + rect.height / 2
+    const hit = document.elementFromPoint(x, y)
+    if (rect.width <= 0 || rect.height <= 0 || x < 0 || y < 0 || x >= innerWidth || y >= innerHeight || !(hit === button || button.contains(hit))) return state('needs_user')
+    const key = '__yiyuTrustedLoginTarget'
+    if (commit === 'validate_target') {
+      const saved = globalThis[key]
+      if (!saved || saved.button !== button || saved.url !== location.href || saved.x !== x || saved.y !== y || Date.now() > saved.deadline) return state('changed')
+    } else globalThis[key] = { button, url: location.href, x, y, deadline }
+    return { status: 'ready', point: { x, y } }
+  }
   if (Date.now() > deadline) return state('changed')
   button.click()
   return state('submitted')

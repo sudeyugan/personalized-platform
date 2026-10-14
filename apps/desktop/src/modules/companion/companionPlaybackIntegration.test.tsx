@@ -22,6 +22,9 @@ vi.mock('@tauri-apps/api/event', () => ({
   }),
 }))
 vi.mock('@tauri-apps/api/core', () => ({
+  // The desktop bridge subscribes to native renderer activation even when
+  // these playback fixtures keep camera perception disabled.
+  Channel: class { onmessage = (_message: unknown) => {} },
   isTauri: () => '__TAURI_INTERNALS__' in window,
   convertFileSrc: (id: string) => `http://yiyu-companion.localhost/${id}`,
   invoke: vi.fn().mockResolvedValue(undefined),

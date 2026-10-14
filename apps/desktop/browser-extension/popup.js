@@ -1,4 +1,5 @@
 import { authorisedSites, bridgeCall } from './policy.js'
+import { bindTrustedLoginPermission } from './trusted-login-permission.js'
 const status = document.getElementById('status')
 const wake = () => chrome.runtime.sendMessage({ type: 'wake' })
 async function render() {
@@ -15,4 +16,5 @@ function action(id, run) { document.getElementById(id).addEventListener('click',
 action('connect', async () => { const code = document.getElementById('code').value.trim(); if (!/^[a-f0-9]{64}$/.test(code)) throw new Error('请输入一隅生成的完整连接码'); await bridgeCall('/pair', { code }); await chrome.storage.local.set({ connectionCode: code, connectionError: '' }); document.getElementById('code').value = ''; await wake() })
 action('disconnect', async () => { await chrome.storage.local.remove(['connectionCode', 'connectionError']); status.textContent = '已忘记连接；也可在一隅中断开以撤销旧连接。' })
 action('pending', async()=>{const {pendingSetup}=await chrome.storage.local.get('pendingSetup');if(!pendingSetup||pendingSetup.expiresAt<=Date.now())throw new Error('暂无待确认连接，请在一隅添加网站或点击连接');await chrome.tabs.create({url:chrome.runtime.getURL('setup.html')})})
+bindTrustedLoginPermission(document.getElementById('trustedLogin'), document.getElementById('trustedLoginStatus'))
 void render()
