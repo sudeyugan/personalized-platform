@@ -10,11 +10,12 @@ export interface BehaviorInput {
   conversation:PetConversationState;dragging:boolean;engaged:boolean;pat:number;response:number
   reduced:boolean;initiative?:number;windowChanged?:boolean;previewPose?:RigPose;previewExpression?:PetExpression
 }
-export interface BehaviorOutput { pose:RigPose;expression:PetExpression;target:PixelPoint|null;pat:boolean;speaking:boolean }
+export interface BehaviorOutput { pose:RigPose;expression:PetExpression;target:PixelPoint|null;headLook?:PixelPoint;pat:boolean;speaking:boolean }
 export function createBehaviorController(random=Math.random) {
   const scheduler=createBehaviorScheduler(random)
   let started:number|undefined,lastInteraction=0,lastPointer:PixelPoint|null=null,lastPat=0,lastResponse=0,patUntil=0,greetUntil=0,searchUntil=0
   let presence:boolean|undefined,pointerUntil=0,nextPresenceReaction=0
+  let lastCamera:Pick<FaceAttention,'x'|'y'|'yaw'|'pitch'>|undefined
   return { update(input:BehaviorInput):BehaviorOutput {
     const {now,settings,pointer,camera,conversation,dragging,engaged}=input
     if(started===undefined){started=now;lastInteraction=now;lastPat=input.pat;lastResponse=input.response}
@@ -24,6 +25,13 @@ export function createBehaviorController(random=Math.random) {
     if(input.response!==lastResponse){lastResponse=input.response;greetUntil=now+2400;searchUntil=0;lastInteraction=now;scheduler.interrupt(now)}
     if(dragging||engaged||conversation!=='idle')lastInteraction=now
     const present=Boolean(camera?.present&&now-camera.at<1800)
+    if(present&&camera){
+      const movedFace=lastCamera&&(Math.hypot(camera.x-lastCamera.x,camera.y-lastCamera.y)>.06||Math.abs(camera.yaw-lastCamera.yaw)>.12||Math.abs(camera.pitch-lastCamera.pitch)>.12)
+      // Meaningful live movement wakes idle/rest. Keep only one scalar baseline;
+      // don't interrupt greetings on every inference packet or detector jitter.
+      if(movedFace){lastInteraction=now;scheduler.interrupt(now)}
+      if(!lastCamera||movedFace)lastCamera={x:camera.x,y:camera.y,yaw:camera.yaw,pitch:camera.pitch}
+    }else lastCamera=undefined
     if(camera&&presence!==undefined&&present!==presence&&now>=nextPresenceReaction){
       // Noisy presence packets must not restart or alternate whole-body gestures.
       nextPresenceReaction=now+8000
@@ -39,7 +47,7 @@ export function createBehaviorController(random=Math.random) {
     if(blocked){greetUntil=0;searchUntil=0}
     let pose=scheduler.step(now,now-lastInteraction,settings.autonomy,settings.activity,blocked,input.initiative)
     let expression:PetExpression=pose==='sleep'?'sleepy':pose==='chin'?'curious':'natural'
-    if(now<searchUntil&&!blocked){pose='peek';expression='curious'}
+    if(now<searchUntil&&!blocked){pose='neutral';expression='curious'}
     if(now<greetUntil&&!blocked){pose='wave';expression='happy'}
     if(conversation!=='idle'){pose='neutral';expression=conversation==='speaking'?'happy':conversation==='error'?'curious':'natural'}
     if(pat){pose='neutral';expression='shy'}

@@ -8,7 +8,7 @@ export function prepareRigFace(art:PreparedArt,rig:PixelRig,frame:RigFrame) {
   if(!changed)return art.source
   const ctx=art.ctx,r=art.resolution
   ctx.clearRect(0,0,art.working.width,art.working.height);ctx.drawImage(art.source,0,0)
-  const eyeFrame={gaze:{x:face.gazeX*2.3,y:face.gazeY*1.7},eyeOpen:Math.max(0,Math.min(1,face.eyeOpen)),blinkPhase:'open' as const,breath:0,head:{x:0,y:0},hair:{x:0,y:0}}
+  const eyeFrame={gaze:{x:face.gazeX*3.2,y:face.gazeY*2.2},eyeOpen:Math.max(0,Math.min(1,face.eyeOpen)),blinkPhase:'open' as const,breath:0,head:{x:0,y:0},hair:{x:0,y:0}}
   art.eyes.forEach(eye=>drawOriginalEye(ctx,eye,eyeFrame))
   ctx.save();ctx.scale(r,r);ctx.imageSmoothingEnabled=false
   const fit=artPlacement(art.profile)

@@ -10,6 +10,7 @@ import { loadRigAssets } from './rig/RigAssets'
 import { createRigRenderer,type HeadHitGeometry } from './rig/RigRenderer'
 import { neutralRigFrame,type PetExpression,type RigPose } from './animation/types'
 import type { FaceAttention } from './perception/types'
+import { cameraLook } from './perception/CameraLook'
 
 export interface PixelPetV2Props extends PixelPetRendererProps {
   enhancements:PixelPetEnhancements;desktop?:boolean;headGeometry?:RefObject<HeadHitGeometry|null>
@@ -34,7 +35,8 @@ export function PixelPetV2Renderer(props:PixelPetV2Props) {
       const cameraTarget=camera?{...camera,x:side==='left-edge'?-camera.x:camera.x}:null
       const b=behavior.update({now,settings:p.enhancements,pointer:posePointer(rawPointer,side),camera:cameraTarget,conversation:p.conversation??'idle',dragging:Boolean(p.dragging),engaged:Boolean(p.engaged),pat:p.headPat?.current??previewPat.current,response:p.response?.current??previewResponse.current,reduced:Boolean(reduced?.matches),previewPose:p.restPreview?'sleep':p.previewPose,previewExpression:p.previewExpression})
       // Camera/dialog targets are relative to the actual face, not canvas center.
-      if(cameraTarget?.present&&!p.dragging&&!p.engaged&&(p.conversation??'idle')==='idle'&&!b.pat)b.target={x:center.x+cameraTarget.x*100,y:center.y+cameraTarget.y*80}
+      const look=cameraLook(now,camera,center,side==='left-edge')
+      if(look&&!p.dragging&&!p.engaged&&(p.conversation??'idle')==='idle'&&!b.pat){b.target=look.target;b.headLook=look.headLook}
       else if((p.conversation??'idle')!=='idle')b.target={...center}
       const frame=p.neutralPreview?neutralRigFrame():motion.update(now,b,Boolean(reduced?.matches),p.dragMotion?.current)
       applyPoseTransform(ctx,side)

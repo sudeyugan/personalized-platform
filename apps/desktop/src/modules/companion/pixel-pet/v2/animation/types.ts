@@ -1,5 +1,5 @@
 import type { PixelPoint } from '../../types'
-export type RigPose = 'neutral' | 'wave' | 'touch-hair' | 'chin' | 'stretch' | 'sleep' | 'peek'
+export type RigPose = 'neutral' | 'wave' | 'touch-hair' | 'chin' | 'stretch' | 'sleep'
 export type PetExpression = 'natural' | 'happy' | 'shy' | 'curious' | 'surprised' | 'sleepy'
 export interface FaceParameters {
   eyeOpen: number; gazeX: number; gazeY: number; browRaise: number

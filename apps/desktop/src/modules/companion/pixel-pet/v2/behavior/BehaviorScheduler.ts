@@ -5,7 +5,6 @@ const BEHAVIORS:Behavior[]=[
   {pose:'touch-hair',idle:16000,duration:3400,cooldown:90000,weight:3},
   {pose:'stretch',idle:42000,duration:3800,cooldown:160000,weight:2},
   {pose:'chin',idle:65000,duration:6500,cooldown:120000,weight:3},
-  {pose:'peek',idle:28000,duration:2600,cooldown:100000,weight:2},
   {pose:'sleep',idle:140000,duration:Infinity,cooldown:0,weight:1},
 ]
 export function createBehaviorScheduler(random=Math.random) {

@@ -7,12 +7,14 @@ import type { PixelPetPose } from '../../types'
 import type { RigPose } from '../animation/types'
 
 const atlasUrl=new URL('./assets/pixel-keyposes-v2.png',import.meta.url).href
-const names:Exclude<RigPose,'neutral'>[]=['wave','touch-hair','chin','stretch','sleep','peek']
+// The sixth (peek) cell duplicates neutral edge art and contains neighbouring
+// silhouette spill. Keep the source atlas intact, but never sample that cell.
+const names:Exclude<RigPose,'neutral'>[]=['wave','touch-hair','chin','stretch','sleep']
 // Points calibrated on the selected836×1881 atlas, local418×627 cells.
 // Neutral is NEVER reconstructed from the atlas; use the unchanged approved art.
 const eyes:[number,number,number,number][]=[
   [187,218,270,183],[172,219,255,189],[190,227,273,193],
-  [163,204,244,203],[204,272,286,243],[183,224,271,193],
+  [163,204,244,203],[204,272,286,243],
 ]
 const neutralCenter=artEyeCenter(FREE_ART_PROFILES.pixel)
 const neutralSpacing=(638-465)*Math.min(188/1024,236/1536)
@@ -28,7 +30,6 @@ async function prepareAtlas() {
     const [x1,y1,x2,y2]=eyes[index],scale=neutralSpacing/Math.abs(x2-x1)
     let x=neutralCenter.x-(x1+x2)/2*scale,y=neutralCenter.y-(y1+y2)/2*scale
     if(name==='sleep')y=240-410*scale // forearms on the lower boundary, not body rotation
-    if(name==='peek')x=192-400*scale // grasped side boundary
     const closed=name==='sleep'||name==='stretch'
     const profile:ArtProfile={style:'pixel',label:'像素2.0',src:atlasUrl,width:418,height:627,edgeX:400,pixelated:true,floating:true,hands:[],eyes:[eye(x1,y1,closed),eye(x2,y2,closed)],placement:{scale,x,y}}
     const resolution=3,source=document.createElement('canvas'),working=document.createElement('canvas')

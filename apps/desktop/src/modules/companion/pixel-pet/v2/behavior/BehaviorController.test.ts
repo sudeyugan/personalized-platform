@@ -30,7 +30,7 @@ describe('pixel2 gesture stability', () => {
       expect(controller.update({ ...input(100), response: 1, pat: interruption.pat ?? 0 }).pose).toBe('neutral')
     }
   })
-  it('debounces camera presence fluctuations instead of alternating wave and peek', () => {
+  it('debounces camera presence fluctuations and looks curious without swapping to duplicate edge art', () => {
     const controller = createBehaviorController(() => 0)
     controller.update({ ...input(0), camera: face(0, false) })
     expect(controller.update({ ...input(10), camera: face(10) }).pose).toBe('wave')
@@ -38,7 +38,9 @@ describe('pixel2 gesture stability', () => {
       expect(controller.update({ ...input(now), camera: face(now, now % 100 === 0) }).pose).toBe('wave')
     }
     expect(controller.update({ ...input(2000), camera: face(2000) }).pose).toBe('neutral')
-    expect(controller.update({ ...input(9000), camera: face(9000, false) }).pose).toBe('peek')
+    const searching = controller.update({ ...input(9000), camera: face(9000, false) })
+    expect(searching.pose).toBe('neutral')
+    expect(searching.expression).toBe('curious')
   })
   it('keeps autonomous choices spaced at all activity levels during idle', () => {
     for (const activity of ['quiet', 'natural', 'lively'] as const) {
@@ -53,5 +55,12 @@ describe('pixel2 gesture stability', () => {
         previous = pose
       }
     }
+  })
+  it('wakes idle rest on meaningful face movement, not on small detector jitter', () => {
+    const controller = createBehaviorController(() => 0)
+    controller.update({ ...input(0), camera: face(0) })
+    expect(controller.update({ ...input(200000), camera: face(200000) }).pose).toBe('sleep')
+    expect(controller.update({ ...input(200033), camera: { ...face(200033), x: .01 } }).pose).toBe('sleep')
+    expect(controller.update({ ...input(200066), camera: { ...face(200066), x: .2 } }).pose).toBe('neutral')
   })
 })

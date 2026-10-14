@@ -48,7 +48,7 @@ describe('pixel2 motion and priority',()=>{
   it('holds neutral identity and bounds all realtime joint and face channels',()=>{
     expect(Object.values(neutralRigFrame().joints).every(j=>j.x===0&&j.y===0&&j.angle===0)).toBe(true)
     const motion=createMotionController(()=>.5),behavior={pose:'neutral' as const,expression:'natural' as const,target:{x:10000,y:-10000},pat:false,speaking:false}
-    for(let now=0;now<2000;now+=33){const frame=motion.update(now,behavior);expect(Math.abs(frame.joints.head.angle)).toBeLessThanOrEqual(.03501);expect(frame.face.eyeOpen).toBeGreaterThanOrEqual(0);expect(Math.abs(frame.face.gazeX)).toBeLessThanOrEqual(1.001)}
+    for(let now=0;now<2000;now+=33){const frame=motion.update(now,behavior);expect(Math.abs(frame.joints.head.angle)).toBeLessThanOrEqual(.04301);expect(Math.abs(frame.joints.head.x)).toBeLessThanOrEqual(2.8001);expect(frame.face.eyeOpen).toBeGreaterThanOrEqual(0);expect(Math.abs(frame.face.gazeX)).toBeLessThanOrEqual(1.001)}
     const rig=createPixelRig({x:96,y:72}),a=skinWeights(80,100,rig),b=skinWeights(80,100.001,rig)
     expect(a.head+a.body).toBeCloseTo(1);expect(Math.abs(a.head-b.head)).toBeLessThan(.001)
   })

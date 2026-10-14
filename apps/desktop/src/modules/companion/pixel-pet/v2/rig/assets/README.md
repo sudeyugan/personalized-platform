@@ -5,6 +5,8 @@ the built-in image_gen tool from the existing pixel-free-v1 identity reference.
 The approved neutral/side/bottom/free textures are not edited or replaced.
 
 Row order: wave / touch hair; chin rest / stretch; sleep / peek.
+Runtime uses only the first five cells. The duplicate peek cell is retained in
+the original atlas for provenance, not loaded or scheduled (2026-10-14 feedback).
 These are six key-pose textures, not prerecorded animation frames. The motion
 controller provides realtime joint/face channels and continuous skinning.
 Neutral draws the original approved texture; candidate appearance still needs
