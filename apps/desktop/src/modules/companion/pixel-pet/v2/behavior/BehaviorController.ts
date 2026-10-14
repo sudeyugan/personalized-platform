@@ -22,7 +22,10 @@ export function createBehaviorController(random=Math.random) {
     const moved=pointer&&(!lastPointer||Math.hypot(pointer.x-lastPointer.x,pointer.y-lastPointer.y)>1.5)
     if(moved){lastPointer={...pointer};lastInteraction=now;pointerUntil=now+600}
     if(input.pat!==lastPat){lastPat=input.pat;patUntil=now+1800;lastInteraction=now;scheduler.interrupt(now)}
-    if(input.response!==lastResponse){lastResponse=input.response;greetUntil=now+2400;searchUntil=0;lastInteraction=now;scheduler.interrupt(now)}
+    // The shared response counter means body/chat/menu activation, not greeting.
+    // Keep UI activation neutral even before the asynchronous chat state arrives.
+    const activated=input.response!==lastResponse
+    if(activated){lastResponse=input.response;greetUntil=0;searchUntil=0;lastInteraction=now;scheduler.interrupt(now)}
     if(dragging||engaged||conversation!=='idle')lastInteraction=now
     const present=Boolean(camera?.present&&now-camera.at<1800)
     if(present&&camera){
@@ -43,7 +46,7 @@ export function createBehaviorController(random=Math.random) {
     const attention=resolveAttention(now,pointer,camera,conversation,strong)
     // Pointer samples arrive slower than animation frames. Hold the interruption
     // through their gaps and cancel the old gesture, rather than resume it next frame.
-    const blocked=strong||conversation!=='idle'||now<pointerUntil||input.reduced
+    const blocked=strong||activated||conversation!=='idle'||now<pointerUntil||input.reduced
     if(blocked){greetUntil=0;searchUntil=0}
     let pose=scheduler.step(now,now-lastInteraction,settings.autonomy,settings.activity,blocked,input.initiative)
     let expression:PetExpression=pose==='sleep'?'sleepy':pose==='chin'?'curious':'natural'
