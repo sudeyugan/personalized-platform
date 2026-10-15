@@ -5,6 +5,7 @@ import { browserAccessEnabled } from './authority'
 import { resolveBrowserTask, type BrowserTaskGoal } from './taskGoal'
 import { browserNative, configureBrowser, type BrowserConnectionStatus, type BrowserSnapshot, type BrowserReadRequest } from './native'
 import { BrowserExecution,type BrowserEvidenceRequest } from './execution'
+import { configureManagedBrowser,stopManagedBrowser } from './managed/native'
 export interface BrowserServices {
   browserTaskGoal?: BrowserTaskGoal
   assertBrowserAuthority?(): void
@@ -15,6 +16,7 @@ export interface BrowserServices {
 }
 export function createBrowserServices(goal: string, signal?: AbortSignal): BrowserServices {
   const initial = useLibraryStore.getState().data
+  const managed=initial.companion.browser?.backend==='managed'
   const identity = JSON.stringify([initial.companion.browser, initial.companion.provider, initial.settings.trust, initial.companion.permissions.fullAccess, initial.companion.permissions.internet])
   const task = resolveBrowserTask(goal, initial.companion)
   const requested = task?.origins ?? []
@@ -39,6 +41,7 @@ export function createBrowserServices(goal: string, signal?: AbortSignal): Brows
       return execution.verify({...request,observationId:page.observationId})
     },
     async browserStatus() {
+      if(managed){guard();return configureManagedBrowser()}
       const value=await browserNative<BrowserConnectionStatus>('browser_bridge_status')
       // The settings-only local path may contain a Windows username. Never
       // expose it through an agent tool or a model-bound connection result.
@@ -59,6 +62,13 @@ export function createBrowserServices(goal: string, signal?: AbortSignal): Brows
       }
       const readRequest = { kind:request.kind, origin, ...(request.tabId !== undefined ? {tabId:request.tabId} : {}),...(targetUrl?{targetUrl}:{}),...(request.kind==='act'?{interaction:request.interaction}:{}) }
       execution.before(readRequest)
+      if(managed){
+        const status=await configureManagedBrowser();guard()
+        const cancel=()=>{void stopManagedBrowser().catch(()=>undefined)}
+        signal?.addEventListener('abort',cancel,{once:true})
+        try{guard();const result=await browserNative<BrowserSnapshot>('managed_browser_request',{request:{...readRequest,queryMode:'background'},expectedEpoch:status.epoch});guard();execution.accept(readRequest,result);return result}
+        finally{signal?.removeEventListener('abort',cancel)}
+      }
       const cachedLogin = !loginUsed && ['page','observe'].includes(request.kind) && initial.companion.browser?.cachedLoginSites?.includes(origin) === true
       if (cachedLogin) loginUsed = true
       const nativeRequest = { ...readRequest, ...(request.kind!=='followed_live'?{queryMode:initial.companion.browser?.foregroundQueries===true?'foreground':'background'}:{}), ...(cachedLogin ? { cachedLogin: true } : {}) }

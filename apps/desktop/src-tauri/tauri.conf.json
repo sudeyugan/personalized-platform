@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
-    "beforeDevCommand": "pnpm dev -- --port 1420",
-    "beforeBuildCommand": "pnpm build"
+    "beforeDevCommand": "node ../../scripts/prepare-browser-runtime.mjs && pnpm dev -- --port 1420",
+    "beforeBuildCommand": "node ../../scripts/prepare-browser-runtime.mjs && pnpm build"
   },
   "app": {
     "windows": [

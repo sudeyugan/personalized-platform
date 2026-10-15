@@ -6,7 +6,7 @@ use super::policy;
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Pair { pub token: String, pub origin: String }
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Request { pub kind: String, pub origin: String, pub tab_id: Option<u64>, #[serde(default)] pub cached_login: bool, pub target_url:Option<String>, pub interaction:Option<Interaction>, pub query_mode:Option<String> }
 #[derive(Clone,Deserialize,Serialize)]

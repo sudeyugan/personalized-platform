@@ -10,7 +10,12 @@ import { TrustedClickInstallation } from './TrustedClickInstallation'
 import { BrowserRecordingCard } from './recording/BrowserRecordingCard'
 import { BrowserQueryOptions } from './BrowserQueryOptions'
 import './browser.css'
+import { ManagedBrowserSection } from './managed/ManagedBrowserSection'
 export function BrowserConnectionSection() {
+  const backend=useLibraryStore(state=>state.data.companion.browser?.backend)
+  return <><div className="browser-backend-choice" role="group" aria-label="浏览器工作方式"><button type="button" aria-pressed={backend==='managed'} onClick={()=>useLibraryStore.getState().setCompanionBrowser({backend:'managed'})}><strong>小鱼专用浏览器</strong><small>推荐 · 独立登录，真正无窗口</small></button><button type="button" aria-pressed={backend!=='managed'} onClick={()=>useLibraryStore.getState().setCompanionBrowser({backend:undefined})}><strong>现有 Edge 扩展</strong><small>兼容 · 沿用日常浏览器会话</small></button></div>{backend==='managed'?<ManagedBrowserSection/>:<EdgeConnectionSection/>}</>
+}
+function EdgeConnectionSection() {
   const settings = useLibraryStore(state => state.data.companion.browser)
   const trust = useLibraryStore(state => state.data.settings.trust.externalAiProcessing)
   const [status, setStatus] = useState<BrowserConnectionStatus>()

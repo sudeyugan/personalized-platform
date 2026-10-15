@@ -1,5 +1,9 @@
 # Agent Development System Audit
 
+2026-10-15 DEC-099收口审查：独立Node/Playwright/Edge profile与真正headless已接入，不更改旧Edge默认/配对/权限；UI显式首次登录/结束/停止/清除（全部专用账号不可恢复、日常Edge不动）与任务路由/低信任DOM/现场操作/证据核验保持。新源按assets/policy/worker/job/DOM/观察/动作/设置分责A级，旧lib/computer只编排取消与注册；旧桥结果schema不接受专用操作。一次Windows完整门禁退出0/221前端文件缓存无失败、显式内嵌Node/Job清理和实际Edge首次1窗口→后台0、900/360浅深无溢出通过；不操作真实账号。Windows Release1m44/NSIS/保护桌面交付已退出0，45应用源逐字节一致，最后打包过滤pnpm的仅WSL CLI shim后Win/WSL运行时归档同77e90ee0，实际应用payload不变；按自动构建偏好仅最终候选收口，不重跑full。候选最终hash/main事实见PROJECT_STATE；无秘密/账号缓存/EXE/归档入Git，保留R059/真实网站与DEC095未完项，正式2.0.0/M12不改。
+
+2026-10-15 DEC-099开始审查：用户明确接受独立登录/真正headless，旧Edge兼容默认保持；基线b28c738，原最小化与后台可信认证仍未满足验收。新增browser-runtime/managed_browser分责与固定Node/Playwright归档、独立profile/生命周期，保留精确站点/隐私/现场引用/证据，不默授高影响操作。定向与隔离Edge后一次跨层批次、保护候选/main推送，计划/基线/R059同步，不冒称交付或真实账号已验。
+
 2026-10-15 DEC-098回归候选交付：0b474e3已普通推送且远端核对；Windows Release3m18s/NSIS/保护桌面更新退出0、9应用源与镜像一致，候选EXE/NSIS哈希见PROJECT_STATE，不杀用户进程/提交产物。无故障与初始状态异常两种正常窗口查询夹具均通过，49前端/34原生桥接与类型/lint/docs/Web通过。新run38675409878前端全量及文档/静态已success、Rust进行中，旧e219 run已success，两者不混用；不重复本地full/纯文档构建，不把正常窗口虚构Cookie/未读2当真实账号或后台可信Input验证。用户接管/遗失所有权的既有窗保留，不因修复清理未知窗口；已开页只读免开窗是日常低打扰路径，系统/API可能瞬态显示仍记录R058，真实网站自然回验保持。
 
 2026-10-15 DEC-098自然验收回归审查：用户截图marker-only窗口弹出且tab_changed，首轮Headless元数据证明不足，低打扰验收重新打开；正常窗口＋模拟create最小化hint未生效可复现。修补按职责拆查询来源/初始化（均A级），复用唯一已打开授权页仅只读、RAM精确URL/窗口/epoch/TTL与双侧权限复核，认证/act禁止且不外露控件；已有工作区不作初始化，也不拿初始normal状态当用户手动切页。仅新建返回IDs/UUID标记/完整页集证明可一次最小化，完成才发布租约，失败只清新marker-only窗口；恢复/外来页/移动标记保守交还，不扩大到Win32隐藏/任意窗口控制。原外发脱敏/秘密阻断、首次授权/用户示范保持，无新Chrome权限/依赖。5文件49与真实headful查询专用fixture通过（只读借用无新增窗口/焦点变化、故障后最小化/同资料虚构HttpOnly/读取/复用/撤销/日常动作拒绝），不证明实际邮箱/后台可信Input；headful完整夹具前置可信登录submit_rejected另记，不用它掩盖查询证据。原生资源/候选/main/远端结果见当前PROJECT_STATE，减少本地full，不因原生窗口兼容性把截图故障说成用户主动切换。

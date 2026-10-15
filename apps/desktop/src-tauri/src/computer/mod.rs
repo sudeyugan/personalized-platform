@@ -238,6 +238,7 @@ pub fn computer_status(window: WebviewWindow, runtime: State<'_, ComputerRuntime
 pub fn computer_emergency_stop(window: WebviewWindow, app: AppHandle, runtime: State<'_, ComputerRuntime>) -> Result<Value, String> {
     require_main(&window)?;
     crate::browser_bridge::cancel_all(&app.state::<crate::browser_bridge::BrowserRuntime>());
+    crate::managed_browser::cancel_all(&app.state::<crate::managed_browser::ManagedBrowserRuntime>());
     Ok(json!({ "stopped": runtime.stop_all() }))
 }
 

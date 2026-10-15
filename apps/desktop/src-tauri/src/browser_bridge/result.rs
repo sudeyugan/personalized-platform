@@ -19,7 +19,7 @@ struct Control {id:String,name:String,operation:String}
 struct Action {tab_id:u64,origin:String,action_status:String}
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all="snake_case")]
-enum LoginState { NotAllowed, Unfilled, NeedsUser, Continued, Pending, SubmitRejected }
+enum LoginState { NotAllowed, Unfilled, NeedsUser, Continued, Pending, SubmitRejected, ManagedLogin }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Room { uid: u64, room_id: u64, name: String, title: String, live_status: u8 }
@@ -32,6 +32,10 @@ fn safe_url(raw: &str, expected: Option<&str>) -> bool {
     policy::origin(&url.origin().ascii_serialization()).is_ok() && url.query().is_none() && url.fragment().is_none() && url.username().is_empty() && url.password().is_none() && expected.is_none_or(|site| url.origin().ascii_serialization() == site)
 }
 pub fn validate(request: &Request, value: Value) -> Result<Value, String> {
+    validate_inner(request,value,false)
+}
+pub(crate) fn validate_managed(request:&Request,value:Value)->Result<Value,String>{validate_inner(request,value,true)}
+fn validate_inner(request:&Request,value:Value,managed:bool)->Result<Value,String>{
     let invalid = "BROWSER_RESULT:浏览器结果格式或当前页面身份不一致，不能视为完成";
     let data = match request.kind.as_str() {
         "tabs" | "ensure" => {
@@ -41,8 +45,10 @@ pub fn validate(request: &Request, value: Value) -> Result<Value, String> {
         },
         "page" | "observe" => {
             let page: Page = serde_json::from_value(value).map_err(|_| invalid)?;
+            if !managed && matches!(page.login_state,Some(LoginState::ManagedLogin)){return Err(invalid.into())}
             if !request.cached_login && matches!(page.login_state, Some(LoginState::Continued | LoginState::Pending | LoginState::SubmitRejected)) { return Err(invalid.into()); }
-            if page.observation_id.as_ref().is_some_and(|id|!reference(id))||page.controls.len()>60||page.controls.iter().any(|control|!reference(&control.id)||!text(&control.name,100)||!["invoke","search"].contains(&control.operation.as_str()))||!page.controls.is_empty()&&page.observation_id.is_none(){return Err(invalid.into())}
+            let operations:&[&str]=if managed{&["invoke","search","fill","select","scroll"]}else{&["invoke","search"]};
+            if page.observation_id.as_ref().is_some_and(|id|!reference(id))||page.controls.len()>60||page.controls.iter().any(|control|!reference(&control.id)||!text(&control.name,100)||!operations.contains(&control.operation.as_str()))||!page.controls.is_empty()&&page.observation_id.is_none(){return Err(invalid.into())}
             if Some(page.tab_id) != request.tab_id || page.origin != request.origin || !safe_url(&page.url, Some(&request.origin)) || !text(&page.title, 200) || !text(&page.text, 12000) || page.links.len() > 40 || page.links.iter().any(|link| !text(&link.text, 100) || !safe_url(&link.url, None)) { return Err(invalid.into()); }
             serde_json::to_value(page)
         },
@@ -64,6 +70,12 @@ fn reference(id:&str)->bool{id.len()==36&&id.bytes().all(|b|b.is_ascii_hexdigit(
 
 #[cfg(test)] mod tests {
     use super::*; use serde_json::json;
+    #[test]fn managed_operations_do_not_expand_legacy_bridge(){
+        let request=Request{kind:"observe".into(),origin:"https://example.com".into(),tab_id:Some(1),cached_login:false,query_mode:None,target_url:None,interaction:None};
+        let value=json!({"tabId":1,"origin":"https://example.com","url":"https://example.com/inbox","title":"邮箱","text":"未读 2","links":[],"truncated":false,"loading":false,"observationId":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","controls":[{"id":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","name":"筛选","operation":"select"}]});
+        assert!(validate_managed(&request,value.clone()).is_ok());assert!(validate(&request,value.clone()).is_err());
+        let mut login=value;login["loginState"]=json!("managed_login");assert!(validate_managed(&request,login.clone()).is_ok());assert!(validate(&request,login).is_err());
+    }
     #[test] fn observation_controls_and_action_receipts_fail_closed() {
         let request=Request{kind:"observe".into(),origin:"https://example.com".into(),tab_id:Some(1),cached_login:false,query_mode:None,target_url:None,interaction:None};
         let base=json!({"tabId":1,"origin":"https://example.com","url":"https://example.com/notices","title":"门户","text":"通知 2 条","links":[],"truncated":false,"loading":false,"observationId":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","controls":[{"id":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","name":"通知","operation":"invoke"}]});

@@ -17,7 +17,7 @@ export class BrowserExecution {
     const key=`${request.origin}:${request.tabId}`,page=this.observations.get(key),action=request.interaction
     if(!page||!action||action.observationId!==page.observationId||page.loading||page.loginState&&page.loginState!=='continued'||!page.controls.some(control=>control.id===action.elementId&&control.operation===action.operation))throw new Error('控件不属于本次已观察页面，请重新观察；没有执行旧引用')
     this.observations.delete(key)
-    if(action.operation==='search'&&(!action.query?.trim()||action.query.length>200||!this.goal.includes(action.query)))throw new Error('站内检索词必须来自用户本次明确请求，不采用网页指令或其他私人内容')
+    if(['search','fill','select'].includes(action.operation)&&(!action.query?.trim()||action.query.length>200||!this.goal.includes(action.query)))throw new Error('输入或筛选词必须来自用户本次明确请求，不采用网页指令或其他私人内容')
   }
   accept(request:BrowserReadRequest,result:BrowserSnapshot){
     if(!['page','observe'].includes(request.kind)||result.verified!==true)return

@@ -60,6 +60,7 @@ export class BrowserQueryFlow {
   private call(name: string, args: Record<string, unknown>): AgentToolCall { return { id: `browser-goal-${crypto.randomUUID()}`, name, arguments: args } }
 }
 export function browserLoginReply(state?: string) {
+  if(state==='managed_login')return '小鱼专用浏览器还停留在登录页面，尚未查到账号内容。请在设置 → 浏览器工作方式 → 小鱼专用浏览器，点这个网站的“登录”，手动登录后点“结束登录”，再让我查询。只需在会话失效时重新登录；日常Edge的账号不会自动继承。'
   if (state === 'not_allowed') return '目标网页仍需登录，尚未检查到账号内容。可在设置 → Edge浏览器连接 → 该网站，勾选「允许用已填凭据登录」，之后小鱼会尝试提交已经填好的表单；不读取密码。'
   if (state === 'unfilled') return '目标网页仍需登录，暂未确认表单的账号和密码均已填入，因此没有点击登录。若页面已经显示填好的内容，也可能是该表单不支持安全检测；请在Edge完成一次登录，再让我检查。不读取密码，也不会猜测或选取账号。'
   if (state === 'needs_user') return '登录页面需要你处理：可能有验证码、二次验证、多账号、不支持的表单，或可信点击被浏览器策略/其他调试器阻止。请关闭该页的开发者工具或手动完成登录后再查询。已停止自动登录，没有重复提交或读取其他网站。'

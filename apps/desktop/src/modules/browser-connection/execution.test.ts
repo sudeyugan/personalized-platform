@@ -4,6 +4,16 @@ const origin='https://mail.example.com',id=crypto.randomUUID(),elementId=crypto.
 const snapshot=(text='未读邮件 2',extra={})=>({verified:true as const,untrusted:true as const,privateBrowser:true as const,origin,fetchedAtEpochMs:Date.now(),data:{observationId:id,text,title:'邮箱',url:origin+'/inbox',loading:false,truncated:false,controls:[{id:elementId,operation:'invoke'}],...extra}})
 const action={kind:'act' as const,origin,tabId:7,interaction:{observationId:id,elementId,operation:'invoke' as const}}
 describe('task evidence and current control authority',()=>{
+  it('bounds dedicated fill/select input to the current explicit request and refuses login evidence',()=>{
+    for(const operation of ['fill','select'] as const){
+      const execution=new BrowserExecution(undefined,'筛选未读');execution.accept({kind:'observe',origin,tabId:7},snapshot('',{controls:[{id:elementId,operation}]}))
+      expect(()=>execution.before({...action,interaction:{...action.interaction,operation,query:'未读'}})).not.toThrow()
+      execution.accept({kind:'observe',origin,tabId:7},snapshot('',{controls:[{id:elementId,operation}]}))
+      expect(()=>execution.before({...action,interaction:{...action.interaction,operation,query:'秘密'}})).toThrow('用户本次')
+    }
+    const execution=new BrowserExecution(undefined,'查看未读');execution.accept({kind:'observe',origin,tabId:7},snapshot('未读邮件 2',{loginState:'managed_login'}))
+    expect(()=>execution.verify({origin,tabId:7,observationId:id,quotes:['未读邮件 2'],answer:'有2封未读'})).toThrow('可用页面')
+  })
   it('verifies actual fresh evidence, not a model-created count or non-unread list',()=>{
     const task={objective:'mail' as const,origins:[origin],candidates:[origin]},execution=new BrowserExecution(task,'查看我的邮箱有未读邮件吗')
     execution.accept({kind:'page',origin,tabId:7},snapshot())

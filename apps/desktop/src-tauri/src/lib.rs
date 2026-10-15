@@ -14,6 +14,7 @@ mod services;
 mod web_search;
 mod public_web;
 mod browser_bridge;
+mod managed_browser;
 mod experience_covers;
 #[cfg(test)]
 mod spikes;
@@ -58,6 +59,7 @@ fn install_tray(app: &mut tauri::App) -> tauri::Result<()> {
             "companion-hide" => { let _ = app.emit_to("main", "companion:tray-action", "hide"); }
             "computer-stop" => {
                 browser_bridge::cancel_all(&app.state::<browser_bridge::BrowserRuntime>());
+                managed_browser::cancel_all(&app.state::<managed_browser::ManagedBrowserRuntime>());
                 let stopped = computer::emergency_stop(&app.state::<computer::ComputerRuntime>());
                 let _ = app.emit_to("main", "computer:emergency-stop", stopped);
             }
@@ -106,6 +108,7 @@ pub fn run() {
         .manage(BackgroundWakeRuntime::new())
         .manage(computer::ComputerRuntime::default())
         .manage(browser_bridge::BrowserRuntime::default())
+        .manage(managed_browser::ManagedBrowserRuntime::default())
         .setup(|app| {
             repositories::install_panic_marker(app.handle())?;
             install_tray(app)?;
@@ -119,6 +122,13 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            managed_browser::managed_browser_configure,
+            managed_browser::managed_browser_status,
+            managed_browser::managed_browser_cancel,
+            managed_browser::managed_browser_request,
+            managed_browser::managed_browser_login,
+            managed_browser::managed_browser_finish_login,
+            managed_browser::managed_browser_clear_session,
             browser_bridge::browser_bridge_configure,
             browser_bridge::browser_bridge_status,
             browser_bridge::browser_bridge_connect,
