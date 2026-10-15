@@ -4,6 +4,8 @@ mod http;
 mod server;
 mod result;
 mod assets;
+mod trusted_assets;
+mod recording;
 mod maintenance;
 #[cfg(test)] mod tests;
 #[cfg(test)] mod maintenance_tests;
@@ -96,7 +98,13 @@ fn execute(state: &Mutex<BridgeState>, request: Request, expected_epoch: u64) ->
     }
 }
 #[tauri::command]
-pub fn browser_bridge_export(window: WebviewWindow, app: AppHandle) -> Result<String, String> { main_only(&window)?; assets::prepare(&app,true) }
+pub fn browser_bridge_export(window: WebviewWindow, app: AppHandle, trusted_click:Option<bool>) -> Result<String, String> { main_only(&window)?; if trusted_click==Some(true){assets::prepare_trusted(&app)}else{assets::prepare(&app,true)} }
+#[tauri::command]
+pub fn browser_bridge_record_begin(window:WebviewWindow,runtime:State<'_,BrowserRuntime>,origin:String,tab_id:u64)->Result<Value,String>{main_only(&window)?;runtime.state.lock().map_err(|_|"BROWSER_STATE:状态不可用")?.begin_recording(random_id(),origin,tab_id)}
+#[tauri::command]
+pub fn browser_bridge_record_status(window:WebviewWindow,runtime:State<'_,BrowserRuntime>)->Result<Value,String>{main_only(&window)?;Ok(runtime.state.lock().map_err(|_|"BROWSER_STATE:状态不可用")?.recording_status())}
+#[tauri::command]
+pub fn browser_bridge_record_control(window:WebviewWindow,runtime:State<'_,BrowserRuntime>,recording_id:String,action:String)->Result<Value,String>{main_only(&window)?;runtime.state.lock().map_err(|_|"BROWSER_STATE:状态不可用")?.record_message(recording::Message{recording_id,action,cue:None})}
 #[tauri::command]
 pub fn browser_bridge_setup(window: WebviewWindow, runtime: State<'_, BrowserRuntime>, sites:Vec<String>, open_origin:Option<String>) -> Result<Value,String> {
     main_only(&window)?;

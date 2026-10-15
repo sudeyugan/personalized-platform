@@ -18,12 +18,13 @@ pub struct BridgeState {
     pub enabled: bool, pub sites: Vec<String>, pub cached_login_sites: Vec<String>, pub interaction_sites:Vec<String>, pub pair: Option<Pair>, pub pending_pair: Option<(String, Instant)>,
     pub last_seen: Option<Instant>, pub reported_sites: Vec<String>, pub job: Option<Job>, pub reply: Option<Result<Value, String>>, pub epoch: u64,
     pub extension_version: Option<String>, pub extension_revision:Option<String>, pub extension_path: Option<String>, pub setup: Option<super::maintenance::Setup>,
+    pub recording:Option<super::recording::Recording>,
 }
 impl Default for BridgeState {
-    fn default() -> Self { Self { enabled: false, sites: vec![], cached_login_sites: vec![], interaction_sites:vec![], pair: None, pending_pair: None, last_seen: None, reported_sites: vec![], job: None, reply: None, epoch: 0, extension_version:None, extension_revision:None, extension_path:None, setup:None } }
+    fn default() -> Self { Self { enabled: false, sites: vec![], cached_login_sites: vec![], interaction_sites:vec![], pair: None, pending_pair: None, last_seen: None, reported_sites: vec![], job: None, reply: None, epoch: 0, extension_version:None, extension_revision:None, extension_path:None, setup:None,recording:None } }
 }
 impl BridgeState {
-    pub fn cancel(&mut self) { self.epoch = self.epoch.wrapping_add(1); self.job = None; self.reply = None; self.setup = None; }
+    pub fn cancel(&mut self) { self.epoch = self.epoch.wrapping_add(1); self.job = None; self.reply = None; self.setup = None; self.recording=None; }
     pub fn check_pair(&self, code: &str) -> Result<(), String> {
         if !self.enabled || self.pair.is_some() { return Err("BROWSER_PAIR:连接未开启或已绑定".into()); }
         if !self.pending_pair.as_ref().is_some_and(|(token,time)| time.elapsed() < Duration::from_secs(600) && policy::equal_secret(token,code)) { return Err("BROWSER_PAIR:连接码不正确或已到期".into()); }
@@ -34,6 +35,7 @@ impl BridgeState {
     }
     pub fn authorised(&self, site: &str) -> bool { self.enabled && self.pair.is_some() && self.sites.iter().any(|item| item == site) && self.reported_sites.iter().any(|item| item == site) }
     pub fn check(&self, request: &Request) -> Result<(), String> {
+        if self.recording.as_ref().is_some_and(|r|r.phase!=super::recording::Phase::Review){return Err("BROWSER_BUSY:正在示范录制，请先停止或取消示范".into())}
         if !self.enabled { return Err("BROWSER_DISABLED:请在AI伙伴设置中开启浏览器连接".into()); }
         if self.pair.is_none() { return Err("BROWSER_NOT_CONNECTED:请先一次性安装并连接Edge扩展；浏览器已登录不等于连接已完成".into()); }
         if !self.compatible() { return Err("BROWSER_UPDATE_REQUIRED:扩展需要完成更新后才能读取；旧版本本次需在Edge重新加载一次".into()); }
@@ -66,11 +68,11 @@ impl BridgeState {
     }
     pub fn poll(&mut self, reported: Vec<String>) -> Value {
         self.last_seen = Some(Instant::now());
-        if self.reported_sites != reported { self.reported_sites = reported; if self.job.as_ref().is_some_and(|job| self.check(&job.request).is_err()) { self.cancel(); } }
+        if self.reported_sites != reported { self.reported_sites = reported; if self.job.as_ref().is_some_and(|job| self.check(&job.request).is_err())||self.recording.as_ref().is_some_and(|r|!self.authorised(&r.origin)){ self.cancel(); } }
         if self.job.as_ref().is_some_and(|job| job.expires <= Instant::now()) { self.cancel(); }
         let allowed = self.job.as_ref().is_some_and(|job| !job.sent && self.check(&job.request).is_ok());
         let job = if allowed { let job = self.job.as_mut().unwrap(); job.sent = true; json!({"id":job.id,"kind":job.request.kind,"origin":job.request.origin,"tabId":job.request.tab_id,"cachedLogin":job.request.cached_login,"targetUrl":job.request.target_url,"interaction":job.request.interaction}) } else { Value::Null };
-        json!({"job": job, "maintenance": self.maintenance()})
+        json!({"job": job, "maintenance": self.maintenance(),"recording":self.recording_lease()})
     }
     #[cfg(test)]
     pub fn active_login(&self, id: &str) -> bool {

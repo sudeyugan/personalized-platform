@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
   "name": "一隅 · 小鱼浏览器连接",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "连接本机一隅，读取授权网站；另行逐站授权后可提交浏览器已填登录表单，不读取Cookie或密码。",
   "minimum_chrome_version": "120",
   "permissions": ["storage", "scripting", "alarms"],
-  "optional_permissions": ["debugger"],
+  "externally_connectable": { "ids": ["jioaddpafbaidcmdnnooljbkkhlaajpl"] },
   "host_permissions": ["http://127.0.0.1/*"],
   "optional_host_permissions": ["https://*/*"],
   "background": { "service_worker": "background.js", "type": "module" },

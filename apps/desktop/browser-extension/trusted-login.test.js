@@ -1,80 +1,62 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { clickTrustedLogin, hasTrustedLoginClick } from './trusted-login.js'
-const job = { origin: 'https://mail.example.com', tabId: 7, cachedLogin: true }, url = `${job.origin}/login`
-let api, active, hooks
-const event = () => ({ addListener: vi.fn(), removeListener: vi.fn() })
-beforeEach(() => {
-  hooks = { changed: event(), removed: event(), detached: event() }
-  active = vi.fn(async () => {})
-  api = {
-    permissions: { contains: vi.fn(async () => true), onRemoved: hooks.removed },
-    tabs: { get: vi.fn(async () => ({ url, incognito: false })), onUpdated: hooks.changed },
-    scripting: { executeScript: vi.fn(async () => [{ result: { status: 'ready', point: { x: 120, y: 200 } } }]) },
-    debugger: { attach: vi.fn(async () => {}), detach: vi.fn(async () => {}), sendCommand: vi.fn(async () => {}), onDetach: hooks.detached },
-  }
-  vi.stubGlobal('chrome', api)
+import { afterEach,beforeEach,expect,it,vi } from 'vitest'
+import { clickTrustedLogin,hasTrustedLoginClick,registerTrustedLoginBridge } from './trusted-login.js'
+import { TRUSTED_HELPER_ID } from './trusted-helper-id.js'
+import { TRUSTED_HELPER_REVISION } from './trusted-helper-revision.js'
+const origin='https://mail.example.com',url=`${origin}/login`,job={origin,tabId:7,cachedLogin:true}
+let api,listener,store,active,lastCap
+const callback=(message,sender={id:TRUSTED_HELPER_ID})=>new Promise(resolve=>{const accepted=listener(message,sender,resolve);if(!accepted)resolve(undefined)})
+beforeEach(()=>{
+  store={trustedLoginEnabled:true,sites:[origin]};active=vi.fn(async()=>{});lastCap=undefined
+  api={runtime:{onMessageExternal:{addListener:fn=>{listener=fn}},sendMessage:vi.fn(async(_,message)=>{
+    if(message.type==='status')return {installed:true,connected:true,revision:TRUSTED_HELPER_REVISION}
+    if(message.type==='login'){lastCap=message.cap;for(const mode of ['assert','target','validate_target','validate_target']){if(!(await callback({type:'trusted_login_validate',cap:message.cap,mode})).active)return {error:'permission'}}return {status:'submitted'}}
+  })},storage:{local:{get:vi.fn(async()=>store),set:vi.fn(async value=>Object.assign(store,value)),remove:vi.fn(async key=>delete store[key])}},permissions:{contains:vi.fn(async()=>true)},tabs:{get:vi.fn(async()=>({url,incognito:false}))},scripting:{executeScript:vi.fn(async()=>[{result:{status:'ready',point:{x:12,y:24}}}])}}
+  vi.stubGlobal('chrome',api);registerTrustedLoginBridge()
 })
-afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers() })
-describe('trusted login uses a narrow fixed command surface', () => {
-  it('is disabled without the optional browser grant, and requires per-task opt-in', async () => {
-    api.permissions.contains.mockResolvedValue(false)
-    expect(await hasTrustedLoginClick()).toBe(false)
-    await expect(clickTrustedLogin(job, url, active)).rejects.toThrow('permission')
-    await expect(clickTrustedLogin({ ...job, cachedLogin: false }, url, active)).rejects.toThrow('permission')
-    expect(api.debugger.attach).not.toHaveBeenCalled()
-    expect(api.debugger.sendCommand).not.toHaveBeenCalled()
+afterEach(()=>{vi.unstubAllGlobals();vi.useRealTimers()})
+it('uses a scoped RAM lease and ordered callbacks, no debugger in reader',async()=>{
+  expect(await clickTrustedLogin(job,url,active)).toBe('submitted')
+  expect(api.debugger).toBeUndefined()
+  expect(api.scripting.executeScript.mock.calls.map(([r])=>r.args[0])).toEqual(['target','validate_target','validate_target'])
+  expect(await callback({type:'trusted_login_validate',cap:lastCap,mode:'assert'})).toEqual({active:false})
+  expect(api.runtime.sendMessage).toHaveBeenLastCalledWith(TRUSTED_HELPER_ID,{type:'stop',cap:lastCap})
+})
+it('requires task opt in, connected helper and local switch',async()=>{
+  await expect(clickTrustedLogin({...job,cachedLogin:false},url,active)).rejects.toThrow('permission')
+  store.trustedLoginEnabled=false;expect(await hasTrustedLoginClick()).toBe(false)
+  await expect(clickTrustedLogin(job,url,active)).rejects.toThrow('permission')
+  expect(api.scripting.executeScript).not.toHaveBeenCalled()
+})
+it('rejects non-helper callers, missing capabilities and out-of-order callbacks',async()=>{
+  expect(await callback({type:'trusted_login_validate',cap:'guess',mode:'assert'},{id:'other'})).toBeUndefined()
+  api.runtime.sendMessage.mockImplementation(async(_,message)=>{
+    if(message.type==='status')return {installed:true,connected:true,revision:TRUSTED_HELPER_REVISION}
+    if(message.type==='login'){expect(await callback({type:'trusted_login_validate',cap:message.cap,mode:'target'})).toEqual({active:false});return {status:'submitted'}}
   })
-  it('only dispatches one button press/release, then detaches; never reads credentials or network', async () => {
-    expect(await clickTrustedLogin(job, url, active)).toBe('submitted')
-    expect(api.debugger.attach).toHaveBeenCalledExactlyOnceWith({ tabId: 7 }, '1.3')
-    expect(api.debugger.sendCommand.mock.calls.map(([, method, params]) => [method, params.type])).toEqual([
-      ['Input.dispatchMouseEvent', 'mousePressed'], ['Input.dispatchMouseEvent', 'mouseReleased'],
-    ])
-    expect(api.scripting.executeScript.mock.calls.map(([request]) => request.args[0])).toEqual(['target', 'validate_target', 'validate_target'])
-    expect(active).toHaveBeenCalledTimes(4)
-    expect(api.debugger.detach).toHaveBeenCalledExactlyOnceWith({ tabId: 7 })
-    expect(JSON.stringify(api.debugger.sendCommand.mock.calls)).not.toMatch(/Runtime|DOM|Network|value|cookie|password|token/)
-    for (const hook of Object.values(hooks)) expect(hook.removeListener).toHaveBeenCalledOnce()
+  await expect(clickTrustedLogin(job,url,active)).rejects.toThrow('tab_changed')
+})
+it.each(['permission','active','url','incognito'])('rechecks %s on each callback',async kind=>{
+  api.scripting.executeScript.mockImplementationOnce(async()=>{
+    if(kind==='permission')api.permissions.contains.mockResolvedValue(false)
+    if(kind==='active')active.mockRejectedValue(new Error('permission'))
+    if(kind==='url')api.tabs.get.mockResolvedValue({url:`${origin}/other`})
+    if(kind==='incognito')api.tabs.get.mockResolvedValue({url,incognito:true})
+    return [{result:{status:'ready',point:{x:12,y:24}}}]
   })
-  it('never detaches another debugger on an attach conflict', async () => {
-    api.debugger.attach.mockRejectedValue(new Error('already attached'))
-    await expect(clickTrustedLogin(job, url, active)).rejects.toThrow('already attached')
-    expect(api.debugger.detach).not.toHaveBeenCalled(); expect(api.debugger.sendCommand).not.toHaveBeenCalled()
-  })
-  it.each(['revocation', 'navigation', 'detachment'])('stops before release if %s occurs after press', async cause => {
-    api.debugger.sendCommand.mockImplementationOnce(async () => {
-      if (cause === 'revocation') hooks.removed.addListener.mock.calls[0][0]()
-      if (cause === 'navigation') hooks.changed.addListener.mock.calls[0][0](7, { url: `${job.origin}/other` })
-      if (cause === 'detachment') hooks.detached.addListener.mock.calls[0][0]({ tabId: 7 })
-    })
-    await expect(clickTrustedLogin(job, url, active)).rejects.toThrow('tab_changed')
-    expect(api.debugger.sendCommand).toHaveBeenCalledOnce()
-    expect(api.debugger.detach).toHaveBeenCalledOnce()
-  })
-  it('stops on changed, offscreen or masked targets rather than replaying coordinates', async () => {
-    for (const result of [{ status: 'changed' }, { status: 'needs_user' }, { status: 'ready', point: { x: NaN, y: 10 } }]) {
-      api.scripting.executeScript.mockResolvedValue([{ result }])
-      await expect(clickTrustedLogin(job, url, active)).rejects.toThrow('tab_changed')
-    }
-    expect(api.debugger.sendCommand).not.toHaveBeenCalled()
-  })
-  it('rejects cancellation, incognito and changed URLs before attachment', async () => {
-    active.mockRejectedValueOnce(new Error('permission'))
-    await expect(clickTrustedLogin(job, url, active)).rejects.toThrow('permission')
-    for (const tab of [{ url, incognito: true }, { url: `${job.origin}/other` }, { url: 'https://other.example.com/login' }]) {
-      api.tabs.get.mockResolvedValue(tab)
-      await expect(clickTrustedLogin(job, url, active)).rejects.toThrow('tab_changed')
-    }
-    expect(api.debugger.attach).not.toHaveBeenCalled()
-  })
-  it('expires a hung attach, cleans up late success, and never sends input', async () => {
-    vi.useFakeTimers()
-    let finish
-    api.debugger.attach.mockImplementationOnce(() => new Promise(resolve => { finish = resolve }))
-    const pending = clickTrustedLogin(job, url, active), assertion = expect(pending).rejects.toThrow('page_pending')
-    await vi.advanceTimersByTimeAsync(6001); await assertion
-    finish(); await Promise.resolve(); await Promise.resolve()
-    expect(api.debugger.detach).toHaveBeenCalledOnce()
-    expect(api.debugger.sendCommand).not.toHaveBeenCalled()
-  })
+  await expect(clickTrustedLogin(job,url,active)).rejects.toThrow('permission')
+  expect(api.scripting.executeScript).toHaveBeenCalledOnce()
+})
+it('consumes an explicit pending pairing nonce once, rejects expired requests',async()=>{
+  expect(await callback({type:'trusted_login_pair',nonce:'missing'})).toEqual({accepted:false})
+  store.trustedLoginPending={nonce:'fixture',expires:Date.now()+1000}
+  expect(await callback({type:'trusted_login_pair',nonce:'fixture'})).toEqual({accepted:true})
+  expect(await callback({type:'trusted_login_pair',nonce:'fixture'})).toEqual({accepted:false})
+  store.trustedLoginPending={nonce:'expired',expires:Date.now()-1}
+  expect(await callback({type:'trusted_login_pair',nonce:'expired'})).toEqual({accepted:false})
+})
+it('expires a hung helper and clears the capability',async()=>{
+  vi.useFakeTimers();api.runtime.sendMessage.mockImplementation(async(_,m)=>m.type==='status'?{installed:true,connected:true,revision:TRUSTED_HELPER_REVISION}:m.type==='login'?new Promise(()=>{}):undefined)
+  const pending=clickTrustedLogin(job,url,active),assertion=expect(pending).rejects.toThrow('page_pending')
+  await vi.advanceTimersByTimeAsync(6501);await assertion
+  expect(api.runtime.sendMessage.mock.calls.at(-1)[1].type).toBe('stop')
 })

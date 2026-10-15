@@ -9,7 +9,7 @@ pub fn parse(headers: &str) -> Result<(String, String, HashMap<String, String>, 
 fn parse_at_port(headers: &str, expected_port: u16) -> Result<(String, String, HashMap<String, String>, usize), String> {
     let mut lines = headers.split("\r\n");
     let words: Vec<_> = lines.next().unwrap_or("").split(' ').collect();
-    if words.len() != 3 || words[2] != "HTTP/1.1" || !["POST", "OPTIONS"].contains(&words[0]) || !["/pair", "/poll", "/reply", "/setup", "/active"].contains(&words[1]) { return Err("BROWSER_HTTP:不支持的请求".into()); }
+    if words.len() != 3 || words[2] != "HTTP/1.1" || !["POST", "OPTIONS"].contains(&words[0]) || !["/pair", "/poll", "/reply", "/setup", "/active", "/record"].contains(&words[1]) { return Err("BROWSER_HTTP:不支持的请求".into()); }
     let mut values = HashMap::new();
     for line in lines.filter(|line| !line.is_empty()) {
         let (name, value) = line.split_once(':').ok_or("BROWSER_HTTP:无效请求头")?;
@@ -67,7 +67,7 @@ pub fn respond(stream: &mut TcpStream, origin: Option<&str>, result: Result<Valu
     }
     #[test] fn active_task_route_is_accepted_before_authenticated_dispatch() {
         for method in ["POST", "OPTIONS"] {
-            assert!(parse(&headers("").replace("POST /poll", &format!("{method} /active"))).is_ok(), "current-task check must reach authenticated dispatcher");
+            for path in ["/active","/record"]{assert!(parse(&headers("").replace("POST /poll", &format!("{method} {path}"))).is_ok(), "current-task and recording checks must reach authenticated dispatcher");}
         }
         for path in ["/active/", "/active?token=secret", "/active_other", "/arbitrary"] {
             assert!(parse(&headers("").replace("/poll",path)).is_err());

@@ -16,7 +16,7 @@ export function prepareOperationTurn(selection: OperationSelection) {
   const method = resolveOperation(item, selection)
   if (method.scope === 'window') throw new Error('窗口方法需要在接管面板选择窗口并确认本次外发')
   const identity = JSON.stringify({ provider: data.companion.provider, trust: data.settings.trust })
-  return { scope: method.scope, message: methodInstruction(method), assertAllowed() {
+  return { scope: method.scope, goal: method.goal, message: methodInstruction(method), assertAllowed() {
     assertOperationAccess()
     const live = useLibraryStore.getState().data
     const current = live.companion.operations?.find(item => item.id === selection.id)

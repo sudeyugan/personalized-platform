@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { listen } from '@tauri-apps/api/event'
 import { useLibraryStore } from '../../state/useLibraryStore'
-import { browserAccessEnabled } from './authority'
+import { browserConnectionEnabled } from './authority'
 import { browserNative, configureBrowser } from './native'
 import { forgetBrowserTurn } from './taskSession'
 export function BrowserConnectionController() {
@@ -17,7 +17,7 @@ export function BrowserConnectionController() {
     // late cancel erasing a setup request just issued by the settings UI.
     const browser = useLibraryStore.getState().data.companion.browser
     forgetBrowserTurn('main');forgetBrowserTurn('desktop')
-    void configureBrowser(browserAccessEnabled(), browser?.sites ?? [], invalidate, browser?.cachedLoginSites ?? [],browser?.interactionSites??[]).catch(() => undefined)
+    void configureBrowser(browserConnectionEnabled(), browser?.sites ?? [], invalidate, browser?.cachedLoginSites ?? [],browser?.interactionSites??[]).catch(() => undefined)
   }, [ready, signature, authority])
   useEffect(() => {
     if (!('__TAURI_INTERNALS__' in window)) return

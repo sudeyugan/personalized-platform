@@ -40,7 +40,8 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
   const channel=options.conversationChannel??'main'
   const prepared=operation?undefined:prepareBrowserTurn(userText,data.companion,channel)
   const clean=prepared?.message??userText
-  const privateBrowserQuery = Boolean(resolveBrowserTask(clean, data.companion)) || operation?.scope === 'browser'
+  const taskText = operation?.goal ?? clean
+  const privateBrowserQuery = Boolean(resolveBrowserTask(taskText, data.companion)) || operation?.scope === 'browser'
   const displayTransient = (role: CompanionMessage['role'], content: string) => {
     if (options.signal?.aborted) return
     const item: CompanionMessage = { id: `transient-${crypto.randomUUID()}`, role, content, createdAt: new Date().toISOString(), localOnly: true }
@@ -49,11 +50,11 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
   if (operation || privateBrowserQuery || !data.settings.trust.retainConversationHistory) displayTransient('user', userText)
   const access = buildAgentAccess(data, temporaryCompanionWorkIds)
   const registry = createCompanionToolRegistry(options.onVisualState)
-  const localAction = resolveDirectAction(clean, registry.definitions(), data.companion.name)
+  const localAction = resolveDirectAction(taskText, registry.definitions(), data.companion.name)
   if (!localAction || !localRitualTools.has(localAction.name)) assertExternalAiAllowed(data.companion.provider.providerId, data.settings.trust, 'companion')
   const fullContext = applyContextPrivacy(buildAgentContext(data, access), data.settings.trust)
   const context = operation || privateBrowserQuery ? { page: operation ? 'operation-memory' : 'browser-query', companion: fullContext.companion, localTime: fullContext.localTime } : fullContext
-  const services = createLiveCompanionApplicationServices(data, access, options.requestPrivacyReview, options.signal, clean)
+  const services = createLiveCompanionApplicationServices(data, access, options.requestPrivacyReview, options.signal, taskText)
   const assertBrowserAllowed = privateBrowserQuery && data.companion.browser?.enabled ? services.assertBrowserAuthority : undefined
   const permissions = new AgentPermissionEngine(() => {
     const live = useLibraryStore.getState()

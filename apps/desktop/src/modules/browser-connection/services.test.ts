@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createSeedLibrary } from '../../domain/seed'
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { createBrowserServices } from './services'
+import { browserConnectionEnabled,browserAccessEnabled } from './authority'
+import { recordingDraft } from './recording/method'
+import { prepareOperationTurn } from '../operation-memory/turn'
 const mock=vi.hoisted(()=>({native:vi.fn(),configure:vi.fn()}))
 vi.mock('./native',()=>({browserNative:mock.native,configureBrowser:mock.configure}))
 vi.mock('../../infrastructure/libraryRepository',()=>({libraryRepository:{save:vi.fn(async()=>{})}}))
@@ -10,6 +13,25 @@ beforeEach(()=>{
   mock.configure.mockResolvedValue({epoch:3});mock.native.mockResolvedValue({verified:true,data:{text:'PRIVATE-FIXTURE'}})
 })
 describe('live browser authority',()=>{
+  it('runs a recorded method against its current goal, not negative safety prose or stale account data',async()=>{
+    const origin='https://mail.example.com',data=useLibraryStore.getState().data
+    data.companion.browser!.sites=[origin];data.companion.permissions.fullAccess=true
+    const draft=recordingDraft({id:'b'.repeat(64),origin,tabId:7,phase:'review',events:['inbox','unread'],remainingSeconds:1},'查看我的邮箱未读')
+    data.companion.operations=[{...draft,id:'fixture-method',revision:1,enabled:true,createdAt:'fixture',updatedAt:'fixture',runs:[]}]
+    const turn=prepareOperationTurn({id:'fixture-method',revision:1,parameters:{}})
+    expect(turn.message).toContain('不得');expect(turn.goal).toBe(draft.goal)
+    const service=createBrowserServices(turn.goal)
+    expect(service.browserTaskGoal).toMatchObject({objective:'mail',origins:[origin]})
+    await service.browserRead!({kind:'tabs',origin})
+    expect(mock.native.mock.calls[0][1].request).toEqual({kind:'tabs',origin})
+    data.companion.operations[0].enabled=false;expect(()=>turn.assertAllowed()).toThrow('已改变')
+  })
+  it('permits local connection without AI but never sends private query data while AI is off',async()=>{
+    useLibraryStore.getState().data.settings.trust.externalAiProcessing=false
+    expect(browserConnectionEnabled()).toBe(true);expect(browserAccessEnabled()).toBe(false)
+    await expect(createBrowserServices('查看example.com').browserRead!({kind:'tabs',origin:'https://example.com'})).rejects.toThrow('未开启')
+    expect(mock.configure).not.toHaveBeenCalled();expect(mock.native).not.toHaveBeenCalled()
+  })
   it('only injects login for a per-site opt-in once per turn; model/native arguments cannot grant it',async()=>{
     const service=createBrowserServices('查看example.com网页')
     await service.browserRead!({kind:'page',origin:'https://example.com',tabId:7,cachedLogin:true})

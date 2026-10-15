@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "一隅 · 可信登录点击（可选组件）",
+  "version": "0.1.0",
+  "description": "仅在你连接一隅只读扩展后，为已授权登录任务短暂派发可信点击；不读取密码、Cookie、网络或页面正文。调试权限本身较强，请知情安装。",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqepDMcO19o+ZyJAaT+ooxBCjNuJl76WClYmU4ySOx0rVIBJLlcdkDcQbXO2Zrk4tp2F2OyJzunP3tSDTeVFY5XkuDkdGKOVTs6+AQWeVojTKiZ9WYfn5i5KMUCJp6CdR3MSf7rQ/PcZI40QL6OT5dnteUKh4hOlupd6ibAuxHfqBp6UCYMR+dvFp1TnVMCZpOcf4KtL87CrbvsJJAqUfvCdCBRcMKGvApSOeaMHjJTiaIrvZQ5sCha+ZGPL1SapCVZ1mIdBaYhuT8/3OaoH5+LfKmX9Ixg1Qz3oPCfz10/jjzUmQd2lhla+d3r6NbjgEYiYwiAKoe46KNSdIwlHMSwIDAQAB",
+  "permissions": ["storage", "debugger"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_popup": "connect.html" },
+  "externally_connectable": { "ids": ["*"] },
+  "web_accessible_resources": [{ "resources": ["connect.html"], "extension_ids": ["*"] }],
+  "incognito": "not_allowed",
+  "minimum_chrome_version": "120"
+}

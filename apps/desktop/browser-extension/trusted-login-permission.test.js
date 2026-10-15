@@ -1,33 +1,26 @@
-import { fireEvent, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { bindTrustedLoginPermission } from './trusted-login-permission.js'
-let granted, api, checkbox, status
-beforeEach(() => {
-  granted = false
-  api = { permissions: { contains: vi.fn(async () => granted), request: vi.fn(async () => { granted = true; return true }), remove: vi.fn(async () => { granted = false; return true }) } }
-  vi.stubGlobal('chrome', api)
-  document.body.innerHTML = '<input id="permission" type="checkbox"><small></small>'
-  checkbox = document.querySelector('input'); status = document.querySelector('small')
+import { afterEach,beforeEach,expect,it,vi } from 'vitest'
+import { bindTrustedLoginPermission,connectTrustedHelper } from './trusted-login-permission.js'
+import { TRUSTED_HELPER_REVISION } from './trusted-helper-revision.js'
+import { TRUSTED_HELPER_ID } from './trusted-helper-id.js'
+let api,store,change,checkbox,status,connected
+beforeEach(()=>{
+  connected=true;store={trustedLoginEnabled:false};checkbox={checked:false,disabled:false,addEventListener:(_,fn)=>{change=fn}};status={textContent:''}
+  api={runtime:{id:'reader',sendMessage:vi.fn(async()=>({installed:true,connected,revision:TRUSTED_HELPER_REVISION}))},storage:{local:{get:vi.fn(async()=>store),set:vi.fn(async v=>Object.assign(store,v))}},tabs:{create:vi.fn(async()=>{})},permissions:{request:vi.fn(),remove:vi.fn()}}
+  vi.stubGlobal('chrome',api)
 })
-afterEach(() => { vi.unstubAllGlobals(); document.body.replaceChildren() })
-it('does not grant during mount; requests synchronously only on a user change and supports revocation', async () => {
-  bindTrustedLoginPermission(checkbox, status)
-  await waitFor(() => expect(status.textContent).toContain('默认关闭'))
-  expect(api.permissions.request).not.toHaveBeenCalled()
-  checkbox.checked = true; fireEvent.change(checkbox)
-  expect(api.permissions.request).toHaveBeenCalledExactlyOnceWith({ permissions: ['debugger'] })
-  await waitFor(() => expect(checkbox.disabled).toBe(false))
-  expect(checkbox.checked).toBe(true)
-  checkbox.checked = false; fireEvent.change(checkbox)
-  await waitFor(() => expect(checkbox.disabled).toBe(false))
-  expect(api.permissions.remove).toHaveBeenCalledExactlyOnceWith({ permissions: ['debugger'] })
-  expect(checkbox.checked).toBe(false)
+afterEach(()=>vi.unstubAllGlobals())
+it('only changes local opt-in, never requests non-optional debugger',async()=>{
+  bindTrustedLoginPermission(checkbox,status);await vi.waitFor(()=>expect(status.textContent).toContain('已连接'))
+  checkbox.checked=true;await change();expect(store.trustedLoginEnabled).toBe(true)
+  checkbox.checked=false;await change();expect(store.trustedLoginEnabled).toBe(false)
+  expect(api.permissions.request).not.toHaveBeenCalled();expect(api.permissions.remove).not.toHaveBeenCalled()
 })
-it('does not mark a declined grant as enabled', async () => {
-  api.permissions.request.mockResolvedValue(false)
-  bindTrustedLoginPermission(checkbox, status)
-  await waitFor(() => expect(status.textContent).toContain('默认关闭'))
-  checkbox.checked = true; fireEvent.change(checkbox)
-  await waitFor(() => expect(status.textContent).toContain('未授权'))
-  expect(checkbox.checked).toBe(false)
+it('cannot enable an unconnected component',async()=>{
+  connected=false;bindTrustedLoginPermission(checkbox,status);await vi.waitFor(()=>expect(status.textContent).toContain('连接'))
+  checkbox.checked=true;await change();expect(store.trustedLoginEnabled).toBe(false);expect(checkbox.checked).toBe(false)
+})
+it('opens the fixed helper pairing page with a single-use 3 minute nonce',async()=>{
+  const now=Date.now();await connectTrustedHelper()
+  expect(store.trustedLoginPending.expires).toBeGreaterThanOrEqual(now+180000)
+  expect(api.tabs.create.mock.calls[0][0].url).toBe(`chrome-extension://${TRUSTED_HELPER_ID}/connect.html#reader=reader&nonce=${store.trustedLoginPending.nonce}`)
 })

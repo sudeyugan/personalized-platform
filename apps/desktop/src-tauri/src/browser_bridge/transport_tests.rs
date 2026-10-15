@@ -26,6 +26,30 @@ fn current_task_check_round_trips_through_real_http_and_authenticated_dispatch()
     assert!(send("test-token").contains("\"active\":false"));worker.join().unwrap();
 }
 
+#[test]
+fn recording_round_trips_authenticated_http_and_refuses_content_or_revoked_capture() {
+    let listener=TcpListener::bind(("127.0.0.1",0)).unwrap();let address=listener.local_addr().unwrap();
+    let worker=std::thread::spawn(move||{
+        let mut state=connected();state.last_seen=Some(Instant::now());state.begin_recording("b".repeat(64),state.sites[0].clone(),7).unwrap();
+        for index in 0..5{
+            let(mut socket,_)=listener.accept().unwrap();let request=http::receive(&mut socket).unwrap();let origin=request.origin.clone();
+            if index==4{state.cancel();}
+            let reply=server::authenticated_request(&mut state,request);http::respond(&mut socket,Some(&origin),reply);
+        }
+    });
+    let send=|token:&str,body:serde_json::Value|{
+        let mut socket=TcpStream::connect(address).unwrap();socket.set_read_timeout(Some(Duration::from_secs(3))).unwrap();let body=body.to_string();
+        write!(socket,"POST /record HTTP/1.1\r\nHost: 127.0.0.1:{}\r\nX-Yiyu-Extension: chrome-extension://abcdefghijklmnopabcdefghijklmnop\r\nAuthorization: Bearer {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",policy::PORT,token,body.len(),body).unwrap();
+        let mut response=String::new();socket.read_to_string(&mut response).unwrap();response
+    };
+    let event=json!({"recordingId":"b".repeat(64),"action":"event","cue":"unread"});
+    assert!(send("test-token",event.clone()).contains("\"events\":[\"unread\"]"));
+    assert!(send("wrong-token",event.clone()).starts_with("HTTP/1.1 403"));
+    assert!(send("test-token",json!({"recordingId":"b".repeat(64),"action":"event","cue":"inbox","text":"fixture-private"})).starts_with("HTTP/1.1 403"));
+    assert!(send("test-token",json!({"recordingId":"b".repeat(64),"action":"pause"})).contains("\"phase\":\"paused\""));
+    assert!(send("test-token",event).starts_with("HTTP/1.1 403"));worker.join().unwrap();
+}
+
 /// Explicit integration host: fresh Edge + fictional inbox only, no Tauri app
 /// or user's pairing store. Parsing/authenticated dispatch/result validation
 /// are production code; the fixture's first pair is kept in memory only.

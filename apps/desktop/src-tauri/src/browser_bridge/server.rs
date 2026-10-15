@@ -38,6 +38,7 @@ fn handle(app: &AppHandle, state: &Mutex<BridgeState>, request: http::HttpReques
 pub(super) fn authenticated_request(state: &mut BridgeState, request: http::HttpRequest) -> Result<Value, String> {
     state.authenticate(&request.origin, &request.token)?;
     match request.path.as_str() {
+        "/record"=>state.record_message(serde_json::from_value(request.body).map_err(|_|"BROWSER_ARGUMENT:示范只能接收固定操作类型，不能携带正文")?),
         "/active" => {
             let id = request.body.get("id").and_then(Value::as_str).ok_or("BROWSER_ARGUMENT:缺少请求ID")?;
             let active=state.active_job(id);

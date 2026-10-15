@@ -25,11 +25,11 @@ const families = [
 function explicitSites(message: string) {
   const found = new Set<string>()
   let invalid = false
-  for (const match of message.matchAll(/https?:\/\/[^\s，。；;]+/gu)) {
+  for (const match of message.matchAll(/https?:\/\/[^\s，。；;"'\\<>）)]+/gu)) {
     try { const url = new URL(match[0]); if (url.protocol !== 'https:' || url.username || url.password || url.port) invalid = true; else found.add(browserOrigin(url.origin)) } catch { invalid = true }
   }
   // Match complete hostname tokens, not substrings such as qq.com in qq.com.evil.net.
-  const bare = message.replace(/https?:\/\/[^\s，。；;]+/gu, ' ')
+  const bare = message.replace(/https?:\/\/[^\s，。；;"'\\<>）)]+/gu, ' ')
   for (const match of bare.matchAll(/(?<![a-z0-9.-])(?:[a-z0-9-]+\.)+[a-z]{2,}(?![a-z0-9.-])/giu)) {
     try { found.add(browserOrigin(`https://${match[0]}`)) } catch { /* invalid token */ }
   }

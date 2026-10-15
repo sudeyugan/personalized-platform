@@ -14,8 +14,13 @@ describe('settings-only exact website connection',()=>{
   it('does not discover or approve other websites, wildcard/path/credential targets or closed authority',async()=>{
     for(const sites of [[],['https://other.example.com'],['https://*.example.com'],['https://user:password@mail.example.com']])await expect(connectBrowserSites(sites)).rejects.toThrow()
     await expect(connectBrowserSites(['https://mail.example.com'],'https://mail.example.com/path')).rejects.toThrow()
-    useLibraryStore.getState().data.settings.trust.externalAiProcessing=false;await expect(connectBrowserSites(['https://mail.example.com'])).rejects.toThrow('先开启')
+    useLibraryStore.getState().data.companion.browser!.enabled=false;await expect(connectBrowserSites(['https://mail.example.com'])).rejects.toThrow('先开启')
     expect(calls.native).not.toHaveBeenCalled()
+  })
+  it('can connect for local demonstration without authorising AI processing',async()=>{
+    useLibraryStore.getState().data.settings.trust.externalAiProcessing=false
+    await connectBrowserSites(['https://mail.example.com'])
+    expect(calls.configure).toHaveBeenCalledWith(true,['https://mail.example.com'],false,[],[])
   })
   it('does not queue a late request after settings change during native configuration',async()=>{
     calls.configure.mockImplementation(async()=>{useLibraryStore.getState().data.companion.browser!.sites=[]})
