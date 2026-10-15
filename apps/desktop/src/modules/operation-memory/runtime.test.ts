@@ -77,9 +77,17 @@ describe('operation methods use real runtime boundaries', () => {
     expect(f.proposeOperation).not.toHaveBeenCalled(); expect(result.audit[1].permissionDecision).toBe('denied')
   })
   it('rechecks a revoked method after asynchronous confirmation and before dispatch', async () => {
-    const f = fixture([call('web.read_page', { url: 'https://example.com/' })]); let valid = true
+    const f = fixture([call('todo.create', { title: '确认期间撤销的方法' })]); let valid = true
+    f.data.companion.permissions.writePolicy='always_ask'
     f.input.requestPermission.mockImplementation(async () => { valid = false; return true })
-    await expect(runAgent({ ...f.input, operation: { scope: 'public_web', assertAllowed: () => { if (!valid) throw new Error('方法已停用') } } })).rejects.toThrow('方法已停用')
+    await expect(runAgent({ ...f.input, operation: { scope: 'application', assertAllowed: () => { if (!valid) throw new Error('方法已停用') } } })).rejects.toThrow('方法已停用')
+    expect(f.input.requestPermission).toHaveBeenCalledOnce();expect(f.createTodo).not.toHaveBeenCalled()
+  })
+  it('rechecks automatic public method authority after the model returns and before dispatch',async()=>{
+    const f=fixture([]);let valid=true
+    f.generate.mockImplementationOnce(async()=>{valid=false;return call('web.read_page',{url:'https://example.com/'})})
+    await expect(runAgent({...f.input,operation:{scope:'public_web',assertAllowed:()=>{if(!valid)throw new Error('方法已停用')}}})).rejects.toThrow('方法已停用')
+    expect(f.input.requestPermission).not.toHaveBeenCalled()
     expect(f.readPublicPage).not.toHaveBeenCalled()
   })
   it('rejects late results after method changes and does not send them to the model', async () => {

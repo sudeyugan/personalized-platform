@@ -1,5 +1,11 @@
 # Learnings and Process Improvements
 
+### 2026-10-15：最小化窗口不等于后台非活动页，自动授权不等于伪造确认
+
+- Edge创建窗口时focused:false/state:minimized不足以证明后续不抢焦点；实际隔离测试发现tabs.create active:true可使该窗口focused:true。后台查询须同时使用非活动标签，并核对实际窗口状态、日常页不变及同资料登录态；虚构HttpOnly会话可验证共享而不读取用户Cookie。Headless状态不是原生Windows完全无感证明，任务栏/认证/调试UI限制要说明。
+- 自动化只省去重复人机交互：程序持有当前目标/模型/权限后，每轮仍脱敏/秘密阻断并复核撤销；不以requestReview恒真或confirmed:true冒充用户点过确认。公开读可传独立的permission-engine授权，审计人工确认字段仍保持真实；普通聊天隐私策略和首次权限不随查询默认改变。
+- 清理窗口必须有会话所有权证明，不可仅凭ID/标题或当前网址。用户恢复、移页、插入外来页时宁可交还保留；取消期间迟到的创建需要在回执后复核并仅清理可证明属于本次且仍最小化的窗口。
+
 ### 2026-10-15：浏览器权限不能靠预授夹具推断可部署
 
 - Chrome debugger带CannotBeOptional，原optional_permissions方案不可动态启用。必须核对官方API/权限实现和真实扩展架构，不拿预授成功当授权弹窗兼容证据；用户明确接受后拆为独立安装组件，不默增原读取端权限。

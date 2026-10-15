@@ -85,7 +85,7 @@ expect(current.messages).toHaveLength(1);expect(current.messages[0]).toMatchObje
     expect(reply).toContain('当前页面显示 2 封未读邮件')
     expect(reply).not.toMatch(/没有明确这个网站|浏览器连接检查|已授权网页|本次返回 1 项/)
     const reads=calls.native.mock.calls.map(([,args])=>args?.request).filter(Boolean)
-    expect(reads).toEqual([{kind:'tabs',origin:'https://webmail.example.com'},{kind:'page',origin:'https://webmail.example.com',tabId:42}])
+    expect(reads).toEqual([{kind:'tabs',origin:'https://webmail.example.com',queryMode:'background'},{kind:'page',origin:'https://webmail.example.com',tabId:42,queryMode:'background'}])
     expect(calls.generate).toHaveBeenCalledOnce()
     const request=calls.generate.mock.calls[0][0] as AgentModelRequest
     expect(request.messages.some(message=>message.content.includes('"objective":"mail"'))).toBe(true)
