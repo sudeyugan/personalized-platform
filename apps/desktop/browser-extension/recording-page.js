@@ -3,7 +3,7 @@
 export function maintainRecordingPage(lease) {
   const key = '__yiyuRecording', previous = globalThis[key]
   if (!lease) { previous?.close(); return { ready: false } }
-  if (previous?.id === lease.id) { previous.renew(lease); return { ready: true } }
+  if (previous?.id === lease.id) return { ready: previous.renew(lease) }
   previous?.close()
   const state = { id: lease.id, phase: lease.phase, expires: 0, timer: undefined }
   const send = payload => { if (Date.now() >= state.expires) return; void chrome.runtime.sendMessage({ type: 'recording_page', recordingId: state.id, ...payload }).catch(() => {}) }
@@ -20,6 +20,7 @@ export function maintainRecordingPage(lease) {
     panel.append(button)
   }
   shadow.append(panel); document.documentElement.append(host)
+  const visiblePanel = () => { const style = getComputedStyle(host); return host.isConnected && host.getClientRects().length > 0 && style.display !== 'none' && style.visibility !== 'hidden' && style.visibility !== 'collapse' && style.opacity !== '0' }
   const visible = node => !node.closest('[hidden],[aria-hidden="true"],[data-private]') && node.getClientRects().length > 0
   const name = node => {
     const label = node.getAttribute('aria-label') || node.getAttribute('title')
@@ -43,6 +44,7 @@ export function maintainRecordingPage(lease) {
     send({ action: 'event', cue })
   }
   const record = event => {
+    if (!visiblePanel()) { send({ action: 'stop' }); close(); return }
     if (!event.isTrusted || state.phase !== 'recording' || Date.now() >= state.expires || event.composedPath().includes(host)) return
     const node = event.target instanceof Element ? event.target.closest('button,a[href],[role="button"],[role="tab"]') : null
     if (event.type === 'submit') {
@@ -64,8 +66,8 @@ export function maintainRecordingPage(lease) {
   }
   const close = () => { clearTimeout(state.timer); document.removeEventListener('click', record, true); document.removeEventListener('submit', record, true); host.remove(); if (globalThis[key] === state) delete globalThis[key] }
   state.close = close
-  state.renew = next => { state.phase = next.phase; state.expires = Date.now() + Math.min(4500, next.ttlMs); clearTimeout(state.timer); state.timer = setTimeout(close, Math.min(4500, next.ttlMs)); label.textContent = state.phase === 'paused' ? '示范已暂停' : '正在示范 · 不录屏'; pause.textContent = state.phase === 'paused' ? '继续' : '暂停' }
-  globalThis[key] = state; state.renew(lease)
+  state.renew = next => { if (!visiblePanel()) { send({ action: 'stop' }); close(); return false } state.phase = next.phase; state.expires = Date.now() + Math.min(4500, next.ttlMs); clearTimeout(state.timer); state.timer = setTimeout(close, Math.min(4500, next.ttlMs)); label.textContent = state.phase === 'paused' ? '示范已暂停' : '正在示范 · 不录屏'; pause.textContent = state.phase === 'paused' ? '继续' : '暂停'; return true }
+  globalThis[key] = state; if (!state.renew(lease)) return { ready: false }
   document.addEventListener('click', record, true); document.addEventListener('submit', record, true)
   return { ready: true }
 }

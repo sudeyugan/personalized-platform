@@ -27,7 +27,8 @@ export async function maintainRecording(raw) {
     const before = await sameTab(lease)
     const replies = await chrome.scripting.executeScript({ target: { tabId: lease.tabId, allFrames: false }, world: 'ISOLATED', func: maintainRecordingPage, args: [raw] })
     await sameTab(lease)
-    if (current !== lease || replies[0]?.result?.ready !== true) return
+    if (current !== lease) return
+    if (replies[0]?.result?.ready !== true) throw new Error('page_access')
     lease.documentId = replies[0].documentId
     if (old?.id === lease.id && old.documentId && lease.documentId && old.documentId !== lease.documentId && lease.phase === 'recording') await post(lease, 'event', 'navigation')
     if (before.status === 'loading') return

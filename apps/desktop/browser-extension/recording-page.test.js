@@ -5,6 +5,7 @@ let api,handlers
 beforeEach(()=>{
   handlers={};vi.useFakeTimers();api={runtime:{sendMessage:vi.fn(async()=>({accepted:true}))}};vi.stubGlobal('chrome',api)
   const add=document.addEventListener.bind(document)
+  vi.spyOn(HTMLElement.prototype,'getClientRects').mockReturnValue([{}])
   vi.spyOn(document,'addEventListener').mockImplementation((type,fn,options)=>{if(['click','submit'].includes(type))handlers[type]=fn;add(type,fn,options)})
   document.body.innerHTML='<button id="inbox">收件箱</button><button id="unknown">A private subject</button><button id="delete">删除</button><form><input type="password"><input type="text"><button>登录</button></form><a href="https://example.com">下一页</a>'
   for(const node of document.querySelectorAll('button,input,form,a')){vi.spyOn(node,'getClientRects').mockReturnValue([{}]);if(node instanceof HTMLInputElement)Object.defineProperty(node,'value',{get:()=>{throw new Error('must never read credentials')},configurable:true})}
@@ -35,4 +36,15 @@ it('pause, short lease expiry and explicit cleanup remove capture',async()=>{
   maintainRecordingPage(lease);click('#inbox');expect(api.runtime.sendMessage).toHaveBeenCalledOnce()
   await vi.advanceTimersByTimeAsync(4501);click('#inbox');expect(api.runtime.sendMessage).toHaveBeenCalledOnce()
   expect(document.querySelector('[data-yiyu-recording]')).toBeNull();expect(globalThis.__yiyuRecording).toBeUndefined()
+})
+it('stops rather than recording silently when the visible notice is removed',()=>{
+  document.querySelector('[data-yiyu-recording]').remove();click('#inbox')
+  expect(api.runtime.sendMessage).toHaveBeenCalledExactlyOnceWith({type:'recording_page',recordingId:lease.id,action:'stop'})
+  expect(globalThis.__yiyuRecording).toBeUndefined()
+})
+it('fails renewal if the page hides the recording notice',()=>{
+  document.querySelector('[data-yiyu-recording]').style.display='none'
+  expect(maintainRecordingPage(lease)).toEqual({ready:false})
+  expect(api.runtime.sendMessage).toHaveBeenCalledExactlyOnceWith({type:'recording_page',recordingId:lease.id,action:'stop'})
+  expect(document.querySelector('[data-yiyu-recording]')).toBeNull()
 })
