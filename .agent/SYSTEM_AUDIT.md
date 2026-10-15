@@ -1,5 +1,7 @@
 # Agent Development System Audit
 
+2026-10-15最终收口：da9代码远端run38668125819已completed/success（216文件1218前端、163Rust/13默认忽略、docs/类型/lint/Webbuild），与本地源SHA一致，首笔f467另run也成功。最后Release2m57s/NSIS与保护桌面更新退出0/YIYU_DELIVERY_UPDATED、57应用源镜像一致，最终EXE/NSIS新哈希见PROJECT_STATE，不杀用户进程或提交产物。权限分离/短期cap/录制闭合语义、可见性与取消边界、实际虚构Edge/真实TCP/存储失败回执和旧方法兼容已验；真实用户账号/密码库/安装弹窗仍自然回验。无新依赖/流程禁用/门禁放宽，正式状态/DEC095待验及R056-R057保持；最后仅同步文档，不为状态记录反复构建/全量。
+
 2026-10-15收尾审查补充：f467a1a已正常推送/ls-remote一致，远端38667608283开始检查；末尾发现网页移除浮条可留下监听，已补事件与续期可见性检查/失败停止原生会话。2文件11定向与实际双扩展虚构Edge的移除浮条→可信点击→无新增事件/停止通过，保持密码/输入排除/同站导航/跨站停止与原组件权限。此后只重建候选和新main CI，不重跑本地全量；最终交付与新CI结论见PROJECT_STATE，不用首笔CI替代补丁验收。
 
 2026-10-15 DEC-096兼容补正/DEC-097增量复核：debugger不可optional，用户明确接受独立组件并批准Edge本机非视觉示范。只读0.4.2无debugger；独立0.1稳定公开key ID、用户一次安装/nonce连接、本机使用开关、6秒RAM cap/四阶段回问当前native权限与现场目标；组件无网页权限，tabs.get无URL是真实Edge失败根因之一，改为tab身份/隐身检查，URL由有host权限的只读端每次复核，不加tabs/host大权限。真实双扩展虚构Edge已通过旧脚本拒绝POST0→一次Input POST1→continued，原读取端仍无debugger；不把预授虚构站点/组件加载当实际安装弹窗或密码库验收。9fb远端CI run38535530950已completed/success，说明Channel修复有效，不代替本轮新代码门禁。
