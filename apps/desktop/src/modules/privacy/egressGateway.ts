@@ -5,6 +5,8 @@ import type { PrivacyFinding, PrivacyReviewRequest } from './types'
 
 interface EgressGatewayOptions {
   assertAllowed?: () => void
+  /** Program-owned current query authority, rechecked after sanitizing. Never a model argument or a bypass for secrets. */
+  authorizeSanitizedQuery?: () => void
   reviewEachRequest?: boolean
   trust: LibraryData['settings']['trust']
   destination: string
@@ -13,9 +15,11 @@ interface EgressGatewayOptions {
 }
 
 export async function protectOutboundText(text: string, options: EgressGatewayOptions) {
-  if (!options.trust.outboundProtection) return text
+  options.assertAllowed?.()
+  if (!options.trust.outboundProtection && !options.authorizeSanitizedQuery) return text
   const result = new PrivacySession(options.trust.privateDictionary).sanitize(text)
-  const needsReview = Boolean(options.requestReview) && (options.trust.outboundReviewMode === 'strict' || result.findings.length > 0)
+  options.authorizeSanitizedQuery?.()
+  const needsReview = !options.authorizeSanitizedQuery && Boolean(options.requestReview) && (options.trust.outboundReviewMode === 'strict' || result.findings.length > 0)
   if (needsReview) {
     const findingCounts = result.findings.reduce<PrivacyReviewRequest['findingCounts']>((counts, finding) => ({
       ...counts,
@@ -29,6 +33,7 @@ export async function protectOutboundText(text: string, options: EgressGatewayOp
     })
     if (!allowed) throw new Error('已取消发送，内容没有离开本机。')
   }
+  options.assertAllowed?.()
   return result.text
 }
 
@@ -60,7 +65,8 @@ export function createPrivacyProtectedProvider(provider: AgentModelProvider, opt
         return result.text
       }
       const protectedRequest = mapStrings(request, sanitize) as AgentModelRequest
-      const needsReview = (!reviewed || options.reviewEachRequest) && Boolean(options.requestReview) && (options.trust.outboundReviewMode === 'strict' || findings.length > 0)
+      options.authorizeSanitizedQuery?.()
+      const needsReview = !options.authorizeSanitizedQuery && (!reviewed || options.reviewEachRequest) && Boolean(options.requestReview) && (options.trust.outboundReviewMode === 'strict' || findings.length > 0)
       if (needsReview) {
         const findingCounts = findings.reduce<PrivacyReviewRequest['findingCounts']>((counts, finding) => ({ ...counts, [finding.kind]: (counts[finding.kind] ?? 0) + 1 }), {})
         const previewSource = protectedRequest.messages.at(-1)?.content ?? ''

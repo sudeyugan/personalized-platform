@@ -263,7 +263,7 @@ export async function runAgent(input: RunAgentInput) {
       ? input.requestPermission ? '用户取消了这次操作' : '当前界面无法显示操作确认'
       : decision.reason
     if (permitted && writeKey) methodWrites.add(writeKey)
-    const result = permitted ? await withCancellation(input.registry.execute(call, input.services, { confirmed }), input.signal) : permissionDeniedResult(denialReason)
+    const result = permitted ? await withCancellation(input.registry.execute(call, input.services, { confirmed, automaticPermission:decision.allowed }), input.signal) : permissionDeniedResult(denialReason)
     guard()
     const durationMs = Math.max(0, Math.round(performance.now() - started))
     const auditRecord: AgentAuditRecord = {

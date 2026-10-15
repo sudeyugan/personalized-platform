@@ -65,7 +65,7 @@ fn reference(id:&str)->bool{id.len()==36&&id.bytes().all(|b|b.is_ascii_hexdigit(
 #[cfg(test)] mod tests {
     use super::*; use serde_json::json;
     #[test] fn observation_controls_and_action_receipts_fail_closed() {
-        let request=Request{kind:"observe".into(),origin:"https://example.com".into(),tab_id:Some(1),cached_login:false,target_url:None,interaction:None};
+        let request=Request{kind:"observe".into(),origin:"https://example.com".into(),tab_id:Some(1),cached_login:false,query_mode:None,target_url:None,interaction:None};
         let base=json!({"tabId":1,"origin":"https://example.com","url":"https://example.com/notices","title":"门户","text":"通知 2 条","links":[],"truncated":false,"loading":false,"observationId":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","controls":[{"id":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","name":"通知","operation":"invoke"}]});
         assert!(validate(&request,base.clone()).is_ok());
         let mut bad=base.clone();bad["controls"][0]["operation"]=json!("javascript");assert!(validate(&request,bad).is_err());
@@ -75,7 +75,7 @@ fn reference(id:&str)->bool{id.len()==36&&id.bytes().all(|b|b.is_ascii_hexdigit(
         assert!(validate(&action,json!({"tabId":1,"origin":"https://example.com","actionStatus":"completed"})).is_err());
     }
     #[test] fn login_metadata_is_bounded_and_never_accepts_credentials_or_ungrounded_completion() {
-        let mut request=Request{kind:"page".into(),origin:"https://example.com".into(),tab_id:Some(1),cached_login:false,target_url:None,interaction:None};
+        let mut request=Request{kind:"page".into(),origin:"https://example.com".into(),tab_id:Some(1),cached_login:false,query_mode:None,target_url:None,interaction:None};
         let base=json!({"tabId":1,"origin":"https://example.com","url":"https://example.com/login","title":"登录","text":"","links":[],"truncated":false,"loading":false});
         for state in ["not_allowed","unfilled","needs_user"] { let mut value=base.clone();value["loginState"]=json!(state);assert!(validate(&request,value).is_ok()); }
         for state in ["continued","pending","submit_rejected","success","password=secret"] {let mut value=base.clone();value["loginState"]=json!(state);assert!(validate(&request,value).is_err());}
@@ -85,13 +85,13 @@ fn reference(id:&str)->bool{id.len()==36&&id.bytes().all(|b|b.is_ascii_hexdigit(
         value["password"]=json!("fictional-secret");assert!(validate(&request,value).is_err());
     }
     #[test] fn page_identity_and_fields_fail_closed() {
-        let request = Request {kind:"page".into(),origin:"https://example.com".into(),tab_id:Some(1),cached_login:false,target_url:None,interaction:None};
+        let request = Request {kind:"page".into(),origin:"https://example.com".into(),tab_id:Some(1),cached_login:false,query_mode:None,target_url:None,interaction:None};
         let base = json!({"tabId":1,"origin":"https://example.com","title":"示例","url":"https://example.com/mail","text":"虚构页面","links":[],"truncated":false,"loading":false});
         assert!(validate(&request, base.clone()).is_ok());
         for (key, value) in [("tabId", json!(2)),("origin",json!("https://evil.com")),("url",json!("https://example.com/?token=secret")),("cookie",json!("secret"))] { let mut bad=base.clone(); bad[key]=value; assert!(validate(&request,bad).is_err()); }
     }
     #[test] fn incomplete_or_unknown_followed_status_is_not_offline() {
-        let request=Request {kind:"followed_live".into(),origin:"https://live.bilibili.com".into(),tab_id:None,cached_login:false,target_url:None,interaction:None};
+        let request=Request {kind:"followed_live".into(),origin:"https://live.bilibili.com".into(),tab_id:None,cached_login:false,query_mode:None,target_url:None,interaction:None};
         assert!(validate(&request,json!({"loggedIn":true,"rooms":[],"complete":true,"checked":0,"total":0})).is_ok());
         assert!(validate(&request,json!({"loggedIn":true,"rooms":[],"complete":true,"checked":0,"total":null})).is_err());
         assert!(validate(&request,json!({"loggedIn":false,"rooms":[],"complete":false,"checked":0,"total":null})).is_err());

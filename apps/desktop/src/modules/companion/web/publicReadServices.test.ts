@@ -13,11 +13,22 @@ beforeEach(() => {
   mocks.invoke.mockReset().mockResolvedValue({}); mocks.protect.mockReset().mockImplementation(async value => value)
 })
 describe('public request authority and protected egress', () => {
-  it('requires explicit confirmation and existing internet authority', async () => {
-    await expect(createPublicReadServices().readPublicPage!('https://example.com', false)).rejects.toThrow('未确认')
+  it('requires permission-engine approval and existing internet authority', async () => {
+    await expect(createPublicReadServices().readPublicPage!('https://example.com', false)).rejects.toThrow('未授权')
     mocks.state.data.companion.permissions.internet = false
     await expect(createPublicReadServices().readPublicPage!('https://example.com', true)).rejects.toThrow('授权已关闭')
     expect(mocks.invoke).not.toHaveBeenCalled()
+  })
+  it('uses the real gateway without repeated strict-mode prompts and still blocks private URL data', async () => {
+    const {protectOutboundText}=await import('../../privacy/egressGateway')
+    mocks.protect.mockImplementation(protectOutboundText)
+    mocks.state.data.settings.trust.outboundReviewMode='strict'
+    const review=vi.fn(async()=>true)
+    await createPublicReadServices(review).readPublicPage!('https://example.com/public',true)
+    expect(review).not.toHaveBeenCalled();expect(mocks.invoke).toHaveBeenCalledOnce()
+    mocks.invoke.mockClear();mocks.state.data.settings.trust.privateDictionary=[{id:'fixture',value:'private-fixture',category:'person',enabled:true}]
+    await expect(createPublicReadServices(review).readPublicPage!('https://example.com/private-fixture',true)).rejects.toThrow('已停止读取')
+    expect(mocks.invoke).not.toHaveBeenCalled();expect(review).not.toHaveBeenCalled()
   })
   it('rechecks after privacy review and never silently follows sanitized URLs', async () => {
     mocks.protect.mockImplementation(async value => { mocks.state.data.companion.permissions.internet = false; return value })

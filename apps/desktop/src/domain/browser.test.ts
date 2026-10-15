@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { normalizeBrowser,browserPageUrl } from './browser'
 describe('separate per-site cached login consent',()=>{
+  it('defaults to background sanitized queries and preserves explicit opt-outs across serialization',()=>{
+    expect(normalizeBrowser()).not.toHaveProperty('foregroundQueries')
+    expect(normalizeBrowser()).not.toHaveProperty('confirmQueryEgress')
+    const settings={enabled:true,sites:['https://mail.example.com'],foregroundQueries:true,confirmQueryEgress:true}
+    expect(normalizeBrowser(JSON.parse(JSON.stringify(settings)))).toMatchObject(settings)
+    expect(normalizeBrowser({...settings,foregroundQueries:false,confirmQueryEgress:false})).not.toHaveProperty('confirmQueryEgress')
+  })
   it('does not grant login when normalizing an old/empty browser configuration',()=>{
     expect(normalizeBrowser({enabled:true,sites:['https://mail.example.com']})).toEqual({enabled:true,sites:['https://mail.example.com']})
     expect(normalizeBrowser()).toEqual({enabled:false,sites:[]})

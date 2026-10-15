@@ -1,6 +1,6 @@
 export type BrowserSiteRole = 'general' | 'mail' | 'portal'
 export interface BrowserSiteProfile { origin: string; role: BrowserSiteRole; label?: string; entryUrl?: string }
-export interface BrowserSettings { enabled: boolean; sites: string[]; cachedLoginSites?: string[]; interactionSites?: string[]; profiles?: BrowserSiteProfile[]; preferredSites?:Partial<Record<BrowserSiteRole,string>> }
+export interface BrowserSettings { enabled: boolean; sites: string[]; cachedLoginSites?: string[]; interactionSites?: string[]; profiles?: BrowserSiteProfile[]; preferredSites?:Partial<Record<BrowserSiteRole,string>>; foregroundQueries?:boolean; confirmQueryEgress?:boolean }
 export const bilibiliBrowserSites = ['https://live.bilibili.com', 'https://api.bilibili.com', 'https://api.live.bilibili.com']
 export const bilibiliSetupSites = [...bilibiliBrowserSites, 'https://t.bilibili.com', 'https://www.bilibili.com']
 export function browserOrigin(raw: string) {
@@ -17,7 +17,7 @@ export function normalizeBrowser(value?: Partial<BrowserSettings>): BrowserSetti
     try { return [{ origin:profile.origin,role:profile.role,label:typeof profile.label === 'string' ? profile.label.trim().slice(0,60) : undefined,entryUrl:profile.entryUrl ? browserPageUrl(profile.entryUrl,profile.origin) : undefined }] } catch { return [] }
   }).filter((profile,index,all)=>all.findIndex(item=>item.origin===profile.origin)===index) : []
   const preferredSites=Object.fromEntries((['mail','portal','general'] as const).flatMap(role=>{const site=value?.preferredSites?.[role];return typeof site==='string'&&sites.includes(site)?[[role,site]]:[]}))
-  return { enabled: value?.enabled === true, sites: [...new Set(sites)], ...(cachedLoginSites.length ? { cachedLoginSites } : {}),...(interactionSites.length?{interactionSites}:{}),...(profiles.length?{profiles}:{}),...(Object.keys(preferredSites).length?{preferredSites}:{}) }
+  return { enabled: value?.enabled === true, sites: [...new Set(sites)], ...(cachedLoginSites.length ? { cachedLoginSites } : {}),...(interactionSites.length?{interactionSites}:{}),...(profiles.length?{profiles}:{}),...(Object.keys(preferredSites).length?{preferredSites}:{}),...(value?.foregroundQueries===true?{foregroundQueries:true}:{}),...(value?.confirmQueryEgress===true?{confirmQueryEgress:true}:{}) }
 }
 export function browserPageUrl(raw: string, origin: string) {
   const url=new URL(raw)

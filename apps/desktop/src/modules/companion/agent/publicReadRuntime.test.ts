@@ -33,10 +33,11 @@ function fixture(responses: AgentModelResponse[] = []) {
 const call = (name: string, args: Record<string, unknown>, id = crypto.randomUUID()): AgentModelResponse => ({ type: 'tool_call', call: { name, arguments: args, id } })
 
 describe('public read tools and bounded runtime', () => {
-  it.each(['web.read_page', 'web.read_json', 'web.live_status'])('%s needs target confirmation even with full program access and is not persisted in tasks', name => {
+  it.each(['web.read_page', 'web.read_json', 'web.live_status'])('%s uses existing internet approval without repeated confirmation and is not persisted in tasks', name => {
     const f = fixture(); f.data.companion.permissions.fullAccess = true
     const tool = f.input.registry.lookup(name)!.definition
-    expect(f.input.permissions.check(tool, {})).toMatchObject({ allowed: false, requiresConfirmation: true })
+    expect(f.input.permissions.check(tool, {})).toMatchObject({ allowed: true })
+    expect(f.input.permissions.check(tool, {}).requiresConfirmation).not.toBe(true)
     expect(isTaskToolEligible(tool)).toBe(false)
   })
   it('queries an exact streamer through search and actual read without model/browser', async () => {
@@ -45,20 +46,21 @@ describe('public read tools and bounded runtime', () => {
     expect(f.queryLiveStatus).toHaveBeenCalledExactlyOnceWith(url, name, true)
     expect(result.text).toContain('正在直播'); expect(result.text).toContain('北京时间')
     expect(f.generate).not.toHaveBeenCalled(); expect(result.audit.map(item => item.toolName)).toEqual(['web.search', 'web.live_status'])
+    expect(f.input.requestPermission).not.toHaveBeenCalled();expect(result.audit.every(item=>!item.confirmed)).toBe(true)
   })
   it('does not query without internet permission or open the computer', async () => {
     const f = fixture(); f.input.message = `${name}开播了没`; f.data.companion.permissions.internet = false
     const result = await runAgent(f.input)
     expect(f.searchWeb).not.toHaveBeenCalled(); expect(f.queryLiveStatus).not.toHaveBeenCalled(); expect(result.text).toContain('未授权')
   })
-  it('stops on cancelled target confirmation instead of trying another source', async () => {
+  it('does not invent a confirmation requirement or mark automatic approval as user confirmation', async () => {
     const f = fixture([call('web.read_page', { url: page.url })]); f.input.requestPermission.mockResolvedValue(false)
     const result = await runAgent(f.input)
-    expect(f.readPublicPage).not.toHaveBeenCalled(); expect(f.generate).toHaveBeenCalledTimes(1); expect(result.text).toContain('没有继续')
+    expect(f.input.requestPermission).not.toHaveBeenCalled();expect(f.readPublicPage).toHaveBeenCalledExactlyOnceWith(page.url,true);expect(result.audit[0].confirmed).toBe(false)
   })
-  it('rechecks permissions after confirmation', async () => {
+  it('rechecks permissions after the model returns, before a public read', async () => {
     const f = fixture([call('web.read_page', { url: page.url })])
-    f.input.requestPermission.mockImplementation(async () => { f.data.companion.permissions.internet = false; return true })
+    f.generate.mockImplementationOnce(async()=>{f.data.companion.permissions.internet=false;return call('web.read_page',{url:page.url})})
     await runAgent(f.input); expect(f.readPublicPage).not.toHaveBeenCalled()
   })
   it('can adapt from HTML to JSON but rejects repeated source/field and injected writes', async () => {

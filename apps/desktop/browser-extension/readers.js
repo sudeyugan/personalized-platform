@@ -2,6 +2,7 @@ import { BILIBILI_SITES, permitted, publicUrl, siteOrigin } from './policy.js'
 import { snapshotPage } from './page.js'
 import { continueCachedLogin } from './login.js'
 import { ensureTaskPage,waitTaskPage,taskControls,performTaskAction } from './task-driver.js'
+import { queryTabs,assertQueryTab } from './query-window.js'
 
 function failure(code) { throw new Error(code) }
 async function requireSites(sites) { for (const site of sites) if (!await permitted(site)) failure('permission') }
@@ -45,16 +46,20 @@ async function followedLive() {
 }
 export async function readJob(job, assertActive = async () => { throw new Error('failed') }) {
   if (!job || !['tabs', 'page', 'followed_live','ensure','observe','act'].includes(job.kind)) failure('failed')
+  if(job.queryMode!=null&&!['background','foreground'].includes(job.queryMode))failure('failed')
+  const nativeActive=assertActive
+  assertActive=async current=>{await nativeActive(current);if(current.queryMode&&['page','observe','act'].includes(current.kind))await assertQueryTab(current)}
   if (job.cachedLogin && (!['page','observe'].includes(job.kind) || job.cachedLogin !== true)) failure('failed')
   const site = siteOrigin(job.origin); await requireSites([site])
   if(job.kind==='ensure')return ensureTaskPage(job,assertActive)
   if (job.kind === 'followed_live') { if (site !== BILIBILI_SITES[0] || job.tabId != null) failure('failed'); return followedLive() }
   if (job.kind === 'tabs') {
-    const tabs = await chrome.tabs.query({ url: `${site}/*` })
+    const tabs = job.queryMode?await queryTabs(job):await chrome.tabs.query({ url: `${site}/*` })
     await requireSites([site])
     return tabs.filter(tab => !tab.incognito && tab.url && new URL(tab.url).origin === site).slice(0, 20).map(tab => ({ tabId: tab.id, origin: site, title: (tab.title ?? '').slice(0, 200), url: publicUrl(tab.url) }))
   }
   if (!Number.isSafeInteger(job.tabId) || job.tabId < 0) failure('failed')
+  if(job.queryMode)await assertQueryTab(job)
   if(job.kind==='act')return performTaskAction(job,assertActive)
   await waitTaskPage(job,assertActive)
   const loginState = await continueCachedLogin(job, assertActive)

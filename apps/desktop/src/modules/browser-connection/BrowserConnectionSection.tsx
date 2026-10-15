@@ -8,6 +8,7 @@ import { connectBrowserSites } from './setup'
 import { BrowserSiteCard } from './BrowserSiteCard'
 import { TrustedClickInstallation } from './TrustedClickInstallation'
 import { BrowserRecordingCard } from './recording/BrowserRecordingCard'
+import { BrowserQueryOptions } from './BrowserQueryOptions'
 import './browser.css'
 export function BrowserConnectionSection() {
   const settings = useLibraryStore(state => state.data.companion.browser)
@@ -52,6 +53,7 @@ export function BrowserConnectionSection() {
         {code && <label>连接码（10分钟内有效，请复制到Edge扩展）<input className="browser-code" readOnly value={code} onFocus={event => event.currentTarget.select()} autoComplete="off" /></label>}
         </div></details>
         <TrustedClickInstallation/>
+        <BrowserQueryOptions/>
         <div className="browser-sites-heading"><strong>已添加的网站 <small>{sites.length}</small></strong>{sites.length > 0 && <button type="button" disabled={blocked} onClick={() => void run(async()=>{if(!status?.paired)throw new Error('请先完成上方Edge扩展连接，已添加的网站会保留。');const targets=waiting.length?waiting:sites;await queue(targets,targets.length===1?targets[0]:undefined)})}><Link2 size={13}/>连接已添加网站</button>}</div>
         <div className="browser-sites">{sites.map(value => <BrowserSiteCard key={value} site={value} connected={status?.browserSites.includes(value)??false} updateRequired={status?.updateRequired} busy={blocked} onConnect={()=>void run(()=>queue([value],value))}/>)}</div>
         {!sites.length && <div className="browser-sites-empty"><Globe2 size={22}/><span>添加一个常用网站<small>邮箱、学校门户或其他已登录网站</small></span></div>}

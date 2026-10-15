@@ -61,6 +61,8 @@ export interface AgentToolDefinition {
 
 export interface AgentToolExecutionContext {
   confirmed: boolean
+  /** Current permission-engine grant, not a fabricated user confirmation. */
+  automaticPermission?: boolean
 }
 
 export interface AgentToolCall {

@@ -23,7 +23,7 @@ describe('live browser authority',()=>{
     const service=createBrowserServices(turn.goal)
     expect(service.browserTaskGoal).toMatchObject({objective:'mail',origins:[origin]})
     await service.browserRead!({kind:'tabs',origin})
-    expect(mock.native.mock.calls[0][1].request).toEqual({kind:'tabs',origin})
+    expect(mock.native.mock.calls[0][1].request).toEqual({kind:'tabs',origin,queryMode:'background'})
     data.companion.operations[0].enabled=false;expect(()=>turn.assertAllowed()).toThrow('已改变')
   })
   it('permits local connection without AI but never sends private query data while AI is off',async()=>{
@@ -31,6 +31,14 @@ describe('live browser authority',()=>{
     expect(browserConnectionEnabled()).toBe(true);expect(browserAccessEnabled()).toBe(false)
     await expect(createBrowserServices('查看example.com').browserRead!({kind:'tabs',origin:'https://example.com'})).rejects.toThrow('未开启')
     expect(mock.configure).not.toHaveBeenCalled();expect(mock.native).not.toHaveBeenCalled()
+  })
+  it('binds automatic sanitized query sending to the current website/provider/privacy settings',()=>{
+    const authorized=createBrowserServices('查看example.com网页')
+    expect(()=>authorized.authorizeBrowserQueryEgress!()).not.toThrow()
+    expect(()=>createBrowserServices('你好').authorizeBrowserQueryEgress!()).toThrow('没有自动')
+    useLibraryStore.getState().setCompanionBrowser({confirmQueryEgress:true})
+    expect(()=>authorized.authorizeBrowserQueryEgress!()).toThrow('已改变')
+    expect(()=>createBrowserServices('查看example.com网页').authorizeBrowserQueryEgress!()).toThrow('没有自动')
   })
   it('only injects login for a per-site opt-in once per turn; model/native arguments cannot grant it',async()=>{
     const service=createBrowserServices('查看example.com网页')
@@ -68,7 +76,14 @@ describe('live browser authority',()=>{
     await expect(createBrowserServices('你好').browserRead!({kind:'tabs',origin:'https://example.com'})).rejects.toThrow('没有明确')
     expect(mock.native).not.toHaveBeenCalled()
     await createBrowserServices('查看example.com网页').browserRead!({kind:'tabs',origin:'https://example.com'})
-    expect(mock.native).toHaveBeenCalledWith('browser_bridge_request',{request:{kind:'tabs',origin:'https://example.com'},expectedEpoch:3})
+    expect(mock.native).toHaveBeenCalledWith('browser_bridge_request',{request:{kind:'tabs',origin:'https://example.com',queryMode:'background'},expectedEpoch:3})
+  })
+  it('uses settings, not model arguments, to choose the dedicated query window mode',async()=>{
+    await createBrowserServices('查看example.com').browserRead!({kind:'tabs',origin:'https://example.com',queryMode:'foreground'})
+    expect(mock.native.mock.calls[0][1].request.queryMode).toBe('background')
+    useLibraryStore.getState().setCompanionBrowser({foregroundQueries:true})
+    await createBrowserServices('查看example.com').browserRead!({kind:'tabs',origin:'https://example.com',queryMode:'background'})
+    expect(mock.native.mock.calls[1][1].request.queryMode).toBe('foreground')
   })
   it('discards late private text if provider or privacy changed',async()=>{
     mock.native.mockImplementation(async()=>{const data=useLibraryStore.getState().data;useLibraryStore.setState({data:{...data,settings:{...data.settings,trust:{...data.settings.trust,externalAiProcessing:false}}}});return {verified:true,data:{text:'PRIVATE-LATE'}}})

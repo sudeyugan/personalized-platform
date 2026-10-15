@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { browserNativeError } from './nativeError'
 export interface BrowserConnectionStatus { enabled: boolean; paired: boolean; online: boolean; sites: string[]; browserSites: string[]; epoch: number; extensionVersion?:string|null; expectedVersion?:string; extensionPath?:string|null; updateRequired?:boolean; setupPending?:boolean }
 export interface BrowserInteraction { observationId:string; elementId:string; operation:'invoke'|'search'; query?:string }
-export interface BrowserReadRequest { kind: 'tabs' | 'page' | 'followed_live' | 'ensure' | 'observe' | 'act'; origin: string; tabId?: number; cachedLogin?: boolean; targetUrl?:string; interaction?:BrowserInteraction }
+export interface BrowserReadRequest { kind: 'tabs' | 'page' | 'followed_live' | 'ensure' | 'observe' | 'act'; origin: string; tabId?: number; cachedLogin?: boolean; targetUrl?:string; interaction?:BrowserInteraction; queryMode?:'background'|'foreground' }
 export interface BrowserSnapshot { data: unknown; origin: string; fetchedAtEpochMs: number; untrusted: true; privateBrowser: true; verified: true }
 export function browserNative<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   if (!('__TAURI_INTERNALS__' in window)) return Promise.reject(new Error('浏览器连接仅在Windows桌面版可用'))

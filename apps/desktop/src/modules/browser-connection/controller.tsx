@@ -6,7 +6,7 @@ import { browserNative, configureBrowser } from './native'
 import { forgetBrowserTurn } from './taskSession'
 export function BrowserConnectionController() {
   const ready = useLibraryStore(state => state.ready)
-  const authority = useLibraryStore(state => JSON.stringify([state.data.companion.provider, state.data.settings.trust, state.data.companion.permissions.fullAccess, state.data.companion.permissions.internet, state.data.settings.modules.find(item => item.id === 'companion')]))
+  const authority = useLibraryStore(state => JSON.stringify([state.data.companion.provider, state.data.settings.trust, state.data.companion.permissions.fullAccess, state.data.companion.permissions.internet, state.data.settings.modules.find(item => item.id === 'companion'),state.data.companion.browser?.foregroundQueries===true,state.data.companion.browser?.confirmQueryEgress===true]))
   const previousAuthority = useRef<string | undefined>(undefined)
   const signature = useLibraryStore(state => JSON.stringify([state.data.companion.browser, state.data.companion.provider, state.data.settings.trust, state.data.companion.permissions.fullAccess, state.data.companion.permissions.internet, state.data.settings.modules.find(item => item.id === 'companion')]))
   useEffect(() => {

@@ -8,7 +8,7 @@ use super::policy;
 pub struct Pair { pub token: String, pub origin: String }
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct Request { pub kind: String, pub origin: String, pub tab_id: Option<u64>, #[serde(default)] pub cached_login: bool, pub target_url:Option<String>, pub interaction:Option<Interaction> }
+pub struct Request { pub kind: String, pub origin: String, pub tab_id: Option<u64>, #[serde(default)] pub cached_login: bool, pub target_url:Option<String>, pub interaction:Option<Interaction>, pub query_mode:Option<String> }
 #[derive(Clone,Deserialize,Serialize)]
 #[serde(rename_all="camelCase",deny_unknown_fields)]
 pub struct Interaction {pub observation_id:String,pub element_id:String,pub operation:String,pub query:Option<String>}
@@ -35,6 +35,7 @@ impl BridgeState {
     }
     pub fn authorised(&self, site: &str) -> bool { self.enabled && self.pair.is_some() && self.sites.iter().any(|item| item == site) && self.reported_sites.iter().any(|item| item == site) }
     pub fn check(&self, request: &Request) -> Result<(), String> {
+        if request.query_mode.as_ref().is_some_and(|mode|!["background","foreground"].contains(&mode.as_str())){return Err("BROWSER_ARGUMENT:无效查询上下文".into())}
         if self.recording.as_ref().is_some_and(|r|r.phase!=super::recording::Phase::Review){return Err("BROWSER_BUSY:正在示范录制，请先停止或取消示范".into())}
         if !self.enabled { return Err("BROWSER_DISABLED:请在AI伙伴设置中开启浏览器连接".into()); }
         if self.pair.is_none() { return Err("BROWSER_NOT_CONNECTED:请先一次性安装并连接Edge扩展；浏览器已登录不等于连接已完成".into()); }
@@ -71,7 +72,7 @@ impl BridgeState {
         if self.reported_sites != reported { self.reported_sites = reported; if self.job.as_ref().is_some_and(|job| self.check(&job.request).is_err())||self.recording.as_ref().is_some_and(|r|!self.authorised(&r.origin)){ self.cancel(); } }
         if self.job.as_ref().is_some_and(|job| job.expires <= Instant::now()) { self.cancel(); }
         let allowed = self.job.as_ref().is_some_and(|job| !job.sent && self.check(&job.request).is_ok());
-        let job = if allowed { let job = self.job.as_mut().unwrap(); job.sent = true; json!({"id":job.id,"kind":job.request.kind,"origin":job.request.origin,"tabId":job.request.tab_id,"cachedLogin":job.request.cached_login,"targetUrl":job.request.target_url,"interaction":job.request.interaction}) } else { Value::Null };
+        let job = if allowed { let job = self.job.as_mut().unwrap(); job.sent = true; json!({"id":job.id,"kind":job.request.kind,"origin":job.request.origin,"tabId":job.request.tab_id,"cachedLogin":job.request.cached_login,"targetUrl":job.request.target_url,"interaction":job.request.interaction,"queryMode":job.request.query_mode}) } else { Value::Null };
         json!({"job": job, "maintenance": self.maintenance(),"recording":self.recording_lease()})
     }
     #[cfg(test)]

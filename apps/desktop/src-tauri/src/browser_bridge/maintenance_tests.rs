@@ -3,10 +3,10 @@ use std::time::{Duration,Instant};
 use super::{assets,state::{Request,Job},maintenance::SetupReply,tests::connected};
 fn reply(id:&str, action:&str, sites:Option<Vec<String>>)->SetupReply{SetupReply{id:id.into(),action:action.into(),sites}}
 #[test] fn canonical_manifest_is_the_version_source_and_old_clients_cannot_read(){
-    let mut state=connected();assert_eq!(assets::version(),"0.4.2");
+    let mut state=connected();assert_eq!(assets::version(),"0.4.3");
     state.report_version(Some("0.3.0".into())).unwrap();assert!(!state.compatible());
     state.report_version(Some("0.2.0".into())).unwrap();assert!(!state.compatible());
-    state.report_version(None).unwrap();assert!(!state.compatible());assert!(state.check(&Request{kind:"tabs".into(),origin:state.sites[0].clone(),tab_id:None,cached_login:false,target_url:None,interaction:None}).unwrap_err().contains("UPDATE_REQUIRED"));
+    state.report_version(None).unwrap();assert!(!state.compatible());assert!(state.check(&Request{kind:"tabs".into(),origin:state.sites[0].clone(),tab_id:None,cached_login:false,query_mode:None,target_url:None,interaction:None}).unwrap_err().contains("UPDATE_REQUIRED"));
     let body=state.poll(state.sites.clone());assert_eq!(body["job"],json!(null));assert_eq!(body["maintenance"]["version"],assets::version());assert_eq!(body["maintenance"]["ready"],true);
     for invalid in ["javascript:evil","", "1..2"]{assert!(state.report_version(Some(invalid.into())).is_err());}
     state.report_version(Some(assets::version().into())).unwrap();assert!(state.compatible());
@@ -38,7 +38,7 @@ fn reply(id:&str, action:&str, sites:Option<Vec<String>>)->SetupReply{SetupReply
     }
 }
 #[test] fn version_change_cancels_inflight_reads_and_maintenance_exposes_no_secrets(){
-    let mut state=connected();state.job=Some(Job{id:"job".into(),request:Request{kind:"tabs".into(),origin:state.sites[0].clone(),tab_id:None,cached_login:false,target_url:None,interaction:None},epoch:state.epoch,expires:Instant::now()+Duration::from_secs(40),sent:true});
+    let mut state=connected();state.job=Some(Job{id:"job".into(),request:Request{kind:"tabs".into(),origin:state.sites[0].clone(),tab_id:None,cached_login:false,query_mode:None,target_url:None,interaction:None},epoch:state.epoch,expires:Instant::now()+Duration::from_secs(40),sent:true});
     let epoch=state.epoch;state.report_version(None).unwrap();assert!(state.job.is_none());assert!(state.epoch>epoch);
     let public=state.maintenance().to_string();assert!(!public.contains("test-token"));assert!(!public.contains("fixture-extension"));
 }

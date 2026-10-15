@@ -2,6 +2,7 @@ import { permitted } from './policy.js'
 import { inspectLoginForm } from './login-form.js'
 import { TRUSTED_HELPER_ID } from './trusted-helper-id.js'
 import { TRUSTED_HELPER_REVISION } from './trusted-helper-revision.js'
+import { assertQueryTab } from './query-window.js'
 
 const leases = new Map()
 export async function trustedHelperStatus() {
@@ -22,6 +23,7 @@ export async function hasTrustedLoginClick() {
 async function check(lease) {
   if (Date.now() > lease.deadline || !await hasTrustedLoginClick() || !await permitted(lease.job.origin)) throw new Error('permission')
   await lease.assertActive(lease.job)
+  if(lease.job.queryMode)await assertQueryTab(lease.job)
   const tab = await chrome.tabs.get(lease.job.tabId)
   if (tab.incognito || tab.url !== lease.url || new URL(tab.url).origin !== lease.job.origin) throw new Error('tab_changed')
 }

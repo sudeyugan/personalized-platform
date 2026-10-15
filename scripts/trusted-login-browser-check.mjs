@@ -19,10 +19,14 @@ manifest.host_permissions.push(`${site}/*`);writeFileSync(join(reader,'manifest.
 writeFileSync(join(reader,'policy.js'),readFileSync(join(reader,'policy.js'),'utf8').replace('127.0.0.1:38471','127.0.0.1:38475'))
 writeFileSync(join(reader,'revision.js'),`export const EXTENSION_REVISION = '${revision}';\n`)
 const cert=readFileSync(certPath),key=readFileSync(keyPath),spki=createHash('sha256').update(new X509Certificate(cert).publicKey.export({type:'spki',format:'der'})).digest('base64')
-let posts=0,pairOrigin,queued,active,reply,recording,events=[]
+let posts=0,pairOrigin,queued,active,reply,recording,events=[],epoch=1
 const page=`<!doctype html><meta charset="utf-8"><title>虚构登录测试</title><form method="post" action="/auth"><input placeholder="账号" value="fixture-user"><input type="password" placeholder="密码" value="fixture-not-a-credential"><button type="button">登录</button><div role="alert"></div></form><script>document.querySelector('button').onclick=e=>{if(!e.isTrusted){document.querySelector('[role=alert]').textContent='密码未输入';return;}document.forms[0].requestSubmit();}</script>`
 const account='<title>虚构收件箱</title><p>未读邮件 2</p><button id="inbox">收件箱</button><button id="unread">未读</button><button id="unknown">fictional private subject</button><button id="delete">删除</button><input id="private" placeholder="正文不记录"><a id="next" href="/auth?page=2">下一页</a>'
-const web=httpsServer({cert,key},(req,res)=>{req.resume();if(req.method==='POST'&&req.url==='/auth')posts++;res.writeHead(200,{'Content-Type':'text/html; charset=utf-8'});res.end(req.url?.startsWith('/auth')?account:page)})
+const web=httpsServer({cert,key},(req,res)=>{
+  req.resume();const login=req.method==='POST'&&req.url==='/auth';if(login)posts++
+  const headers={'Content-Type':'text/html; charset=utf-8'};if(login)headers['Set-Cookie']='fixture_session=fictional; Secure; HttpOnly; SameSite=Lax'
+  res.writeHead(200,headers);res.end(req.url?.startsWith('/auth')&&(login||req.headers.cookie?.includes('fixture_session=fictional'))?account:page)
+})
 const bridge=httpServer((req,res)=>{
   const origin=req.headers['x-yiyu-extension'];res.setHeader('Access-Control-Allow-Origin',origin??'*');res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization,X-Yiyu-Extension');res.setHeader('Access-Control-Allow-Methods','POST,OPTIONS')
   if(req.method==='OPTIONS'){res.end();return}
@@ -31,7 +35,7 @@ const bridge=httpServer((req,res)=>{
     let result
     if(req.url==='/pair'&&body.code===code){pairOrigin=origin;result={paired:true}}
     else if(origin!==pairOrigin||req.headers.authorization!==`Bearer ${code}`){res.writeHead(403);res.end();return}
-    else if(req.url==='/poll'){const job=queued;queued=undefined;result={job:job??null,recording:recording??null,maintenance:{version:manifest.version,revision,ready:true,enabled:true,sites:[site],epoch:1,setup:null}}}
+    else if(req.url==='/poll'){const job=queued;queued=undefined;result={job:job??null,recording:recording??null,maintenance:{version:manifest.version,revision,ready:true,enabled:true,sites:[site],epoch,setup:null}}}
     else if(req.url==='/active')result={active:body.id===active}
     else if(req.url==='/reply'){reply=body;active=undefined;result={ok:true}}
     else if(req.url==='/record'){
@@ -69,7 +73,7 @@ try{
   await until(async()=>await evaluate(popup,`Boolean(document.querySelector('#status')?.textContent)&&Boolean(document.querySelector('#trustedLoginStatus')?.textContent)`))
   await evaluate(popup,`document.querySelector('#code').value=${JSON.stringify(code)};document.querySelector('#connect').click()`);await until(async()=>Boolean(pairOrigin))
   const tabs=await until(async()=>{const tabs=await evaluate(popup,`chrome.tabs.query({url:'${site}/*'}).then(t=>t.filter(x=>x.status==='complete').map(x=>({id:x.id})))`);return tabs?.length===1?tabs:undefined});const tabId=tabs[0].id
-  const request=async id=>{reply=undefined;active=id;queued={id,kind:'page',origin:site,tabId,cachedLogin:true};await evaluate(popup,`chrome.runtime.sendMessage({type:'wake'})`);return until(async()=>reply)}
+  const request=async(id,options={})=>{reply=undefined;active=id;queued={id,kind:'page',origin:site,tabId,cachedLogin:true,...options};await evaluate(popup,`chrome.runtime.sendMessage({type:'wake'})`);return until(async()=>reply)}
   const old=await request('fixture-untrusted');if(!old.ok||old.data.loginState!=='submit_rejected'||posts!==0)throw new Error('Old script rejection not reproduced: '+JSON.stringify({ok:old.ok,state:old.data?.loginState,posts,error:old.error}))
   await evaluate(popup,`document.querySelector('#connectTrusted').click()`)
   const helperPage=await until(async()=>(await targets()).find(t=>t.url.startsWith('chrome-extension://jioaddpafbaidcmdnnooljbkkhlaajpl/connect.html#')))
@@ -77,6 +81,29 @@ try{
   await until(async()=>await evaluate(connection,`document.querySelector('#status').textContent.includes('已连接')`))
   const current=await request('fixture-trusted');if(!current.ok||current.data.loginState!=='continued'||posts!==1)throw new Error('Trusted flow did not complete once: '+JSON.stringify({ok:current.ok,state:current.data?.loginState,posts,error:current.error}))
   const permissions=await evaluate(popup,'chrome.permissions.getAll()');if(permissions.permissions.includes('debugger'))throw new Error('Reader obtained debugger')
+  const dailyBefore=await evaluate(popup,`chrome.tabs.get(${tabId}).then(t=>({id:t.id,windowId:t.windowId,url:t.url}))`)
+  const empty=await request('fixture-query-tabs',{kind:'tabs',tabId:undefined,cachedLogin:false,queryMode:'background'});if(!empty.ok||!Array.isArray(empty.data)||empty.data.length)throw new Error('Background exposed daily tabs')
+  const prepared=await request('fixture-query-prepare',{kind:'ensure',tabId:undefined,cachedLogin:false,queryMode:'background',targetUrl:site+'/auth'})
+  if(!prepared.ok)throw new Error('Background prepare failed: '+JSON.stringify({reply:prepared,windows:await evaluate(popup,`chrome.windows.getAll({populate:true}).then(ws=>ws.map(w=>({id:w.id,state:w.state,focused:w.focused,tabs:w.tabs.map(t=>({id:t.id,url:t.url,pendingUrl:t.pendingUrl}))})))`)}))
+  const owned=await evaluate(popup,`chrome.storage.session.get('queryWindow').then(x=>x.queryWindow)`)
+  const state=await evaluate(popup,`chrome.windows.get(${owned.windowId})`)
+  if(state.state!=='minimized'||state.focused||state.incognito||owned.windowId===dailyBefore.windowId)throw new Error('Query window not isolated/minimized')
+  const workerId=owned.pages[0].tabId
+  const read=await request('fixture-query-read',{tabId:workerId,cachedLogin:false,queryMode:'background'})
+  if(!read.ok||!JSON.stringify(read.data).includes('未读邮件 2')||JSON.stringify(read.data).includes('邮箱账号登录'))throw new Error('Background did not share existing fictional session')
+  await evaluate(popup,`chrome.tabs.update(${workerId},{url:'${site}/login'})`)
+  const backgroundLogin=await request('fixture-query-login',{tabId:workerId,cachedLogin:true,queryMode:'background'})
+  if(!backgroundLogin.ok||backgroundLogin.data.loginState!=='continued'||posts!==2)throw new Error('Background trusted login failed: '+JSON.stringify(backgroundLogin))
+  const afterLogin=await evaluate(popup,`chrome.windows.get(${owned.windowId})`)
+  if(afterLogin.state!=='minimized'||afterLogin.focused)throw new Error('Background login activated window')
+  const reused=await request('fixture-query-reuse',{kind:'ensure',tabId:undefined,cachedLogin:false,queryMode:'background',targetUrl:site+'/auth'})
+  if(!reused.ok||(await evaluate(popup,`chrome.storage.session.get('queryWindow').then(x=>x.queryWindow)`)).pages[0].tabId!==workerId)throw new Error('Query page not reused')
+  const rejected=await request('fixture-query-user-tab',{tabId,cachedLogin:false,queryMode:'background'});if(rejected.ok)throw new Error('Background accepted daily tab')
+  epoch++;await evaluate(popup,`chrome.runtime.sendMessage({type:'wake'})`)
+  await until(async()=>await evaluate(popup,`chrome.windows.get(${owned.windowId}).then(()=>false,()=>true)`))
+  const dailyAfter=await evaluate(popup,`chrome.tabs.get(${tabId}).then(t=>({id:t.id,windowId:t.windowId,url:t.url}))`)
+  if(JSON.stringify(dailyBefore)!==JSON.stringify(dailyAfter))throw new Error('Daily page changed')
+  console.log(JSON.stringify({dedicatedBackgroundWindow:true,minimizedNonfocused:true,sameProfileSessionShared:true,backgroundTrustedLogin:true,queryPageReused:true,dailyTabRejected:true,epochCleanup:true,dailyPageUnchanged:true}))
   const target=await until(async()=>(await targets()).find(t=>t.type==='page'&&t.url===site+'/auth'));accountClient=await client(target.webSocketDebuggerUrl)
   recording={id:recordId,origin:site,tabId,phase:'recording',ttlMs:4500};await evaluate(popup,`chrome.runtime.sendMessage({type:'wake'})`)
   await until(async()=>await evaluate(accountClient,`Boolean(document.querySelector('[data-yiyu-recording]'))`))

@@ -6,7 +6,7 @@ use super::{http,policy,server,state::{BridgeState,Job,Request},tests::connected
 fn current_task_check_round_trips_through_real_http_and_authenticated_dispatch() {
     let listener=TcpListener::bind(("127.0.0.1",0)).unwrap();let address=listener.local_addr().unwrap();
     let worker=std::thread::spawn(move||{
-        let mut state=connected();let request=Request{kind:"ensure".into(),origin:state.sites[0].clone(),tab_id:None,cached_login:false,target_url:None,interaction:None};
+        let mut state=connected();let request=Request{kind:"ensure".into(),origin:state.sites[0].clone(),tab_id:None,cached_login:false,query_mode:None,target_url:None,interaction:None};
         state.job=Some(Job{id:"fixture-job".into(),request,epoch:state.epoch,expires:Instant::now()+Duration::from_secs(10),sent:true});
         for index in 0..4{
             let(mut socket,_)=listener.accept().unwrap();let request=http::receive(&mut socket).unwrap();let origin=request.origin.clone();
@@ -64,7 +64,7 @@ fn isolated_edge_native_transport_fixture() {
     let started=Instant::now();let mut phase=0;let mut active_calls=0;
     while started.elapsed()<Duration::from_secs(90){
         if state.pair.is_some()&&state.job.is_none()&&phase==0{
-            state.job=Some(Job{id:"fixture-ensure".into(),request:Request{kind:"ensure".into(),origin:site.clone(),tab_id:None,cached_login:false,target_url:Some(format!("{site}/inbox")),interaction:None},epoch:state.epoch,expires:Instant::now()+Duration::from_secs(45),sent:false});phase=1;
+            state.job=Some(Job{id:"fixture-ensure".into(),request:Request{kind:"ensure".into(),origin:site.clone(),tab_id:None,cached_login:false,query_mode:None,target_url:Some(format!("{site}/inbox")),interaction:None},epoch:state.epoch,expires:Instant::now()+Duration::from_secs(45),sent:false});phase=1;
         }
         let(mut socket,_)=match listener.accept(){Ok(value)=>value,Err(error)if error.kind()==std::io::ErrorKind::WouldBlock=>{std::thread::sleep(Duration::from_millis(20));continue},Err(error)=>panic!("fixture listener failed: {}",error.kind())};
         let reply=match http::receive_fixture(&mut socket,FIXTURE_PORT){
@@ -76,7 +76,7 @@ fn isolated_edge_native_transport_fixture() {
         if !reply{continue}
         if let Some(result)=state.reply.take(){
             let value=result.expect("production bridge rejected fixture result");state.job=None;
-            if phase==1{let id=value["data"][0]["tabId"].as_u64().unwrap();state.job=Some(Job{id:"fixture-page".into(),request:Request{kind:"page".into(),origin:site.clone(),tab_id:Some(id),cached_login:false,target_url:None,interaction:None},epoch:state.epoch,expires:Instant::now()+Duration::from_secs(45),sent:false});phase=2;}
+            if phase==1{let id=value["data"][0]["tabId"].as_u64().unwrap();state.job=Some(Job{id:"fixture-page".into(),request:Request{kind:"page".into(),origin:site.clone(),tab_id:Some(id),cached_login:false,query_mode:None,target_url:None,interaction:None},epoch:state.epoch,expires:Instant::now()+Duration::from_secs(45),sent:false});phase=2;}
             else{assert!(value["data"]["text"].as_str().unwrap().contains("未读邮件 2"));assert!(active_calls>=2);println!("NATIVE_FIXTURE_PASS prepare_then_read active_calls={active_calls}");return}
         }
     }

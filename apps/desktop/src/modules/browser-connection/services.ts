@@ -8,6 +8,7 @@ import { BrowserExecution,type BrowserEvidenceRequest } from './execution'
 export interface BrowserServices {
   browserTaskGoal?: BrowserTaskGoal
   assertBrowserAuthority?(): void
+  authorizeBrowserQueryEgress?():void
   browserStatus?(): Promise<BrowserConnectionStatus>
   browserRead?(request: BrowserReadRequest): Promise<BrowserSnapshot>
   browserVerify?(request:BrowserEvidenceRequest):Promise<unknown>
@@ -29,6 +30,7 @@ export function createBrowserServices(goal: string, signal?: AbortSignal): Brows
   const services:BrowserServices={
     browserTaskGoal: task,
     assertBrowserAuthority: guard,
+    authorizeBrowserQueryEgress(){guard();if(!task?.origins.length||task.clarification||initial.companion.browser?.confirmQueryEgress)throw new Error('本次查询没有自动脱敏发送许可')},
     async browserVerify(request){
       guard();if(!requested.includes(request.origin)||!execution.owns(request))throw new Error('证据不属于本次当前页面')
       const fresh=await services.browserRead!({kind:'observe',origin:request.origin,tabId:request.tabId})
@@ -52,14 +54,14 @@ export function createBrowserServices(goal: string, signal?: AbortSignal): Brows
       let targetUrl:string|undefined
       if(request.kind==='ensure'){
         const profile=initial.companion.browser?.profiles?.find(item=>item.origin===origin)
-        const explicit=[...goal.matchAll(/https?:\/\/[^\s，。；;]+/gu)].map(match=>match[0]).find(url=>new URL(url).origin===origin)
+        const explicit=[...goal.matchAll(/https?:\/\/[^\s，。；;"'\\<>）)]+/gu)].map(match=>match[0]).find(url=>new URL(url).origin===origin)
         targetUrl=browserPageUrl(explicit??profile?.entryUrl??origin,origin)
       }
       const readRequest = { kind:request.kind, origin, ...(request.tabId !== undefined ? {tabId:request.tabId} : {}),...(targetUrl?{targetUrl}:{}),...(request.kind==='act'?{interaction:request.interaction}:{}) }
       execution.before(readRequest)
       const cachedLogin = !loginUsed && ['page','observe'].includes(request.kind) && initial.companion.browser?.cachedLoginSites?.includes(origin) === true
       if (cachedLogin) loginUsed = true
-      const nativeRequest = { ...readRequest, ...(cachedLogin ? { cachedLogin: true } : {}) }
+      const nativeRequest = { ...readRequest, ...(request.kind!=='followed_live'?{queryMode:initial.companion.browser?.foregroundQueries===true?'foreground':'background'}:{}), ...(cachedLogin ? { cachedLogin: true } : {}) }
       const status = await configureBrowser(true, initial.companion.browser?.sites ?? [], false, initial.companion.browser?.cachedLoginSites ?? [],initial.companion.browser?.interactionSites??[]); guard()
       const cancel = () => { void browserNative('browser_bridge_cancel').catch(() => undefined) }
       signal?.addEventListener('abort', cancel, { once: true })

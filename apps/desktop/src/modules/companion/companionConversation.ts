@@ -56,6 +56,7 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
   const context = operation || privateBrowserQuery ? { page: operation ? 'operation-memory' : 'browser-query', companion: fullContext.companion, localTime: fullContext.localTime } : fullContext
   const services = createLiveCompanionApplicationServices(data, access, options.requestPrivacyReview, options.signal, taskText)
   const assertBrowserAllowed = privateBrowserQuery && data.companion.browser?.enabled ? services.assertBrowserAuthority : undefined
+  const authorizeBrowserSend = assertBrowserAllowed && services.browserTaskGoal?.origins.length && !data.companion.browser?.confirmQueryEgress ? services.authorizeBrowserQueryEgress : undefined
   const permissions = new AgentPermissionEngine(() => {
     const live = useLibraryStore.getState()
     return {
@@ -100,6 +101,7 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
         purpose: 'AI 伙伴对话',
         requestReview: options.requestPrivacyReview,
         assertAllowed: assertBrowserAllowed,
+        authorizeSanitizedQuery: authorizeBrowserSend,
         reviewEachRequest: Boolean(assertBrowserAllowed),
       }),
       registry,

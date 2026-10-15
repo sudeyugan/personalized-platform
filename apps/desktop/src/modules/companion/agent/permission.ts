@@ -91,7 +91,7 @@ export class AgentPermissionEngine {
       if (this.environment.resourcePermissions.writePolicy === 'balanced' && tool.risk === 'low') return { allowed: true, reason: '平衡模式允许低风险写入自动执行' }
       return { allowed: false, requiresConfirmation: true, reason: '写入操作需要用户逐次确认' }
     }
-    if (publicReadTools.has(tool.name)) return { allowed: false, requiresConfirmation: true, reason: '读取公开来源需要本次目标确认；不使用登录或电脑接管权限' }
+    if (publicReadTools.has(tool.name)) return { allowed: true, reason: '已授联网范围内的匿名公开只读查询；不使用登录或电脑接管权限' }
     if (tool.capability === 'external' && tool.scope === 'web') return { allowed: true, reason: '用户已允许联网查询' }
     if (!this.environment.policy.autoAllow.includes(tool.capability)) return { allowed: false, reason: `能力 ${tool.capability} 未获自动执行许可` }
     return { allowed: true, reason: '已通过统一权限检查' }

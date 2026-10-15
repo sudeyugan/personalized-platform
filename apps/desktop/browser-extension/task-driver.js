@@ -1,6 +1,8 @@
 import { permitted,publicUrl } from './policy.js'
 import { observeControls,actOnControl } from './controls.js'
+import { prepareQueryPage,assertQueryTab } from './query-window.js'
 export async function checkTaskTab(job){
+  if(job.queryMode)await assertQueryTab(job)
   if(!await permitted(job.origin))throw new Error('permission')
   const tab=await chrome.tabs.get(job.tabId)
   if(tab.incognito||!tab.url||new URL(tab.url).origin!==job.origin||tab.pendingUrl&&new URL(tab.pendingUrl).origin!==job.origin)throw new Error('tab_changed')
@@ -10,6 +12,14 @@ export async function ensureTaskPage(job,assertActive){
   const url=new URL(job.targetUrl??job.origin)
   if(url.origin!==job.origin||url.protocol!=='https:'||url.search||url.hash||url.username||url.password||url.port)throw new Error('failed')
   if(!await permitted(job.origin))throw new Error('permission')
+  if(job.queryMode){
+    const tabs=await prepareQueryPage(job,assertActive),tab=tabs[0]
+    if(!tab||!Number.isSafeInteger(tab.id))throw new Error('page_open')
+    const prepared={...job,tabId:tab.id}
+    await waitTaskPage(prepared,assertActive,true)
+    const current=await checkTaskTab(prepared)
+    return [{tabId:current.id,origin:job.origin,title:(current.title??'').slice(0,200),url:publicUrl(current.url)}]
+  }
   let tabs=(await chrome.tabs.query({url:`${job.origin}/*`})).filter(tab=>!tab.incognito&&tab.url&&new URL(tab.url).origin===job.origin)
   if(!tabs.length){
     await assertActive(job);if(!await permitted(job.origin))throw new Error('permission')

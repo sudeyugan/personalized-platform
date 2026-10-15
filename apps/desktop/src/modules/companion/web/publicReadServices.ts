@@ -15,7 +15,7 @@ export function createPublicReadServices(requestReview?: (request: PrivacyReview
     if (signal?.aborted) throw new Error('已取消公开读取')
     const data = useLibraryStore.getState().data
     const status = moduleStatus(data.settings.modules, 'companion')
-    if (!confirmed || (!data.companion.permissions.fullAccess && !data.companion.permissions.internet) || !status.enabled || !status.available) throw new Error('公开读取未确认，或联网/伙伴授权已关闭')
+    if (!confirmed || (!data.companion.permissions.fullAccess && !data.companion.permissions.internet) || !status.enabled || !status.available) throw new Error('公开读取未授权，或联网/伙伴授权已关闭')
     try { assertExternalAiAllowed(data.companion.provider.providerId, data.settings.trust, 'companion') }
     catch { throw new Error('外部AI处理授权已关闭，公开查询停止') }
     return data.settings.trust
@@ -31,6 +31,7 @@ export function createPublicReadServices(requestReview?: (request: PrivacyReview
     const safe = await protectOutboundText(outgoing, {
       trust: { ...trust, outboundProtection: true }, destination: extra ? 'B站匿名公开房间与主播接口' : new URL(url).hostname,
       purpose: '公开HTTPS只读查询；不使用登录、Cookie或本地文件', requestReview,
+      authorizeSanitizedQuery:()=>{authority(confirmed)},
     })
     if (safe !== outgoing) throw new Error('目标含需保护的信息，已停止读取；请改用不带私密参数的公开链接或昵称')
     authority(confirmed)
