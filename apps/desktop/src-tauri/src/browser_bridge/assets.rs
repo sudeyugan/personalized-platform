@@ -18,6 +18,8 @@ const FILES: &[(&str,&str)] = &[
     ("recording-page.js", include_str!("../../../browser-extension/recording-page.js")),
     ("query-window.js", include_str!("../../../browser-extension/query-window.js")),
     ("query-window-state.js", include_str!("../../../browser-extension/query-window-state.js")),
+    ("query-window-init.js", include_str!("../../../browser-extension/query-window-init.js")),
+    ("query-page-source.js", include_str!("../../../browser-extension/query-page-source.js")),
     ("query-host.html", include_str!("../../../browser-extension/query-host.html")),
     ("login.js", include_str!("../../../browser-extension/login.js")),
     ("login-form.js", include_str!("../../../browser-extension/login-form.js")),

@@ -10,7 +10,7 @@ const messages: Record<string, string> = {
   BROWSER_TIMEOUT: 'Edge扩展或网站读取超时。请检查连接和目标页面后重试；本次查询结果未知。',
   BROWSER_READ_FAILED: '目标网页或只读接口没有返回可用结果；本次查询结果未知，不代表没有邮件、更新或开播。',
   BROWSER_PAGE_PENDING: '目标页面尚未加载完成。已停止本次读取，没有重复打开或操作；页面加载后可再查询。',
-  BROWSER_PAGE_OPEN: '未能在已连接的Edge打开目标页面。请检查这个Edge配置能否正常打开该网站，再重试。',
+  BROWSER_PAGE_OPEN: '未能准备好查询页面，本次尚未读取到结果。请稍后重试；这不代表没有邮件或更新。',
   BROWSER_PAGE_ACCESS: 'Edge未允许读取当前页面，可能是浏览器错误页或受限页面。请先检查该标签页；不能据此判断账号里的查询结果。',
   BROWSER_RESULT: '浏览器返回的数据未通过校验，不能确认查询结果。请更新扩展文件并在Edge扩展管理页重新加载，再重试。',
   BROWSER_AUTH: 'Edge连接已失效。请在小鱼中断开配对，重新生成连接码并在扩展中连接。',

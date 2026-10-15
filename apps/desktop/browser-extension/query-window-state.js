@@ -11,18 +11,21 @@ export async function loadQueryWindow(){
 }
 export async function saveQueryWindow(value){await chrome.storage.session.set({[key]:value})}
 export async function forgetQueryWindow(){await chrome.storage.session.remove(key)}
-export async function ownership(value){
+export async function queryWindowProof(value){
   try{
     const [window,marker]=await Promise.all([chrome.windows.get(value.windowId),chrome.tabs.get(value.markerId)])
     const expected=markerUrl(value.owner),matches=marker.url===expected||marker.pendingUrl===expected&&(!marker.url||['about:blank','chrome://newtab/','edge://newtab/'].includes(marker.url))
     if(window.id!==value.windowId||window.incognito||marker.incognito||marker.windowId!==value.windowId||!matches)return
-    // A user-restored background window has been adopted. Never minimize it
-    // again or close it automatically, even though the marker still matches.
-    if(value.mode==='background'&&(window.focused||window.state!=='minimized'))return
     const tabs=await chrome.tabs.query({windowId:value.windowId}),ids=new Set([value.markerId,...value.pages.map(p=>p.tabId)])
     if(tabs.some(tab=>!ids.has(tab.id)))return
     return window
   }catch{return}
+}
+export async function ownership(value){
+  const window=await queryWindowProof(value)
+  // State is an adoption check only AFTER initialization, not proof of who
+  // created a window. An OS-delayed minimize must not invalidate a new lease.
+  if(window&&!(value.mode==='background'&&(window.focused||window.state!=='minimized')))return window
 }
 export async function discardOwnedWindow(value){
   // Only a still-minimized owned window may be removed automatically.

@@ -1,8 +1,11 @@
 import { permitted,siteOrigin,publicUrl } from './policy.js'
 import { markerUrl,loadQueryWindow,saveQueryWindow,forgetQueryWindow,ownership,discardOwnedWindow } from './query-window-state.js'
+import { initializeQueryWindow,discardFreshQueryWindow } from './query-window-init.js'
+import { maintainQuerySources,borrowQueryPage,borrowedQueryPage } from './query-page-source.js'
 let scope,generation=0,serial=Promise.resolve()
 const locked=fn=>{const next=serial.catch(()=>undefined).then(fn);serial=next.catch(()=>undefined);return next}
 export async function maintainQueryWindow(config,hasJob=false){
+  maintainQuerySources(config)
   const changed=scope&&(!config||scope.epoch!==config.epoch||scope.enabled!==config.enabled||JSON.stringify(scope.sites)!==JSON.stringify(config.sites))
   scope=config?{epoch:config.epoch,enabled:config.enabled,sites:config.sites}:undefined
   if(changed||!config)generation++
@@ -24,9 +27,9 @@ async function current(mode){
   if(!await ownership(value)){await forgetQueryWindow();return}
   return value
 }
-export async function queryTabs(job){
+export async function queryTabs(job,assertActive){
   if(!scope?.enabled||!scope.sites.includes(job.origin)||!await permitted(job.origin))throw new Error('permission')
-  const value=await current(job.queryMode);if(!value)return []
+  const value=await current(job.queryMode);if(!value)return assertActive?borrowQueryPage(job,assertActive):[]
   const tabs=[]
   for(const page of value.pages.filter(p=>p.origin===job.origin)){
     try{const tab=await chrome.tabs.get(page.tabId);if(!tab.incognito&&tab.windowId===value.windowId&&tab.url&&new URL(tab.url).origin===job.origin&&(!tab.pendingUrl||new URL(tab.pendingUrl).origin===job.origin))tabs.push(tab)}catch{/* closed page */}
@@ -34,19 +37,22 @@ export async function queryTabs(job){
   value.usedAt=Date.now();await saveQueryWindow(value);return tabs
 }
 export async function assertQueryTab(job){
+  if(await borrowedQueryPage(job))return {borrowed:true}
   if(!(await queryTabs(job)).some(tab=>tab.id===job.tabId))throw new Error('tab_changed')
+  return {borrowed:false}
 }
 export async function prepareQueryPage(job,assertActive){
   return locked(async()=>{
     const version=generation;await checked(job,assertActive,version)
-    let value=await current(job.queryMode),createdWindow=false,createdTab
+    let value=await current(job.queryMode),createdWindow=false,initialized=false,createdTab
     try{
       if(!value){
         const owner=crypto.randomUUID(),created=await chrome.windows.create({url:markerUrl(owner),type:'normal',incognito:false,focused:job.queryMode==='foreground',state:job.queryMode==='foreground'?'normal':'minimized'})
         if(!Number.isSafeInteger(created?.id)||!Number.isSafeInteger(created.tabs?.[0]?.id))throw new Error('page_open')
         value={windowId:created.id,markerId:created.tabs[0].id,owner,mode:job.queryMode,epoch:scope?.epoch??-1,pages:[],usedAt:Date.now()};createdWindow=true
         // A late create still gets verified and cleaned up, never orphaned.
-        await checked(job,assertActive,version);await saveQueryWindow(value)
+        await initializeQueryWindow(value,()=>checked(job,assertActive,version))
+        initialized=true;await checked(job,assertActive,version);await saveQueryWindow(value)
       }
       const existing=await queryTabs(job)
       if(existing.length)return existing
@@ -72,7 +78,7 @@ export async function prepareQueryPage(job,assertActive){
       if(!await ownership(value))throw new Error('tab_changed')
       return [createdTab]
     }catch(error){
-      if(value&&createdWindow)await discardOwnedWindow(value)
+      if(value&&createdWindow){if(initialized)await discardOwnedWindow(value);else await discardFreshQueryWindow(value)}
       else if(value&&createdTab?.id&&await ownership(value)){
         await chrome.tabs.remove(createdTab.id).catch(()=>undefined);value.pages=value.pages.filter(p=>p.tabId!==createdTab.id)
         if(version===generation)await saveQueryWindow(value)

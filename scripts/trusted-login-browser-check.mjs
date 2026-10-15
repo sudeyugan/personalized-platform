@@ -8,7 +8,8 @@ import { X509Certificate,createHash } from 'node:crypto'
 import { cpSync,existsSync,mkdtempSync,readFileSync,writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join,resolve } from 'node:path'
-const [source,helperSource,certPath,keyPath,base,output]=process.argv.slice(2)
+const [source,helperSource,certPath,keyPath,base,output]=process.argv.slice(2).filter(value=>!value.startsWith('--'))
+const headful=process.argv.includes('--headful'),restoreCreated=process.argv.includes('--restore-created'),queryOnly=process.argv.includes('--query-only')
 if(!keyPath)throw new Error('Pass reader folder, helper folder, synthetic certificate/key')
 const folder=mkdtempSync(join(tmpdir(),'yiyu-two-extension-')),reader=join(folder,'reader'),helper=join(folder,'helper'),profile=join(folder,'profile')
 for(const [from,to] of [[source,reader],[helperSource,helper]])cpSync(resolve(from),to,{recursive:true,filter:path=>!path.endsWith('.test.js')})
@@ -18,6 +19,13 @@ const site='https://mail.example.com',code='f'.repeat(64),revision='a'.repeat(64
 manifest.host_permissions.push(`${site}/*`);writeFileSync(join(reader,'manifest.json'),JSON.stringify(manifest))
 writeFileSync(join(reader,'policy.js'),readFileSync(join(reader,'policy.js'),'utf8').replace('127.0.0.1:38471','127.0.0.1:38475'))
 writeFileSync(join(reader,'revision.js'),`export const EXTENSION_REVISION = '${revision}';\n`)
+// Reproduce a browser/native window manager ignoring the initial minimize hint.
+// Only the newly created fictional query window is affected, never a user window.
+if(restoreCreated){
+  const file=join(reader,'query-window.js'),body=readFileSync(file,'utf8'),needle="if(!Number.isSafeInteger(created?.id)"
+  if(!body.includes(needle))throw new Error('Owned window fault hook missing')
+  writeFileSync(file,body.replace(needle,"await chrome.windows.update(created.id,{state:'normal',focused:false});\n        "+needle))
+}
 const cert=readFileSync(certPath),key=readFileSync(keyPath),spki=createHash('sha256').update(new X509Certificate(cert).publicKey.export({type:'spki',format:'der'})).digest('base64')
 let posts=0,pairOrigin,queued,active,reply,recording,events=[],epoch=1
 const page=`<!doctype html><meta charset="utf-8"><title>虚构登录测试</title><form method="post" action="/auth"><input placeholder="账号" value="fixture-user"><input type="password" placeholder="密码" value="fixture-not-a-credential"><button type="button">登录</button><div role="alert"></div></form><script>document.querySelector('button').onclick=e=>{if(!e.isTrusted){document.querySelector('[role=alert]').textContent='密码未输入';return;}document.forms[0].requestSubmit();}</script>`
@@ -52,7 +60,8 @@ const bridge=httpServer((req,res)=>{
 await Promise.all([new Promise((r,j)=>{web.once('error',j);web.listen(18543,'127.0.0.1',r)}),new Promise((r,j)=>{bridge.once('error',j);bridge.listen(38475,'127.0.0.1',r)})])
 const edge=['C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe','C:/Program Files/Microsoft/Edge/Application/msedge.exe'].find(existsSync)
 if(!edge)throw new Error('Edge unavailable')
-const browser=spawn(edge,['--headless=new','--no-first-run','--no-default-browser-check','--disable-background-networking','--no-proxy-server','--remote-debugging-port=0',`--user-data-dir=${profile}`,`--disable-extensions-except=${reader},${helper}`,`--load-extension=${reader},${helper}`,'--host-resolver-rules=MAP mail.example.com 127.0.0.1:18543, MAP other.example.com 127.0.0.1:18543',`--ignore-certificate-errors-spki-list=${spki}`,`${site}/login`],{stdio:'ignore'})
+const browser=spawn(edge,[...(headful?[]:['--headless=new']),'--no-first-run','--no-default-browser-check','--disable-background-networking','--no-proxy-server','--remote-debugging-port=0',`--user-data-dir=${profile}`,`--disable-extensions-except=${reader},${helper}`,`--load-extension=${reader},${helper}`,'--host-resolver-rules=MAP mail.example.com 127.0.0.1:18543, MAP other.example.com 127.0.0.1:18543',`--ignore-certificate-errors-spki-list=${spki}`,`${site}/login`],{stdio:'ignore'})
+console.log(JSON.stringify({headful,restoreCreated,userProfileUsed:false}))
 const pause=ms=>new Promise(r=>setTimeout(r,ms))
 async function until(fn){for(let i=0;i<100;i++){const value=await fn().catch(()=>undefined);if(value)return value;await pause(150)}throw new Error('Owned fixture timed out')}
 async function client(url){
@@ -65,6 +74,7 @@ async function client(url){
 async function evaluate(c,expression){const value=await c.send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(value.exceptionDetails)throw new Error('Fixture evaluation failed: '+(value.exceptionDetails.exception?.description??value.exceptionDetails.text));return value.result.value}
 let root,popup,connection,accountClient,port
 try{
+  queryFixture:{
   const info=await until(async()=>{const [number,endpoint]=readFileSync(join(profile,'DevToolsActivePort'),'utf8').trim().split(/\r?\n/);port=Number(number);const info=await fetch(`http://127.0.0.1:${port}/json/version`).then(r=>r.json());if(new URL(info.webSocketDebuggerUrl).pathname!==endpoint)throw new Error('Owned endpoint mismatch');return info})
   root=await client(info.webSocketDebuggerUrl);const targets=()=>fetch(`http://127.0.0.1:${port}/json/list`).then(r=>r.json())
   const readerWorker=await until(async()=>(await targets()).find(t=>t.type==='service_worker'&&t.url.endsWith('/background.js')&&!t.url.includes('jioaddpafbaidcmdnnooljbkkhlaajpl')))
@@ -74,15 +84,26 @@ try{
   await evaluate(popup,`document.querySelector('#code').value=${JSON.stringify(code)};document.querySelector('#connect').click()`);await until(async()=>Boolean(pairOrigin))
   const tabs=await until(async()=>{const tabs=await evaluate(popup,`chrome.tabs.query({url:'${site}/*'}).then(t=>t.filter(x=>x.status==='complete').map(x=>({id:x.id})))`);return tabs?.length===1?tabs:undefined});const tabId=tabs[0].id
   const request=async(id,options={})=>{reply=undefined;active=id;queued={id,kind:'page',origin:site,tabId,cachedLogin:true,...options};await evaluate(popup,`chrome.runtime.sendMessage({type:'wake'})`);return until(async()=>reply)}
+  let current
+  if(queryOnly){
+    const target=await until(async()=>(await targets()).find(t=>t.type==='page'&&t.url===site+'/login')),setup=await client(target.webSocketDebuggerUrl)
+    try{await evaluate(setup,`document.forms[0].requestSubmit()`);await until(async()=>await evaluate(setup,`location.pathname==='/auth'&&Boolean(document.querySelector('#inbox'))`))}finally{setup.ws.close()}
+  }else{
   const old=await request('fixture-untrusted');if(!old.ok||old.data.loginState!=='submit_rejected'||posts!==0)throw new Error('Old script rejection not reproduced: '+JSON.stringify({ok:old.ok,state:old.data?.loginState,posts,error:old.error}))
   await evaluate(popup,`document.querySelector('#connectTrusted').click()`)
   const helperPage=await until(async()=>(await targets()).find(t=>t.url.startsWith('chrome-extension://jioaddpafbaidcmdnnooljbkkhlaajpl/connect.html#')))
   connection=await client(helperPage.webSocketDebuggerUrl);await until(async()=>await evaluate(connection,`Boolean(document.querySelector('#reader')?.textContent)&&document.querySelector('#confirm')?.disabled===false`));await evaluate(connection,`document.querySelector('#confirm').click()`)
   await until(async()=>await evaluate(connection,`document.querySelector('#status').textContent.includes('已连接')`))
-  const current=await request('fixture-trusted');if(!current.ok||current.data.loginState!=='continued'||posts!==1)throw new Error('Trusted flow did not complete once: '+JSON.stringify({ok:current.ok,state:current.data?.loginState,posts,error:current.error}))
+  current=await request('fixture-trusted');if(!current.ok||current.data.loginState!=='continued'||posts!==1)throw new Error('Trusted flow did not complete once: '+JSON.stringify({ok:current.ok,state:current.data?.loginState,posts,error:current.error}))
+  }
   const permissions=await evaluate(popup,'chrome.permissions.getAll()');if(permissions.permissions.includes('debugger'))throw new Error('Reader obtained debugger')
   const dailyBefore=await evaluate(popup,`chrome.tabs.get(${tabId}).then(t=>({id:t.id,windowId:t.windowId,url:t.url}))`)
-  const empty=await request('fixture-query-tabs',{kind:'tabs',tabId:undefined,cachedLogin:false,queryMode:'background'});if(!empty.ok||!Array.isArray(empty.data)||empty.data.length)throw new Error('Background exposed daily tabs')
+  const beforeWindows=await evaluate(popup,`chrome.windows.getAll().then(ws=>ws.map(w=>({id:w.id,focused:w.focused,state:w.state})))`)
+  const sources=await request('fixture-query-tabs',{kind:'tabs',tabId:undefined,cachedLogin:false,queryMode:'background'});if(!sources.ok||sources.data.length!==1||sources.data[0].tabId!==tabId)throw new Error('Unique current page not reused read-only')
+  const borrowed=await request('fixture-query-borrowed',{tabId,cachedLogin:true,queryMode:'background'})
+  if(!borrowed.ok||!JSON.stringify(borrowed.data).includes('未读邮件 2')||borrowed.data.controls?.length||posts!==1)throw new Error('Read-only current page failed or acted')
+  const afterWindows=await evaluate(popup,`chrome.windows.getAll().then(ws=>ws.map(w=>({id:w.id,focused:w.focused,state:w.state})))`)
+  if(JSON.stringify(beforeWindows)!==JSON.stringify(afterWindows)||await evaluate(popup,`chrome.storage.session.get('queryWindow').then(x=>Boolean(x.queryWindow))`))throw new Error('Read-only source created/activated a window')
   const prepared=await request('fixture-query-prepare',{kind:'ensure',tabId:undefined,cachedLogin:false,queryMode:'background',targetUrl:site+'/auth'})
   if(!prepared.ok)throw new Error('Background prepare failed: '+JSON.stringify({reply:prepared,windows:await evaluate(popup,`chrome.windows.getAll({populate:true}).then(ws=>ws.map(w=>({id:w.id,state:w.state,focused:w.focused,tabs:w.tabs.map(t=>({id:t.id,url:t.url,pendingUrl:t.pendingUrl}))})))`)}))
   const owned=await evaluate(popup,`chrome.storage.session.get('queryWindow').then(x=>x.queryWindow)`)
@@ -91,19 +112,22 @@ try{
   const workerId=owned.pages[0].tabId
   const read=await request('fixture-query-read',{tabId:workerId,cachedLogin:false,queryMode:'background'})
   if(!read.ok||!JSON.stringify(read.data).includes('未读邮件 2')||JSON.stringify(read.data).includes('邮箱账号登录'))throw new Error('Background did not share existing fictional session')
+  if(!queryOnly){
   await evaluate(popup,`chrome.tabs.update(${workerId},{url:'${site}/login'})`)
   const backgroundLogin=await request('fixture-query-login',{tabId:workerId,cachedLogin:true,queryMode:'background'})
   if(!backgroundLogin.ok||backgroundLogin.data.loginState!=='continued'||posts!==2)throw new Error('Background trusted login failed: '+JSON.stringify(backgroundLogin))
   const afterLogin=await evaluate(popup,`chrome.windows.get(${owned.windowId})`)
   if(afterLogin.state!=='minimized'||afterLogin.focused)throw new Error('Background login activated window')
+  }
   const reused=await request('fixture-query-reuse',{kind:'ensure',tabId:undefined,cachedLogin:false,queryMode:'background',targetUrl:site+'/auth'})
   if(!reused.ok||(await evaluate(popup,`chrome.storage.session.get('queryWindow').then(x=>x.queryWindow)`)).pages[0].tabId!==workerId)throw new Error('Query page not reused')
-  const rejected=await request('fixture-query-user-tab',{tabId,cachedLogin:false,queryMode:'background'});if(rejected.ok)throw new Error('Background accepted daily tab')
+  const rejected=await request('fixture-query-user-tab',{kind:'act',tabId,cachedLogin:false,queryMode:'background'});if(rejected.ok)throw new Error('Background accepted actions on daily tab')
   epoch++;await evaluate(popup,`chrome.runtime.sendMessage({type:'wake'})`)
   await until(async()=>await evaluate(popup,`chrome.windows.get(${owned.windowId}).then(()=>false,()=>true)`))
   const dailyAfter=await evaluate(popup,`chrome.tabs.get(${tabId}).then(t=>({id:t.id,windowId:t.windowId,url:t.url}))`)
   if(JSON.stringify(dailyBefore)!==JSON.stringify(dailyAfter))throw new Error('Daily page changed')
-  console.log(JSON.stringify({dedicatedBackgroundWindow:true,minimizedNonfocused:true,sameProfileSessionShared:true,backgroundTrustedLogin:true,queryPageReused:true,dailyTabRejected:true,epochCleanup:true,dailyPageUnchanged:true}))
+  console.log(JSON.stringify({headful,restoreCreated,borrowedReadNoWindowOrFocusChange:true,dedicatedBackgroundWindow:true,minimizedNonfocused:true,sameProfileSessionShared:true,backgroundTrustedLogin:!queryOnly,queryPageReused:true,dailyTabActionsRejected:true,epochCleanup:true,dailyPageUnchanged:true}))
+  if(queryOnly)break queryFixture
   const target=await until(async()=>(await targets()).find(t=>t.type==='page'&&t.url===site+'/auth'));accountClient=await client(target.webSocketDebuggerUrl)
   recording={id:recordId,origin:site,tabId,phase:'recording',ttlMs:4500};await evaluate(popup,`chrome.runtime.sendMessage({type:'wake'})`)
   await until(async()=>await evaluate(accountClient,`Boolean(document.querySelector('[data-yiyu-recording]'))`))
@@ -142,6 +166,7 @@ try{
       }
       console.log(JSON.stringify({recordingUI:'light/dark/360 no overflow'}))
     }finally{ui.ws.close()}
+  }
   }
 }finally{
   popup?.ws.close();connection?.ws.close();accountClient?.ws.close();if(root){await root.send('Browser.close').catch(()=>{});root.ws.close()}else browser.kill();web.close();bridge.close();console.log(JSON.stringify({ownedFixture:folder,userProfileUsed:false,userAccountUsed:false}))

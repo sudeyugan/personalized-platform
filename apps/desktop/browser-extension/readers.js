@@ -54,15 +54,15 @@ export async function readJob(job, assertActive = async () => { throw new Error(
   if(job.kind==='ensure')return ensureTaskPage(job,assertActive)
   if (job.kind === 'followed_live') { if (site !== BILIBILI_SITES[0] || job.tabId != null) failure('failed'); return followedLive() }
   if (job.kind === 'tabs') {
-    const tabs = job.queryMode?await queryTabs(job):await chrome.tabs.query({ url: `${site}/*` })
+    const tabs = job.queryMode?await queryTabs(job,assertActive):await chrome.tabs.query({ url: `${site}/*` })
     await requireSites([site])
     return tabs.filter(tab => !tab.incognito && tab.url && new URL(tab.url).origin === site).slice(0, 20).map(tab => ({ tabId: tab.id, origin: site, title: (tab.title ?? '').slice(0, 200), url: publicUrl(tab.url) }))
   }
   if (!Number.isSafeInteger(job.tabId) || job.tabId < 0) failure('failed')
-  if(job.queryMode)await assertQueryTab(job)
+  const source=job.queryMode?await assertQueryTab(job):undefined
   if(job.kind==='act')return performTaskAction(job,assertActive)
   await waitTaskPage(job,assertActive)
-  const loginState = await continueCachedLogin(job, assertActive)
+  const loginState = await continueCachedLogin(source?.borrowed?{...job,cachedLogin:false}:job, assertActive)
   const before = await chrome.tabs.get(job.tabId)
   if (before.incognito || !before.url || new URL(before.url).origin !== site) failure('tab_changed')
   let results
@@ -71,6 +71,7 @@ export async function readJob(job, assertActive = async () => { throw new Error(
   const result = results[0]?.result
   if (after.url !== before.url || result?.origin !== site || result?.url !== publicUrl(before.url)) failure('tab_changed')
   const controls=await taskControls(job)
+  if(source?.borrowed&&controls)controls.controls=[]
   if((await chrome.tabs.get(job.tabId)).url!==before.url)failure('tab_changed')
   return { tabId: job.tabId, ...result, ...controls, ...(loginState ? { loginState } : {}) }
 }
