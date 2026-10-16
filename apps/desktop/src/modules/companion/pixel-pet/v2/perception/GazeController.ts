@@ -21,7 +21,8 @@ export function createGazeController() {
     const c=preferences.calibration,cx=c?.x??.5,cy=c?.y??.5
     // Centered top camera: calibration is the neutral direction, no arbitrary
     // mount offsets or user-head orientation mixed into the look-at position.
-    const x=clamp((raw.x-cx)*2*(preferences.mirror?-1:1),-1,1)||0,y=clamp((raw.y-cy)*2,-1,1)||0
+    const rangeGain=c?.rangeX?clamp(.2/c.rangeX,.7,1):1
+    const x=clamp((raw.x-cx)*2*rangeGain*(preferences.mirror?-1:1),-1,1)||0,y=clamp((raw.y-cy)*2,-1,1)||0
     const target:FaceAttention={present:true,x,y,distance:clamp((c?.size??.28)/Math.max(.04,raw.size),.45,2.5),yaw:raw.yaw*(preferences.mirror?-1:1),pitch:raw.pitch,at:now}
     for(const key of ['x','y','distance','yaw','pitch'] as const)target[key]=filters[key].update(target[key],now)
     smoothed=target

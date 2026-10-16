@@ -10,11 +10,13 @@ import { loadRigAssets } from './rig/RigAssets'
 import { createRigRenderer,type HeadHitGeometry } from './rig/RigRenderer'
 import { neutralRigFrame,type PetExpression,type RigPose } from './animation/types'
 import type { FaceAttention } from './perception/types'
-import { cameraLook, restingLook } from './perception/CameraLook'
+import { personLook } from './perception/LookAttention'
+import type { PetScreenGeometry } from './perception/ScreenLook'
 
 export interface PixelPetV2Props extends PixelPetRendererProps {
   enhancements:PixelPetEnhancements;desktop?:boolean;headGeometry?:RefObject<HeadHitGeometry|null>
   camera?:RefObject<FaceAttention|null>;previewPose?:RigPose;previewExpression?:PetExpression;neutralPreview?:boolean
+  cameraScreen?:RefObject<PetScreenGeometry|null>
   onRenderError?:(cause:unknown)=>void
 }
 export function PixelPetV2Renderer(props:PixelPetV2Props) {
@@ -34,11 +36,9 @@ export function PixelPetV2Renderer(props:PixelPetV2Props) {
       const p=latest.current,center=renderer.center
       const camera=p.camera?.current??null
       const cameraTarget=camera?{...camera,x:side==='left-edge'?-camera.x:camera.x}:null
-      const b=behavior.update({now,settings:p.enhancements,pointer:null,camera:cameraTarget,conversation:p.conversation??'idle',dragging:Boolean(p.dragging),engaged:Boolean(p.engaged),pat:p.headPat?.current??previewPat.current,response:p.response?.current??previewResponse.current,reduced:Boolean(reduced?.matches),previewPose:p.restPreview?'sleep':p.previewPose,previewExpression:p.previewExpression})
+      const behaviorFrame=behavior.update({now,settings:p.enhancements,pointer:null,camera:cameraTarget,conversation:p.conversation??'idle',dragging:Boolean(p.dragging),engaged:Boolean(p.engaged),pat:p.headPat?.current??previewPat.current,response:p.response?.current??previewResponse.current,reduced:Boolean(reduced?.matches),previewPose:p.restPreview?'sleep':p.previewPose,previewExpression:p.previewExpression})
       // Camera/dialog targets are relative to the actual face, not canvas center.
-      const look=cameraLook(now,camera,center,pose)
-      if(look&&!p.dragging&&!p.engaged&&(p.conversation??'idle')==='idle'&&!b.pat){b.target=look.target;b.headLook=look.headLook}
-      else if(!p.dragging&&!p.engaged&&!b.pat&&((p.conversation??'idle')!=='idle'||!b.target))Object.assign(b,restingLook(center,pose))
+      const b=personLook(now,camera,center,pose,p.cameraScreen?.current,behaviorFrame,p.conversation??'idle',Boolean(p.dragging||p.engaged))
       const frame=p.neutralPreview?neutralRigFrame():motion.update(now,b,Boolean(reduced?.matches),p.dragMotion?.current)
       applyPoseTransform(ctx,side)
       const head=renderer.draw(ctx,frame)

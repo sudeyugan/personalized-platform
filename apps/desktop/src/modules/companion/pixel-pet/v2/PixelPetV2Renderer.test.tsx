@@ -5,6 +5,7 @@ import { PixelPetV2Renderer } from './PixelPetV2Renderer'
 import { cameraLook,restingLook } from './perception/CameraLook'
 import type { RigFrame } from './animation/types'
 import type { FaceAttention } from './perception/types'
+import { personLook } from './perception/LookAttention'
 const fake=vi.hoisted(()=>({load:vi.fn(),draw:vi.fn()}))
 vi.mock('./rig/RigAssets',()=>({loadRigAssets:fake.load}))
 vi.mock('./rig/RigRenderer',()=>({createRigRenderer:()=>({center:{x:96,y:72},draw:fake.draw})}))
@@ -59,4 +60,16 @@ it('uses only camera or the placement baseline despite desktop and preview point
   camera.current={present:true,x:-.4,y:-.2,distance:1,yaw:0,pitch:0,at}
   step(at+1900)
   expect(frame().gazeTarget).toEqual(restingLook(center,'bottom-edge').target)
+})
+it('preserves a softer live look while talking and waving, while drag/menu/pat keep priority',async()=>{
+  const at=performance.now(),camera={current:{present:true,x:.5,y:.1,distance:1,yaw:0,pitch:0,at}},center={x:96,y:72}
+  const props={enhancements:DEFAULT_PIXEL_ENHANCEMENTS,camera,pose:'right-edge' as const,previewPose:'wave' as const,conversation:'speaking' as const}
+  const view=render(<PixelPetV2Renderer {...props}/>);await act(async()=>resolve(new Map<never,never>()))
+  const step=(now:number)=>act(()=>{const batch=[...requests.values()];requests.clear();batch.forEach(callback=>callback(now))})
+  step(at+100)
+  const frame=():RigFrame=>fake.draw.mock.calls.at(-1)![1]
+  const expected=personLook(at+100,camera.current,center,'right-edge',undefined,{pose:'wave',expression:'happy',target:null,pat:false,speaking:true},'speaking',false)
+  expect(frame().gazeTarget).toEqual(expected.target);expect(frame().gazeTarget!.x).toBeGreaterThan(restingLook(center,'right-edge').target.x)
+  view.rerender(<PixelPetV2Renderer {...props} engaged/>);step(at+200);expect(frame().gazeTarget).toBeNull()
+  view.rerender(<PixelPetV2Renderer {...props} dragging/>);step(at+300);expect(frame().gazeTarget).toBeNull()
 })

@@ -1,5 +1,6 @@
 import type { PixelPoint, PixelPetPose } from '../../types'
 import type { FaceAttention } from './types'
+import { screenLookAim,type PetScreenGeometry } from './ScreenLook'
 
 function placementAim(pose: PixelPetPose) {
   // The camera/person is above the monitor. Bottom grip looks up; side grips
@@ -7,8 +8,8 @@ function placementAim(pose: PixelPetPose) {
   return pose === 'bottom-edge' ? { x: 0, y: -.8 }
     : pose === 'left-edge' || pose === 'right-edge' ? { x: -.18, y: -.22 } : { x: 0, y: -.12 }
 }
-export function restingLook(center: PixelPoint, pose: PixelPetPose) {
-  const aim = placementAim(pose), x = Math.tanh(aim.x), y = Math.tanh(aim.y)
+export function restingLook(center: PixelPoint, pose: PixelPetPose,screen?:PetScreenGeometry|null) {
+  const aim = screenLookAim(center,pose,screen)??placementAim(pose), x = Math.tanh(aim.x), y = Math.tanh(aim.y)
   return { target: { x: center.x + x * 100, y: center.y + y * 90 }, headLook: { x, y } }
 }
 
@@ -19,10 +20,10 @@ function follow(displacement: number, aim: number) {
   return rest + .85 * (Math.tanh(displacement + aim) - rest)
 }
 // Apply only at the animation boundary, after local smoothing/calibration.
-export function cameraLook(now: number, face: FaceAttention | null, center: PixelPoint, pose: PixelPetPose = 'float') {
-  if (!face?.present || ![face.x, face.y, face.yaw, face.pitch, face.at].every(Number.isFinite)
+export function cameraLook(now: number, face: FaceAttention | null, center: PixelPoint, pose: PixelPetPose = 'float',screen?:PetScreenGeometry|null) {
+  if (!face?.present || ![face.x, face.y, face.yaw, face.pitch,face.distance, face.at].every(Number.isFinite)
     || now - face.at > 1800 || face.at - now > 100) return null
-  const direction = pose === 'left-edge' ? -1 : 1, aim = placementAim(pose)
+  const direction = pose === 'left-edge' ? -1 : 1, aim = screenLookAim(center,pose,screen,face.distance)??placementAim(pose)
   // A smooth saturating response preserves the difference between ordinary
   // side positions, unlike a large linear gain that hits the stop too early.
   const x = follow(face.x * direction * 2.5, aim.x), y = follow(face.y * 1.8, aim.y)

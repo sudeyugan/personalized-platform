@@ -11,7 +11,7 @@ export interface BehaviorInput {
   conversation:PetConversationState;dragging:boolean;engaged:boolean;pat:number;response:number
   reduced:boolean;initiative?:number;windowChanged?:boolean;previewPose?:RigPose;previewExpression?:PetExpression
 }
-export interface BehaviorOutput { pose:RigPose;expression:PetExpression;target:PixelPoint|null;headLook?:PixelPoint;pat:boolean;speaking:boolean }
+export interface BehaviorOutput { pose:RigPose;expression:PetExpression;target:PixelPoint|null;headLook?:PixelPoint;coordinatedLook?:boolean;pat:boolean;speaking:boolean }
 export function createBehaviorController(random=Math.random) {
   const scheduler=createBehaviorScheduler(random)
   let started:number|undefined,lastInteraction=0,lastPat=0,lastResponse=0,patUntil=0,greetUntil=0,searchUntil=0
