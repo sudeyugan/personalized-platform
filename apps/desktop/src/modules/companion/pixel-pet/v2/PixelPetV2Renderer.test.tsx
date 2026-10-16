@@ -1,15 +1,19 @@
-import { act,render,screen } from '@testing-library/react'
+import { act,fireEvent,render,screen } from '@testing-library/react'
 import { afterEach,beforeEach,expect,it,vi } from 'vitest'
 import { DEFAULT_PIXEL_ENHANCEMENTS } from '../../../../domain/pixelPetEnhancements'
 import { PixelPetV2Renderer } from './PixelPetV2Renderer'
-const fake=vi.hoisted(()=>({load:vi.fn()}))
+import { cameraLook,restingLook } from './perception/CameraLook'
+import type { RigFrame } from './animation/types'
+import type { FaceAttention } from './perception/types'
+const fake=vi.hoisted(()=>({load:vi.fn(),draw:vi.fn()}))
 vi.mock('./rig/RigAssets',()=>({loadRigAssets:fake.load}))
-vi.mock('./rig/RigRenderer',()=>({createRigRenderer:()=>({center:{x:96,y:72},draw:()=>({x:96,y:72,rx:35,ry:42})})}))
+vi.mock('./rig/RigRenderer',()=>({createRigRenderer:()=>({center:{x:96,y:72},draw:fake.draw})}))
 vi.mock('../PixelPetRenderer',()=>({PixelPetRenderer:()=> <canvas data-testid="legacy-fallback"/>}))
 let resolve:(value:Map<never,never>)=>void,reject:(value:Error)=>void
 let sequence=0,requests:Map<number,FrameRequestCallback>
 beforeEach(()=>{
   sequence=0;requests=new Map()
+  fake.draw.mockReset();fake.draw.mockReturnValue({x:96,y:72,rx:35,ry:42})
   fake.load.mockImplementation(()=>new Promise((yes,no)=>{resolve=yes;reject=no}))
   vi.stubGlobal('requestAnimationFrame',vi.fn((callback:FrameRequestCallback)=>{requests.set(++sequence,callback);return sequence}))
   vi.stubGlobal('cancelAnimationFrame',vi.fn((id:number)=>requests.delete(id)))
@@ -38,4 +42,21 @@ it('keeps original fallback on failed image loading and does not start animation
   expect(screen.getByRole('status')).toHaveTextContent('加载失败')
   expect(requests.size).toBe(0)
   expect(diagnostic).toHaveBeenCalledWith(expect.objectContaining({message:'fixture load failure'}))
+})
+it('uses only camera or the placement baseline despite desktop and preview pointer movement',async()=>{
+  const at=performance.now(),center={x:96,y:72},pointer={current:{x:10000,y:-10000}}
+  const camera:{current:FaceAttention|null}={current:{present:true,x:.2,y:.1,distance:1,yaw:0,pitch:0,at}}
+  render(<PixelPetV2Renderer enhancements={DEFAULT_PIXEL_ENHANCEMENTS} pointer={pointer} camera={camera} pose="bottom-edge"/>)
+  await act(async()=>resolve(new Map<never,never>()))
+  const frame=():RigFrame=>fake.draw.mock.calls.at(-1)![1]
+  const step=(now:number)=>act(()=>{const batch=[...requests.values()];requests.clear();batch.forEach(callback=>callback(now))})
+  step(at+100)
+  expect(frame().gazeTarget).toEqual(cameraLook(at+100,camera.current,center,'bottom-edge')!.target)
+  pointer.current={x:-10000,y:10000};camera.current=null
+  fireEvent.pointerMove(screen.getByRole('img'),{clientX:999,clientY:999})
+  step(at+200)
+  expect(frame().gazeTarget).toEqual(restingLook(center,'bottom-edge').target)
+  camera.current={present:true,x:-.4,y:-.2,distance:1,yaw:0,pitch:0,at}
+  step(at+1900)
+  expect(frame().gazeTarget).toEqual(restingLook(center,'bottom-edge').target)
 })

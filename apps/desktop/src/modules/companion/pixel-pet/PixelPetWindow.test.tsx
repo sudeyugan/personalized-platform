@@ -2,19 +2,29 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { emptyCompanionDesktopSnapshot } from '../companionDesktop'
 import { PixelPetWindow } from './PixelPetWindow'
+import { DEFAULT_PIXEL_ENHANCEMENTS } from '../../../domain/pixelPetEnhancements'
 
 const native = vi.hoisted(() => ({
   emit: vi.fn().mockResolvedValue(undefined), down: vi.fn(),
   ignore: vi.fn().mockResolvedValue(undefined), top: vi.fn().mockResolvedValue(undefined),
+  pointer: vi.fn(() => ({ pointer: { current: null }, error: '' })),
 }))
 vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => ({ setIgnoreCursorEvents: native.ignore, setAlwaysOnTop: native.top }) }))
-vi.mock('@tauri-apps/api/event', () => ({ emitTo: native.emit }))
-vi.mock('./usePixelPetPointer', () => ({ usePixelPetPointer: () => ({ pointer: { current: null }, error: '' }) }))
+vi.mock('@tauri-apps/api/event', () => ({ emitTo: native.emit, listen: async () => () => {} }))
+vi.mock('./usePixelPetPointer', () => ({ usePixelPetPointer: native.pointer }))
 vi.mock('./usePixelPetInteraction', () => ({ usePixelPetInteraction: () => ({ error: '', onPointerDown: native.down }) }))
-vi.mock('./PixelPetRenderer', () => ({ PixelPetRenderer: ({ pose, heartInput }: { pose: string; heartInput?: unknown }) => <div data-testid="pet-pose" data-heart-input={Boolean(heartInput)}>{pose}</div> }))
+vi.mock('./PixelPetAppearance', () => ({ PixelPetAppearance: ({ pose, heartInput }: { pose: string; heartInput?: unknown }) => <div data-testid="pet-pose" data-heart-input={Boolean(heartInput)}>{pose}</div> }))
 const snapshot = { ...emptyCompanionDesktopSnapshot, pixelPetEnabled: true, desktopVisible: true, desktopMode: 'interactive' as const }
 const layout = { scale: 1, pixelRatio: 1, ready: true, side: 'right-edge' as const, pose: 'float' as const }
 describe('pet window menu integration', () => {
+  it('samples the global pointer only for classic/other styles, never for the camera edition',()=>{
+    const view=render(<PixelPetWindow snapshot={{...snapshot,pixelPetStyle:'pixel',pixelEnhancements:{...DEFAULT_PIXEL_ENHANCEMENTS,enabled:true}}} layout={layout}/>)
+    expect(native.pointer).toHaveBeenLastCalledWith(false)
+    view.rerender(<PixelPetWindow snapshot={{...snapshot,pixelPetStyle:'pixel',pixelEnhancements:{...DEFAULT_PIXEL_ENHANCEMENTS,enabled:false}}} layout={layout}/>)
+    expect(native.pointer).toHaveBeenLastCalledWith(true)
+    view.rerender(<PixelPetWindow snapshot={{...snapshot,pixelPetStyle:'chibi',pixelEnhancements:{...DEFAULT_PIXEL_ENHANCEMENTS,enabled:true}}} layout={layout}/>)
+    expect(native.pointer).toHaveBeenLastCalledWith(true)
+  })
   it('keeps the local heart input in quiet mode without changing cursor passthrough', () => {
     const heartInput = { sample: { current: null }, marker: { current: null } }
     render(<PixelPetWindow snapshot={{ ...snapshot, desktopMode: 'quiet' }} layout={layout} heartInput={heartInput} />)

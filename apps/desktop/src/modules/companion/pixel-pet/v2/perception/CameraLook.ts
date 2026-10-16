@@ -12,15 +12,20 @@ export function restingLook(center: PixelPoint, pose: PixelPetPose) {
   return { target: { x: center.x + x * 100, y: center.y + y * 90 }, headLook: { x, y } }
 }
 
-// Amplify small, already-smoothed/calibrated face displacements only at the
-// animation boundary. No new capture, storage, or remote processing.
+// Reduce the displacement around the placement baseline, not the baseline
+// itself: bottom/side grips still look at the person when they sit centered.
+function follow(displacement: number, aim: number) {
+  const rest = Math.tanh(aim)
+  return rest + .85 * (Math.tanh(displacement + aim) - rest)
+}
+// Apply only at the animation boundary, after local smoothing/calibration.
 export function cameraLook(now: number, face: FaceAttention | null, center: PixelPoint, pose: PixelPetPose = 'float') {
   if (!face?.present || ![face.x, face.y, face.yaw, face.pitch, face.at].every(Number.isFinite)
     || now - face.at > 1800 || face.at - now > 100) return null
   const direction = pose === 'left-edge' ? -1 : 1, aim = placementAim(pose)
   // A smooth saturating response preserves the difference between ordinary
   // side positions, unlike a large linear gain that hits the stop too early.
-  const x = Math.tanh(face.x * direction * 2.5 + aim.x), y = Math.tanh(face.y * 1.8 + aim.y)
+  const x = follow(face.x * direction * 2.5, aim.x), y = follow(face.y * 1.8, aim.y)
   return {
     target: { x: center.x + x * 100, y: center.y + y * 90 },
     // Look AT the person, do not imitate their head yaw. Someone at the right

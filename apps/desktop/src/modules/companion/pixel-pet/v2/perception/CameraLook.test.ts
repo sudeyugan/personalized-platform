@@ -7,12 +7,12 @@ const center = { x: 96, y: 72 }
 const face = (x = 0): FaceAttention => ({ present: true, x, y: 0, yaw: 0, pitch: 0, distance: 1, at: 0 })
 
 describe('pixel2 visible continuous camera tracking', () => {
-  it('amplifies a small displacement symmetrically and mirrors position and orientation once', () => {
+  it('reduces displacement by fifteen percent and mirrors it once', () => {
     const right = cameraLook(0, { ...face(.1), yaw: .2 }, center)!
     const left = cameraLook(0, { ...face(-.1), yaw: -.2 }, center)!
-    expect(right.target.x - center.x).toBeCloseTo(Math.tanh(.25)*100)
-    expect(left.target.x - center.x).toBeCloseTo(-Math.tanh(.25)*100)
-    expect(right.headLook.x).toBeCloseTo(Math.tanh(.25))
+    expect(right.target.x - center.x).toBeCloseTo(Math.tanh(.25)*85)
+    expect(left.target.x - center.x).toBeCloseTo(-Math.tanh(.25)*85)
+    expect(right.headLook.x).toBeCloseTo(Math.tanh(.25)*.85)
     const mirrored = cameraLook(0, face(.1), center, 'left-edge')!
     expect(mirrored).toEqual(cameraLook(0, face(-.1), center, 'right-edge'))
     expect(mirrored.headLook.x).toBeLessThan(0)
@@ -26,8 +26,8 @@ describe('pixel2 visible continuous camera tracking', () => {
   })
   it('bounds strong movements without enlarging any skinning limits', () => {
     const look = cameraLook(0, { ...face(1), y: -1, yaw: 3, pitch: -3 }, center)!
-    expect(look.target.x).toBeGreaterThan(190);expect(look.target.x).toBeLessThan(196)
-    expect(look.target.y).toBeGreaterThan(-18);expect(look.target.y).toBeLessThan(-10)
+    expect(look.target.x).toBeCloseTo(center.x + Math.tanh(2.5)*85)
+    expect(look.headLook.y).toBeCloseTo(Math.tanh(-.12)+.85*(Math.tanh(-1.92)-Math.tanh(-.12)))
     expect(look.headLook.x).toBeLessThan(1);expect(look.headLook.y).toBeGreaterThan(-1)
   })
   it('makes ordinary left/right movement visible in the joints without changing neutral pose', () => {
@@ -39,10 +39,10 @@ describe('pixel2 visible continuous camera tracking', () => {
       return frame!
     }
     const right = settle(.2), left = settle(-.2)
-    expect(right.joints.head.x - left.joints.head.x).toBeGreaterThan(2)
-    expect(right.face.gazeX - left.face.gazeX).toBeGreaterThan(.9)
-    expect(right.joints.head.angle-left.joints.head.angle).toBeGreaterThan(.075)
-    expect(right.headTurn-left.headTurn).toBeGreaterThan(.65)
+    expect(right.joints.head.x - left.joints.head.x).toBeGreaterThan(1.7)
+    expect(right.face.gazeX - left.face.gazeX).toBeCloseTo(Math.tanh(.5)*1.7,3)
+    expect(right.joints.head.angle-left.joints.head.angle).toBeGreaterThan(.065)
+    expect(right.headTurn-left.headTurn).toBeGreaterThan(.58)
     expect(right.poses).toEqual([{ pose: 'neutral', weight: 1 }])
     expect(left.poses).toEqual(right.poses)
   })
@@ -70,5 +70,14 @@ describe('pixel2 visible continuous camera tracking', () => {
     let frame
     for(let now=0;now<=1000;now+=33)frame=motion.update(now,{pose:'neutral',expression:'shy',target:{x:96,y:27},pat:false,speaking:false})
     expect(frame!.face.gazeY).toBeCloseTo(-.5,3)
+  })
+  it('keeps every neutral placement baseline unchanged while reducing movement around it',()=>{
+    const aim={float:{x:0,y:-.12},'bottom-edge':{x:0,y:-.8},'left-edge':{x:-.18,y:-.22},'right-edge':{x:-.18,y:-.22}}
+    for(const pose of ['float','bottom-edge','left-edge','right-edge'] as const){
+      expect(cameraLook(0,face(),center,pose)).toEqual(restingLook(center,pose))
+      const look=cameraLook(0,{...face(.6),y:.4},center,pose)!,base=restingLook(center,pose)
+      expect(look.headLook.x-base.headLook.x).toBeCloseTo(.85*(Math.tanh((pose==='left-edge'?-.6:.6)*2.5+aim[pose].x)-base.headLook.x))
+      expect(look.headLook.y-base.headLook.y).toBeCloseTo(.85*(Math.tanh(.4*1.8+aim[pose].y)-base.headLook.y))
+    }
   })
 })

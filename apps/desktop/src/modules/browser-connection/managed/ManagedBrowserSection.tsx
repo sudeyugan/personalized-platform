@@ -23,7 +23,7 @@ export function ManagedBrowserSection(){
   const login=async(origin:string)=>{
     const state=await configureManagedBrowser(),entry=settings?.profiles?.find(profile=>profile.origin===origin)?.entryUrl??origin
     await browserNative('managed_browser_login',{origin,url:entry,expectedEpoch:state.epoch});setStatus({...state,mode:'login'})
-    setNotice('请在小鱼专用浏览器里登录。完成后点“结束登录”，之后查询不会打开窗口。日常Edge登录不会自动继承。')
+    setNotice('请在专用窗口里登录，可正常跳转到统一认证页；完成后点“结束登录”。认证跳转不会增加小鱼的读取权限，日常Edge登录不会自动继承。')
   }
   const add=()=>{
     const raw=/^https:\/\//u.test(site.trim())?site.trim():`https://${site.trim()}`,url=new URL(raw),origin=browserOrigin(url.origin),entry=browserPageUrl(url.href,origin)
@@ -36,7 +36,7 @@ export function ManagedBrowserSection(){
     <div className="setting-row"><div><strong>安静地浏览与查询</strong><span>使用独立登录，不打扰日常Edge；无需安装扩展。</span></div><button type="button" className={enabled?'switch on':'switch'} aria-label="启用小鱼专用浏览器" aria-pressed={enabled} onClick={()=>useLibraryStore.getState().setCompanionBrowser({enabled:!enabled})}><i/></button></div>
     {enabled&&<>
       <div className="browser-connection-status"><span className="browser-status-dot online"/><span>{status?.mode==='login'?'专用登录窗口已打开':'查询时在后台启动'}</span><button type="button" onClick={()=>void run(async()=>{await stopManagedBrowser();setNotice('已停止专用浏览器，本机登录会话保留。')})}><Square size={12}/>停止</button></div>
-      {status?.mode==='login'&&<div className="browser-managed-login"><strong>登录完成后，回到这里继续</strong><p className="browser-note">只在这个窗口中手动输入账号密码或处理验证码，小鱼不会读取这些输入。“结束登录”仅保存本机会话，不代表网站已登录成功。</p><button type="button" disabled={busy} onClick={()=>void run(async()=>{const state=await configureManagedBrowser();await browserNative('managed_browser_finish_login',{expectedEpoch:state.epoch});setStatus({...state,mode:'background'});setNotice('专用窗口已关闭。现在可以让小鱼查询，结果仍以实际页面为准。')})}>结束登录 · 转为后台</button></div>}
+      {status?.mode==='login'&&<div className="browser-managed-login"><strong>登录完成后，回到这里继续</strong><p className="browser-note">可手动跳转到公网HTTPS认证页，请核对地址后输入账号密码或处理验证码；小鱼不读取登录窗口，也不会自动授权认证网站。“结束登录”仅保留本机会话，不代表网站已登录成功。</p><button type="button" disabled={busy} onClick={()=>void run(async()=>{const state=await configureManagedBrowser();await browserNative('managed_browser_finish_login',{expectedEpoch:state.epoch});setStatus({...state,mode:'background'});setNotice('专用窗口已关闭。现在可以让小鱼查询，结果仍以实际页面为准。')})}>结束登录 · 转为后台</button></div>}
       <div className="browser-sites-heading"><strong>已授权网站 <small>{sites.length}</small></strong></div>
       <div className="browser-sites">{sites.map(origin=><div className="browser-site-card" key={origin}><div className="browser-site-top"><span className="browser-site-icon"><Globe2 size={17}/></span><span className="browser-site-name"><strong>{settings?.profiles?.find(profile=>profile.origin===origin)?.label||new URL(origin).hostname}</strong><small>独立本机会话</small></span><button type="button" disabled={busy} onClick={()=>void run(()=>login(origin))}><LogIn size={13}/>登录</button><button type="button" className="browser-site-remove" aria-label={`撤销 ${origin}`} onClick={()=>useLibraryStore.getState().setCompanionBrowser({sites:sites.filter(value=>value!==origin)})}><X size={13}/></button></div><details className="browser-site-options"><summary>网站选项<small>用途、入口与操作范围</small></summary><div className="browser-site-option-body"><BrowserSiteProfileFields site={origin}/></div></details></div>)}</div>
       {!sites.length&&<div className="browser-sites-empty"><Globe2 size={22}/><span>添加常用网站<small>邮箱、通知、学习或其他网页</small></span></div>}

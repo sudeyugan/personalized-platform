@@ -24,9 +24,9 @@ export class BrowserEngine {
   async launch(mode) {
     if(this.context&&this.mode===mode)return
     await this.close()
-    const context=await this.launcher({channel:'msedge',headless:mode!=='login',viewport:{width:1280,height:900},acceptDownloads:false,serviceWorkers:'block',permissions:[],timeout:20000})
+    const context=await this.launcher({channel:'msedge',chromiumSandbox:true,headless:mode!=='login',viewport:{width:1280,height:900},acceptDownloads:false,serviceWorkers:'block',permissions:[],timeout:20000})
     this.context=context;this.mode=mode
-    const network=networkPolicy(this.sites)
+    const network=networkPolicy(this.sites,{manualLogin:mode==='login'})
     await context.route('**/*',async route=>{
       if(route.request().isNavigationRequest() && this.mode!=='login' && new URL(route.request().url()).origin!==this.taskSite)return route.abort('blockedbyclient')
       return network(route)

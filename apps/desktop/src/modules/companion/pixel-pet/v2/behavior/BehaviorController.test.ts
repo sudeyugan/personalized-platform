@@ -35,7 +35,7 @@ describe('pixel2 gesture stability', () => {
     expect(controller.update({...input(200010),response:1}).pose).toBe('neutral')
     expect(controller.update({...input(200043),response:1}).pose).toBe('neutral')
   })
-  it('does not resume a cancelled greeting between 50ms pointer samples', () => {
+  it('never lets pointer movement interrupt a camera greeting', () => {
     const controller = createBehaviorController(() => 0)
     controller.update({ ...input(0), camera: face(0,false) })
     expect(controller.update({ ...input(10), camera: face(10) }).pose).toBe('wave')
@@ -43,8 +43,15 @@ describe('pixel2 gesture stability', () => {
     for (let now = 33; now <= 1000; now += 33) {
       poses.push(controller.update({ ...input(now), camera: face(now), pointer: { x: Math.floor(now / 50) * 5, y: 70 } }).pose)
     }
-    expect(new Set(poses)).toEqual(new Set(['neutral']))
-    expect(controller.update({ ...input(1200), camera: face(1200), pointer: { x: 100, y: 70 } }).pose).toBe('neutral')
+    expect(new Set(poses)).toEqual(new Set(['wave']))
+    expect(controller.update({ ...input(1200), camera: face(1200), pointer: { x: 100, y: 70 } }).pose).toBe('wave')
+  })
+  it('never follows the pointer on missing or stale camera input, or wakes from it',()=>{
+    const controller=createBehaviorController(()=>0)
+    controller.update(input(0))
+    for(const camera of [null,face(0,false),face(0)]){
+      expect(controller.update({...input(200000),camera,pointer:{x:10000,y:-10000}})).toMatchObject({target:null,pose:'sleep'})
+    }
   })
   it('cancels rather than resumes a gesture after drag, menu, pat, or dialogue', () => {
     for (const interruption of [{ dragging: true }, { engaged: true }, { pat: 1 }, { conversation: 'thinking' as const }]) {

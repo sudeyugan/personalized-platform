@@ -1,5 +1,11 @@
 # Agent Development System Audit
 
+2026-10-16候选交付复核：Windows Release2m23s/NSIS/保护桌面更新整体退出0、YIYU_DELIVERY_UPDATED，17应用/夹具源与镜像一致，项目/镜像/桌面EXE与NSIS、Win/WSL运行时hash核对，见PROJECT_STATE；不杀进程、产物不进Git。验证为上列分段通过（最终候选类型/Web完成），不将先前worker启动超时整批改写全绿，不重复完整检查；新改源A级、两个版本视线/采样隔离与点击交互已定向，实际账号/硬件观感和R059/DEC095仍开放，正式版本不动。当前仅待普通main推送/远端核对，纯文档不重编。
+
+2026-10-16冻结复核：用户明确2.0不得鼠标追踪，已同时移除fallback/预览pointer/行为打断，并停止该版50ms全局采样，加载与失败回退不给旧renderer活动指针；原版/其他造型和点击摸头拖动保留。新改源均A级、小入口不堆职责；9文件43项分段/类型/目标lint/docs/diff通过。登录权限修补上轮23定向及真实Edge生产policy＋虚构HTTPS传输/公共DNS、可见1→后台0、实际进程无no-sandbox通过；一次Windowsfull为221文件1261项通过＋单文件worker启动超时，已仅该文件5项与Rust168/14忽略、显式内嵌运行时Job/沙箱1项补齐，不篡改或扩大超时，不称单次full通过。候选/桌面运行保护/main后续见状态，R059/真实账号和硬件观感/DEC095未完保持，正式版本不动。
+
+2026-10-16修补开始审查：用户已授权修补浏览加载/认证拦截与摄像头小幅收敛。手动登录与agent浏览权限分离：只有显式可见登录上下文允许公网HTTPS导航，不将跳转域名持久授权，login期间request仍硬拒绝、后台精确目标/输入排除/证据复核不变。DNS并发/超时/缓存上限及Chromium沙箱定向验证后一次full批次，实际隔离Edge不使用真实账号；资源路由缓存限制和DNS预检非IP固定仍保留。摄像头仅动画映射乘.85，摆放基准不变，不扩大采集或旧版行为。候选/桌面运行保护/main与证据以PROJECT_STATE收口。
+
 2026-10-15 DEC-099收口审查：独立Node/Playwright/Edge profile与真正headless已接入，不更改旧Edge默认/配对/权限；UI显式首次登录/结束/停止/清除（全部专用账号不可恢复、日常Edge不动）与任务路由/低信任DOM/现场操作/证据核验保持。新源按assets/policy/worker/job/DOM/观察/动作/设置分责A级，旧lib/computer只编排取消与注册；旧桥结果schema不接受专用操作。一次Windows完整门禁退出0/221前端文件缓存无失败、显式内嵌Node/Job清理和实际Edge首次1窗口→后台0、900/360浅深无溢出通过；不操作真实账号。Windows Release1m44/NSIS/保护桌面交付已退出0，45应用源逐字节一致，最后打包过滤pnpm的仅WSL CLI shim后Win/WSL运行时归档同77e90ee0，实际应用payload不变；按自动构建偏好仅最终候选收口，不重跑full。候选最终hash/main事实见PROJECT_STATE；无秘密/账号缓存/EXE/归档入Git，保留R059/真实网站与DEC095未完项，正式2.0.0/M12不改。
 
 2026-10-15 DEC-099开始审查：用户明确接受独立登录/真正headless，旧Edge兼容默认保持；基线b28c738，原最小化与后台可信认证仍未满足验收。新增browser-runtime/managed_browser分责与固定Node/Playwright归档、独立profile/生命周期，保留精确站点/隐私/现场引用/证据，不默授高影响操作。定向与隔离Edge后一次跨层批次、保护候选/main推送，计划/基线/R059同步，不冒称交付或真实账号已验。

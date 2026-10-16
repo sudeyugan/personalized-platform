@@ -7,36 +7,54 @@ import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { BrowserEngine } from '../apps/desktop/browser-runtime/engine.mjs'
 const require=createRequire(new URL('../apps/desktop/package.json',import.meta.url)),{chromium}=require('playwright-core')
-const root=await mkdtemp(join(tmpdir(),'yiyu-managed-fixture-')),profile=join(root,'profile'),site='https://www.example.com'
-const modes=[],engine=new BrowserEngine(profile,options=>{modes.push({headless:options.headless});return chromium.launchPersistentContext(profile,options)})
-async function route(context) {
-  // Last-registered route supplies fictional HTTP responses. Network-policy
-  // rejection is covered separately; there is no request to this real domain.
-  await context.route('**/*',async route=>{
+const root=await mkdtemp(join(tmpdir(),'yiyu-managed-fixture-')),profile=join(root,'profile'),site='https://www.example.com',auth='https://www.iana.org'
+const modes=[],blocked=[],engine=new BrowserEngine(profile,async options=>{
+  modes.push({headless:options.headless,sandbox:options.chromiumSandbox})
+  const context=await chromium.launchPersistentContext(profile,options),register=context.route.bind(context)
+  // Keep the actual engine handler and network policy (including public DNS).
+  // Substitute only its final network dispatch with fictional HTTPS responses:
+  // unlike a last-registered fulfill handler, this does not bypass the policy.
+  context.route=(pattern,handler)=>register(pattern,route=>handler({
+    request:()=>route.request(),abort:reason=>{blocked.push(new URL(route.request().url()).origin);return route.abort(reason)},continue:()=>respond(route),
+  }))
+  return context
+})
+async function respond(route) {
     const request=route.request(),url=new URL(request.url())
+    if(url.origin===auth)return route.fulfill({contentType:'text/html; charset=utf-8',body:`<h1>虚构统一认证</h1><form action="${site}/session" method="post"><label>账号<input name="username" value="FICTIONAL-ACCOUNT"></label><label>密码<input type="password" name="password" value="FICTIONAL-SECRET"></label><button>登录</button></form>`})
     assert.equal(url.origin,site)
     const logged=/fixture-session=1/.test(request.headers().cookie??'')
     if(url.pathname==='/session')return route.fulfill({status:302,headers:{location:site+'/inbox','set-cookie':'fixture-session=1; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=3600'}})
-    if(!logged)return route.fulfill({contentType:'text/html; charset=utf-8',body:'<h1>虚构账号登录</h1><form action="/session" method="post"><label>账号<input name="username" value="FICTIONAL-ACCOUNT"></label><label>密码<input type="password" name="password" value="FICTIONAL-SECRET"></label><button>登录</button></form>'})
+    if(!logged)return route.fulfill({contentType:'text/html; charset=utf-8',body:`<script>location.replace('${auth}/fixture-login')</script>`})
     if(url.pathname==='/frame')return route.fulfill({contentType:'text/html; charset=utf-8',body:'<p>未读邮件 2</p><a href="/archive">查看历史</a>'})
     return route.fulfill({contentType:'text/html; charset=utf-8',body:'<h1>虚构收件箱</h1><iframe src="/frame"></iframe><button onclick="document.querySelector(\'h1\').textContent=\'查看未读邮件\'">查看未读</button><button>删除邮件</button><input type="text" aria-label="筛选关键词" value="PRIVATE-INPUT-DO-NOT-READ"><select aria-label="筛选状态"><option>全部</option><option>未读</option></select><form method="get" action="/inbox"><input type="search" name="q" aria-label="搜索邮件"></form><a href="https://other.com">跨站</a>'})
-  })
 }
 function visibleOwnedWindows(){
   if(process.platform!=='win32')return null
   const command='$items=Get-CimInstance Win32_Process -Filter "name=\'msedge.exe\'" | Where-Object { $_.CommandLine -and $_.CommandLine.Contains($env:YIYU_FIXTURE_PROFILE) }; $n=0; foreach($item in $items){$p=Get-Process -Id $item.ProcessId -ErrorAction SilentlyContinue;if($p -and $p.MainWindowHandle -ne 0){$n++}}; Write-Output $n'
   return Number(execFileSync('powershell.exe',['-NoProfile','-Command',command],{env:{...process.env,YIYU_FIXTURE_PROFILE:profile},encoding:'utf8'}).trim())
 }
+function verifyOwnedSandbox(){
+  if(process.platform!=='win32')return false
+  const command='$items=@(Get-CimInstance Win32_Process -Filter "name=\'msedge.exe\'" | Where-Object { $_.CommandLine -and $_.CommandLine.Contains($env:YIYU_FIXTURE_PROFILE) }); if($items.Count -eq 0){throw "No owned fixture browser"}; foreach($item in $items){if($item.CommandLine.Contains("--no-sandbox")){throw "Owned browser sandbox disabled"}}; Write-Output "sandbox-enabled"'
+  assert.equal(execFileSync('powershell.exe',['-NoProfile','-Command',command],{env:{...process.env,YIYU_FIXTURE_PROFILE:profile},encoding:'utf8'}).trim(),'sandbox-enabled')
+  return true
+}
 try {
   await engine.configure({sites:[site],interactions:[site]})
-  await engine.launch('login');await route(engine.context);await engine.login(site,site)
+  await engine.login(site,site)
   const loginPage=[...engine.pages.values()][0]
+  await loginPage.waitForURL(auth+'/fixture-login')
+  await assert.rejects(engine.request({kind:'observe',origin:site,tabId:1}),/LOGIN_ACTIVE/)
+  await assert.rejects(engine.request({kind:'tabs',origin:auth}),/PERMISSION/)
+  assert.deepEqual(engine.sites,[site])
+  const sandboxEnabled=verifyOwnedSandbox()
   const before=await loginPage.locator('input[type=password]').count();assert.equal(before,1)
   const headedWindows=visibleOwnedWindows();if(headedWindows!==null)assert.ok(headedWindows>=1)
   // Explicit fixture-user action, not an agent bypassing credential policy.
   await loginPage.getByRole('button',{name:'登录',exact:true}).click()
   await loginPage.waitForURL(site+'/inbox');await engine.close()
-  await engine.request({kind:'tabs',origin:site});await route(engine.context)
+  await engine.request({kind:'tabs',origin:site})
   const [tab]=await engine.request({kind:'ensure',origin:site,targetUrl:site+'/inbox'})
   let observed=await engine.request({kind:'observe',origin:site,tabId:tab.tabId})
   assert.match(observed.text,/未读邮件 2/);assert.equal(observed.loginState,undefined)
@@ -57,7 +75,10 @@ try {
   observed=await engine.request({kind:'observe',origin:site,tabId:tab.tabId})
   assert.equal(new URL(observed.url).search,'');assert.match(observed.text,/未读邮件 2/)
   const backgroundWindows=visibleOwnedWindows();if(backgroundWindows!==null)assert.equal(backgroundWindows,0)
+  const crossSite=await engine.context.newPage()
+  await assert.rejects(crossSite.goto(auth+'/fixture-login',{waitUntil:'domcontentloaded',timeout:10000}),/ERR_BLOCKED_BY_CLIENT/)
+  assert.ok(blocked.includes(auth));await crossSite.close()
   await engine.configure({sites:[],interactions:[]});assert.equal(engine.context,null)
   await assert.rejects(engine.request({kind:'tabs',origin:site}),/PERMISSION/)
-  console.log(JSON.stringify({fixture:'managed-browser',realEdge:true,syntheticAccount:true,manualFixtureLogin:true,persistedHttpOnlySession:true,authorizedFrame:true,invokeSelectSearch:true,staleRejected:true,secretInputsExcluded:true,revokedClosed:true,modes,headedWindows,backgroundWindows}))
+  console.log(JSON.stringify({fixture:'managed-browser',realEdge:true,syntheticAccount:true,productionNetworkPolicy:true,publicDnsOnly:true,manualSsoRedirect:true,loginAgentReadDenied:true,sandboxEnabled,backgroundCrossSiteDenied:true,persistedHttpOnlySession:true,authorizedFrame:true,invokeSelectSearch:true,staleRejected:true,secretInputsExcluded:true,revokedClosed:true,modes,headedWindows,backgroundWindows}))
 } finally {await engine.close();await rm(root,{recursive:true,force:true})}

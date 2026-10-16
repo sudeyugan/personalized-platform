@@ -6,6 +6,7 @@ import type { PetExpression, RigPose } from '../animation/types'
 import { createBehaviorScheduler } from './BehaviorScheduler'
 import { resolveAttention } from './AttentionController'
 export interface BehaviorInput {
+  // Kept for callers sharing legacy input shapes; v2 never follows the pointer.
   now:number;settings:PixelPetEnhancements;pointer:PixelPoint|null;camera:FaceAttention|null
   conversation:PetConversationState;dragging:boolean;engaged:boolean;pat:number;response:number
   reduced:boolean;initiative?:number;windowChanged?:boolean;previewPose?:RigPose;previewExpression?:PetExpression
@@ -13,14 +14,12 @@ export interface BehaviorInput {
 export interface BehaviorOutput { pose:RigPose;expression:PetExpression;target:PixelPoint|null;headLook?:PixelPoint;pat:boolean;speaking:boolean }
 export function createBehaviorController(random=Math.random) {
   const scheduler=createBehaviorScheduler(random)
-  let started:number|undefined,lastInteraction=0,lastPointer:PixelPoint|null=null,lastPat=0,lastResponse=0,patUntil=0,greetUntil=0,searchUntil=0
-  let presence:boolean|undefined,pointerUntil=0,nextPresenceReaction=0
+  let started:number|undefined,lastInteraction=0,lastPat=0,lastResponse=0,patUntil=0,greetUntil=0,searchUntil=0
+  let presence:boolean|undefined,nextPresenceReaction=0
   let lastCamera:Pick<FaceAttention,'x'|'y'|'yaw'|'pitch'>|undefined
   return { update(input:BehaviorInput):BehaviorOutput {
-    const {now,settings,pointer,camera,conversation,dragging,engaged}=input
+    const {now,settings,camera,conversation,dragging,engaged}=input
     if(started===undefined){started=now;lastInteraction=now;lastPat=input.pat;lastResponse=input.response}
-    const moved=pointer&&(!lastPointer||Math.hypot(pointer.x-lastPointer.x,pointer.y-lastPointer.y)>1.5)
-    if(moved){lastPointer={...pointer};lastInteraction=now;pointerUntil=now+600}
     if(input.pat!==lastPat){lastPat=input.pat;patUntil=now+1800;lastInteraction=now;scheduler.interrupt(now)}
     // The shared response counter means body/chat/menu activation, not greeting.
     // Keep UI activation neutral even before the asynchronous chat state arrives.
@@ -43,10 +42,8 @@ export function createBehaviorController(random=Math.random) {
     }
     if(camera)presence=present
     const pat=now<patUntil,strong=dragging||engaged||pat
-    const attention=resolveAttention(now,pointer,camera,conversation,strong)
-    // Pointer samples arrive slower than animation frames. Hold the interruption
-    // through their gaps and cancel the old gesture, rather than resume it next frame.
-    const blocked=strong||activated||conversation!=='idle'||now<pointerUntil||input.reduced
+    const attention=resolveAttention(now,camera,conversation,strong)
+    const blocked=strong||activated||conversation!=='idle'||input.reduced
     if(blocked){greetUntil=0;searchUntil=0}
     let pose=scheduler.step(now,now-lastInteraction,settings.autonomy,settings.activity,blocked,input.initiative)
     let expression:PetExpression=pose==='sleep'?'sleepy':pose==='chin'?'curious':'natural'

@@ -19,20 +19,31 @@ export function publicAddress(address) {
   // Only global-unicast IPv6, excluding documentation and IPv4 mappings.
   return isIP(address) === 6 && /^[23]/i.test(address) && !/^2001:db8:/i.test(address)
 }
-export function networkPolicy(sites) {
+export function networkPolicy(sites, { manualLogin = false, resolve = lookup, dnsTimeout = 3000 } = {}) {
   const cache = new Map()
+  const publicHost = hostname => {
+    const now = Date.now(), previous = cache.get(hostname)
+    if (previous && previous.until > now) return previous.result
+    // Store the pending lookup too: a burst of scripts/images shares one check.
+    // Keep both stalled DNS and a page generating many hostnames bounded.
+    if (cache.size >= 256) cache.delete(cache.keys().next().value)
+    let timer
+    const result = Promise.race([
+      Promise.resolve().then(() => resolve(hostname, { all:true }))
+        .then(addresses => addresses.length > 0 && addresses.every(item => publicAddress(item.address))),
+      new Promise(resolve => { timer = setTimeout(() => resolve(false), dnsTimeout) }),
+    ]).catch(() => false).finally(() => clearTimeout(timer))
+    cache.set(hostname, { until:now + 30000, result })
+    return result
+  }
   return async route => {
     try {
       const request = route.request(), url = new URL(request.url())
       origin(url.href)
-      if (request.isNavigationRequest() && !sites.includes(url.origin)) return await route.abort('blockedbyclient')
-      let record = cache.get(url.hostname)
-      if (!record || record.until < Date.now()) {
-        const addresses = await lookup(url.hostname, { all:true })
-        record = { ok:addresses.length > 0 && addresses.every(item => publicAddress(item.address)), until:Date.now()+30000 }
-        cache.set(url.hostname, record)
-      }
-      if (!record.ok) return await route.abort('blockedbyclient')
+      // Only the explicitly opened, human-controlled login window may follow
+      // public HTTPS SSO redirects. This never grants agent read/action access.
+      if (!manualLogin && request.isNavigationRequest() && !sites.includes(url.origin)) return await route.abort('blockedbyclient')
+      if (!await publicHost(url.hostname)) return await route.abort('blockedbyclient')
       await route.continue()
     } catch { await route.abort('blockedbyclient').catch(()=>{}) }
   }

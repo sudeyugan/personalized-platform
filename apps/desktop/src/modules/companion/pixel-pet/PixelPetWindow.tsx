@@ -28,11 +28,12 @@ export function PixelPetWindow({ snapshot, layout, drag, onPose, heartInput, lis
   const response = useRef(0)
   const headPat = useRef(0)
   const headGeometry=useRef<HeadHitGeometry|null>(null)
-  const perception=usePetPerception(snapshot.desktopVisible&&layout.ready&&snapshot.pixelPetStyle==='pixel'&&normalizePixelEnhancements(snapshot.pixelEnhancements).enabled)
+  const cameraEdition=snapshot.pixelPetStyle==='pixel'&&normalizePixelEnhancements(snapshot.pixelEnhancements).enabled
+  const perception=usePetPerception(snapshot.desktopVisible&&layout.ready&&cameraEdition)
   const [menu, setMenu] = useState<PixelPoint | null>(null)
   const [menuError, setMenuError] = useState('')
   const closeMenu = useCallback(() => setMenu(null), [])
-  const { pointer, error } = usePixelPetPointer(snapshot.desktopVisible && layout.ready)
+  const { pointer, error } = usePixelPetPointer(snapshot.desktopVisible && layout.ready && !cameraEdition)
   const pose = drag?.dragging ? 'float' : layout.pose ?? layout.side ?? 'right-edge'
   const { error: dragError, ...interaction } = usePixelPetInteraction(point => {
     const head=headGeometry.current

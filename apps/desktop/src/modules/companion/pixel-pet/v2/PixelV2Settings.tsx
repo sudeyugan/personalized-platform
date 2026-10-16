@@ -16,7 +16,7 @@ export function PixelV2Settings() {
     <div className="pet-v2-heading"><div><strong>桌宠版本</strong><small>两种陪伴方式，随时切换</small></div><kbd>Ctrl + Alt + A</kbd></div>
     <div className="pet-v2-engine" role="group" aria-label="桌宠版本">
       <button type="button" aria-pressed={!settings.enabled} onClick={()=>setCompanionPixelEnhancements({enabled:false})}><span className="pet-v2-edition">01 · CLASSIC</span><strong>原版</strong><small>鼠标眼神 · 轻待机<br/>不使用摄像头追踪</small><span className="pet-v2-selected">{!settings.enabled?'正在使用':'切换到原版'}</span></button>
-      <button type="button" aria-pressed={settings.enabled} onClick={()=>setCompanionPixelEnhancements({enabled:true})}><span className="pet-v2-edition">02 · TRACKING</span><strong>2.0 追踪版</strong><small>摄像头跟随 · 自然动作<br/>仅本地感知，不保存画面</small><span className="pet-v2-selected">{settings.enabled?'正在使用':'切换到 2.0'}</span></button>
+      <button type="button" aria-pressed={settings.enabled} onClick={()=>setCompanionPixelEnhancements({enabled:true})}><span className="pet-v2-edition">02 · TRACKING</span><strong>2.0 追踪版</strong><small>摄像头跟随 · 不跟随鼠标<br/>仅本地感知，不保存画面</small><span className="pet-v2-selected">{settings.enabled?'正在使用':'切换到 2.0'}</span></button>
     </div>
     <div className="pet-v2-shortcut"><small role="status">{shortcutStatus}</small>{shortcutStatus.includes('未能绑定')&&<button type="button" className="ghost-button" onClick={()=>window.dispatchEvent(new Event(PET_VERSION_REBIND))}>重试快捷键</button>}</div>
     {settings.enabled&&<>
