@@ -1,7 +1,7 @@
 use std::{io::{BufRead,BufReader,Read,Write},path::Path,process::{Child,ChildStdin,Command,Stdio},sync::{atomic::{AtomicU64,Ordering},mpsc::{self,Receiver}},time::{Instant,Duration}};
 use serde_json::{Value,json};
 use super::job::ProcessJob;
-pub struct Worker { child:Child,input:ChildStdin,output:Receiver<Result<Value,String>>,sequence:u64,_job:ProcessJob,pub login:bool }
+pub struct Worker { child:Child,input:ChildStdin,output:Receiver<Result<Value,String>>,sequence:u64,_job:ProcessJob,pub login:bool,pub recording:bool }
 impl Worker {
     pub fn start(directory:&Path,profile:&Path)->Result<Self,String>{
         let mut command=Command::new(directory.join("node.exe"));
@@ -23,7 +23,7 @@ impl Worker {
                 if tx.send(value).is_err(){break}
             }
         });
-        Ok(Self{child,input,output,sequence:0,_job:job,login:false})
+        Ok(Self{child,input,output,sequence:0,_job:job,login:false,recording:false})
     }
     pub fn call(&mut self,mut command:Value,epoch:&AtomicU64,expected:u64)->Result<Value,String>{
         if epoch.load(Ordering::SeqCst)!=expected{return Err("BROWSER_CANCELLED:".into())}
@@ -36,7 +36,7 @@ impl Worker {
             if epoch.load(Ordering::SeqCst)!=expected{return Err("BROWSER_CANCELLED:".into())}
             if Instant::now()>deadline{return Err("BROWSER_TIMEOUT:".into())}
             match self.output.recv_timeout(Duration::from_millis(50)) {
-                Ok(result)=>{let value=result?;if value["id"].as_u64()!=Some(self.sequence){return Err("BROWSER_RESULT:".into())}if value["ok"]==true{return Ok(value["data"].clone())}let code=value["error"].as_str().unwrap_or("BROWSER_RUNTIME");return Err(match code {"BROWSER_LOGIN_ACTIVE"|"BROWSER_MANAGED_LOGIN"|"BROWSER_STALE"|"BROWSER_TAB_CHANGED"|"BROWSER_SITE_PERMISSION"|"BROWSER_PAGE_PENDING"|"BROWSER_PAGE_OPEN"|"BROWSER_ARGUMENT"=>format!("{code}:"),_=>"BROWSER_MANAGED_FAILED:".into()})},
+                Ok(result)=>{let value=result?;if value["id"].as_u64()!=Some(self.sequence){return Err("BROWSER_RESULT:".into())}if value["ok"]==true{return Ok(value["data"].clone())}let code=value["error"].as_str().unwrap_or("BROWSER_RUNTIME");return Err(match code {"BROWSER_BUSY"|"BROWSER_LOGIN_ACTIVE"|"BROWSER_MANAGED_LOGIN"|"BROWSER_STALE"|"BROWSER_TAB_CHANGED"|"BROWSER_SITE_PERMISSION"|"BROWSER_PAGE_PENDING"|"BROWSER_PAGE_OPEN"|"BROWSER_ARGUMENT"=>format!("{code}:"),_=>"BROWSER_MANAGED_FAILED:".into()})},
                 Err(mpsc::RecvTimeoutError::Timeout)=>continue,
                 Err(_)=>return Err("BROWSER_RUNTIME:".into()),
             }

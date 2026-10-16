@@ -14,9 +14,9 @@ export class ReplySession {
   get hasTools() { return this.receipts.length > 0 }
   finish(modelText?: string, localText?: string) {
     if (!this.hasTools) return localText ?? modelText ?? ''
-    const verified=this.receipts.some(receipt=>receipt.call.name==='browser.verify'&&receipt.result.success)
+    const verified=this.receipts.some(receipt=>['browser.verify','browser.verify_collection'].includes(receipt.call.name)&&receipt.result.success)
     const pageAttempted = this.receipts.some(receipt => ['browser.read_page','browser.observe','browser.followed_live'].includes(receipt.call.name))
-    const displayed = this.receipts.filter(receipt => !(receipt.result.success && (verified&&receipt.call.name.startsWith('browser.')&&receipt.call.name!=='browser.verify'||pageAttempted&&['browser.status','browser.tabs','browser.ensure_page'].includes(receipt.call.name))))
+    const displayed = this.receipts.filter(receipt => !(receipt.result.success && (verified&&receipt.call.name.startsWith('browser.')&&!['browser.verify','browser.verify_collection'].includes(receipt.call.name)||pageAttempted&&['browser.status','browser.tabs','browser.ensure_page'].includes(receipt.call.name))))
     const documents = displayed.map(toolPresentation)
     const state = aggregateState(documents)
     const explanation = modelText && this.receipts.every(receipt => receipt.definition?.capability === 'read' || receipt.definition?.risk === 'read_only' || ['browser.read_page','browser.ensure_page','browser.act'].includes(receipt.call.name) && receipt.definition?.risk === 'low' || publicReadTools.has(receipt.call.name) || receipt.call.name === 'web.search') ? parseModelReply(modelText) : undefined

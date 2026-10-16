@@ -9,11 +9,13 @@ import { browserObjective } from '../browser-connection/taskGoal'
 
 type Rule = { title: string; aliases: string[]; step: string; completion: string }
 const rules: Record<string, Rule> = {
-  'browser.ensure_page':{title:'准备授权网站页面',aliases:['打开授权网站'],step:'在本次明确网站复用当前Edge页面，缺页才打开受控入口；不跨网站、账号。',completion:'本次Edge返回可用标签页；打开不是业务完成。'},
+  'browser.collect':{title:'连续浏览授权列表',aliases:['逐页查询','汇总网页'],step:'仅按本次明确目标，在当前授权网站使用唯一的下一页，最多4页；重复、歧义、登录或预算用尽即停。只记访问方法，不记页面内容。',completion:'报告实际访问范围和停止原因，分页末尾不等于全账号查全；继续核验本轮证据。'},
+  'browser.verify_collection':{title:'核对连续浏览结果',aliases:['逐页汇总','核对多页信息'],step:'用本轮访问页面的逐字证据和末页重新观察核验结论；不保存页号、引用或业务结果，不把不同页面数量直接相加。',completion:'当前证据支持简短结论，并报告访问页数/覆盖和停止原因；不声称全账号或历史新增。'},
+  'browser.ensure_page':{title:'准备授权网站页面',aliases:['打开授权网站'],step:'在本次明确网站复用当前配置的授权页面，缺页才打开受控入口；不跨网站、账号。',completion:'本次Edge返回可用标签页；打开不是业务完成。'},
   'browser.observe':{title:'观察授权网站',aliases:['查看网页'],step:'重新观察当前标签页并获取本轮控件引用，不重放旧页面ID。',completion:'当前页面身份与来源一致，正文和控件仅用于本轮。'},
   'browser.act':{title:'网站内导航与检索',aliases:['站内查找'],step:'逐站操作许可下只使用本轮观察的低风险控件；检索词从当前用户请求取得，操作后重新观察。',completion:'实际新页面信息可核对，动作提交本身不算完成。'},
   'browser.verify':{title:'核对授权网站查询结果',aliases:['检查网站','核对信息'],step:'逐字引用本轮页面证据核验目标，不保存结果正文、控件或查询参数。',completion:'本轮目标有当前页面证据，明确范围，不将未读当上次检查后新增。'},
-  'browser.followed_live': { title:'查看B站关注主播开播情况', aliases:['B站关注直播','关注主播开播','关注UP直播'], step:'查询当前Edge配置已登录B站账号的关注直播；只用本次官方结果，不猜主播或账号。', completion:'当前账号登录已核验，关注列表有明确状态和覆盖范围；只有complete=true时才可说明全部已核对。' },
+  'browser.followed_live': { title:'查看B站关注主播开播情况', aliases:['B站关注直播','关注主播开播','关注UP直播'], step:'查询当前浏览器后端已登录B站账号的关注直播；只用本次官方结果，不猜主播或账号。', completion:'当前账号登录已核验，关注列表有明确状态和覆盖范围；只有complete=true时才可说明全部已核对。' },
   'browser.tabs': { title:'查找授权网站标签页', aliases:['浏览器标签页'], step:'只列出本次用户请求的网站标签页，保存到本轮临时状态，不复用历史tabId。', completion:'返回的是当前授权网站标签页；没有标签页不是未登录，应请用户打开所需页面。' },
   'browser.read_page': { title:'读取已登录网站页面', aliases:['查看网页','读取页面'], step:'从本轮标签页列表选取同网站的tabId，读取当前可见文字；跳转或授权变化即停止。', completion:'本次来源和页面身份一致，页面已加载且未截断；目标信息确实来自当前页面，信息缺失时说明未知。' },
   'web.search': { title:'检索公开资料', aliases:['联网查找','搜索资料'], step:'从用户本次请求提取查询词，不携带历史结果、账号数据或其他私人内容。', completion:'返回当前搜索来源；摘要不能冒充实时状态，必要时读取官方页面继续核对。' },
@@ -33,7 +35,7 @@ export function deriveOperation(message: string, result: { audit: AgentAuditReco
   if (result.audit.some(item => item.resultStatus !== 'success')) return
   if (result.audit.some(item => { const tool = definitions.find(tool => tool.name === item.toolName); return tool && (tool.computer || ['high','critical'].includes(tool.risk) || ['delete','system'].includes(tool.capability)) })) return
   const calls = result.session.events.filter(event => event.type === 'tool_call')
-  const goalVerified=result.session.events.some(event=>event.type==='tool_result'&&event.name==='browser.verify'&&event.result.success&&(event.result.data as {goalVerified?:boolean})?.goalVerified===true)
+  const goalVerified=result.session.events.some(event=>event.type==='tool_result'&&['browser.verify','browser.verify_collection'].includes(event.name)&&event.result.success&&(event.result.data as {goalVerified?:boolean})?.goalVerified===true)
   let incomplete = false
   const trace = result.session.events.flatMap(event => {
     if (event.type !== 'tool_result' || !event.result.success) return []
@@ -67,7 +69,7 @@ export function deriveOperation(message: string, result: { audit: AgentAuditReco
     title: browser && site && last.tool.name !== 'browser.followed_live' ? `${new URL(site).hostname} · ${aliases.includes('检查邮箱') ? '检查邮箱' : title}`.slice(0,80) : title,
     scope: browser ? 'browser' : external ? 'public_web' : 'application',
     goal: `按用户本次明确请求完成${title}，变化的目标、日期和筛选从本次请求获取，不使用首次的参数或结果。`,
-    applicability: site ? `仅适用于${site}，使用当前已配对的Edge配置；核对本次网站/登录与授权，不保存账号身份。` : external ? '公开来源查询，沿用实时联网授权，不涉及账号或私人浏览器页面。' : '一隅已接入的程序内工具；核对当前对象及实时授权，不涉及未接入软件。',
+    applicability: site ? `仅适用于${site}，使用当前设置的浏览器后端；核对本次网站/登录与授权，不保存账号身份。` : external ? '公开来源查询，沿用实时联网授权，不涉及账号或私人浏览器页面。' : '一隅已接入的程序内工具；核对当前对象及实时授权，不涉及未接入软件。',
     keywords: [...new Set(aliases)].slice(0,8), preconditions:'以当前用户请求为目标，缺少必要参数或存在多个对象时询问；复用经验不授予额外权限。',
     steps: trace.map(({tool}) => `${tool.name}：${rules[tool.name]?.step ?? `依据本次请求填写${Object.keys(tool.inputSchema.properties).join('、') || '该工具所需参数'}；对象标识从本轮授权查询获取，不复用历史标识。`}`),
     completion: rule?.completion ?? '当前工具成功回执和目标对象状态能支持本次用户请求；不以模型措辞或动作发出代替完成依据。',

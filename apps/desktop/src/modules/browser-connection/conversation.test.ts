@@ -49,7 +49,7 @@ expect(current.messages).toHaveLength(1);expect(current.messages[0]).toMatchObje
     expect(current.messages).toHaveLength(1);expect(JSON.stringify(current.messages)).not.toMatch(/PRIVATE-MODEL|查看B站账号/)
     expect(JSON.stringify([current.operations,current.agentAudit])).not.toContain('PRIVATE-MODEL')
   })
-  it.each(['not_allowed','unfilled','needs_user','pending','submit_rejected'])('never asks the model to invent mail results for an unresolved login: %s',async loginState=>{
+  it.each(['not_allowed','unfilled','needs_user','pending','submit_rejected','managed_login','managed_unfilled','managed_needs_user','managed_pending'])('never asks the model to invent mail results for an unresolved login: %s',async loginState=>{
     const current=useLibraryStore.getState().data.companion;current.browser!.sites.push('https://mail.tsinghua.edu.cn');current.browser!.cachedLoginSites=['https://mail.tsinghua.edu.cn']
     calls.native.mockImplementation(async(_command,args)=>({verified:true,origin:'https://mail.tsinghua.edu.cn',data:args.request.kind==='tabs'?[{tabId:42}]:{loginState,title:'清华邮箱',text:'PRIVATE-LOGIN-TEXT',loading:false,truncated:false}}))
     const reply=await sendCompanionTurn('查看我的邮箱有未读邮件吗，邮箱仅指https://mail.tsinghua.edu.cn/')

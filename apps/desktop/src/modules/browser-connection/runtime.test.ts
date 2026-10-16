@@ -81,7 +81,7 @@ describe('private browser runtime isolation',()=>{
     expect(f.read).not.toHaveBeenCalled(); expect(result.audit[1].permissionDecision).toBe('denied')
   })
   it('browser scope permits only registered readonly tools',()=>{
-    const f=fixture([]);expect(f.registry.definitions().filter(tool=>operationAllows('browser',tool)).map(tool=>tool.name).sort()).toEqual(['app.capabilities','browser.act','browser.ensure_page','browser.followed_live','browser.observe','browser.read_page','browser.status','browser.tabs','browser.verify'])
+    const f=fixture([]);expect(f.registry.definitions().filter(tool=>operationAllows('browser',tool)).map(tool=>tool.name).sort()).toEqual(['app.capabilities','browser.act','browser.collect','browser.ensure_page','browser.followed_live','browser.observe','browser.read_page','browser.status','browser.tabs','browser.verify','browser.verify_collection'])
   })
   it('binds a task site, refuses ambiguous mail, and treats discussion as non-action',()=>{
     const data=createSeedLibrary();data.companion.browser={enabled:true,sites:[...bilibiliBrowserSites,'https://mail.google.com','https://outlook.live.com']}

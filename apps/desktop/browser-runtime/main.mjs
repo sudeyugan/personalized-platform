@@ -5,7 +5,7 @@ const profile=process.argv[2]
 if(!profile || resolve(profile)!==profile)process.exit(2)
 const engine=new BrowserEngine(profile)
 let chain=Promise.resolve(),timer,closed=false
-const idle=()=>{clearTimeout(timer);timer=setTimeout(()=>{chain=chain.then(()=>engine.close()).catch(()=>{})},engine.mode==='login'?600000:120000)}
+const idle=()=>{clearTimeout(timer);timer=setTimeout(()=>{chain=chain.then(()=>engine.close()).catch(()=>{})},['login','recording'].includes(engine.mode)?600000:120000)}
 const reader=createInterface({input:process.stdin,crlfDelay:Infinity})
 reader.on('line',line=>{
   clearTimeout(timer)
@@ -18,7 +18,8 @@ reader.on('line',line=>{
       let data
       if(command.kind==='configure')data=await engine.configure(command)
       else if(command.kind==='login')data=await engine.login(command.origin,command.url)
-      else if(command.kind==='finish'){await engine.close();data={mode:'idle'}}
+      else if(command.kind==='finish')data=await engine.finishLogin()
+      else if(command.kind==='record')data=await engine.record(command)
       else if(command.kind==='request')data=await engine.request(command.request)
       else throw new Error('BROWSER_ARGUMENT')
       process.stdout.write(`${JSON.stringify({id,ok:true,data})}\n`)

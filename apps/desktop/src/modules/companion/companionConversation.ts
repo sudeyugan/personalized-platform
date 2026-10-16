@@ -12,9 +12,11 @@ import { prepareOperationTurn, finishOperationTurn, offerOperationTraining } fro
 import type { OperationSelection } from '../../domain/operations/types'
 import { prepareBrowserTurn, rememberBrowserTurn, forgetBrowserTurn } from '../browser-connection/taskSession'
 import { createLiveCompanionApplicationServices } from './liveApplicationServices'
+import { armBrowserHandoff,cancelBrowserHandoff } from '../browser-connection/managed/handoff'
 export { createLiveCompanionApplicationServices } from './liveApplicationServices'
 
 export interface CompanionTurnOptions {
+  resumeBrowserTask?:boolean
   conversationChannel?:'main'|'desktop'
   onStatus?: (status?: AgentRuntimeStatus) => void
   onTextDelta?: (delta: string) => void
@@ -32,6 +34,7 @@ export interface CompanionTurnOptions {
 }
 
 export async function sendCompanionTurn(message: string, options: CompanionTurnOptions = {}) {
+  cancelBrowserHandoff()
   const operation = options.operation ? prepareOperationTurn(options.operation) : undefined
   const userText = operation?.message ?? message.trim()
   if (!userText) throw new Error('请输入想说的话')
@@ -47,7 +50,7 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
     const item: CompanionMessage = { id: `transient-${crypto.randomUUID()}`, role, content, createdAt: new Date().toISOString(), localOnly: true }
     options.onTransientMessage?.(item)
   }
-  if (operation || privateBrowserQuery || !data.settings.trust.retainConversationHistory) displayTransient('user', userText)
+  if (!options.resumeBrowserTask&&(operation || privateBrowserQuery || !data.settings.trust.retainConversationHistory)) displayTransient('user', userText)
   const access = buildAgentAccess(data, temporaryCompanionWorkIds)
   const registry = createCompanionToolRegistry(options.onVisualState)
   const localAction = resolveDirectAction(taskText, registry.definitions(), data.companion.name)
@@ -140,6 +143,9 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
     const transientReply = operation || privateBrowserQuery || result.audit.some(entry => entry.toolName.startsWith('browser.') && entry.toolName !== 'browser.status') || !data.settings.trust.retainConversationHistory
     if (transientReply) displayTransient('companion', result.text)
     else useLibraryStore.getState().addCompanionMessage({ id: `message-${crypto.randomUUID()}`, role: 'companion', content: result.text, createdAt: new Date().toISOString(), contextSummary, localOnly: result.audit.some((entry) => localRitualTools.has(entry.toolName)) })
+    const handoff=services.browserHandoff?.()
+    const browserVerified=result.audit.some(item=>['browser.verify','browser.verify_collection'].includes(item.toolName)&&item.resultStatus==='success')
+    if(handoff&&!browserVerified&&!operation&&!options.signal?.aborted)armBrowserHandoff(channel,clean,handoff.origin,handoff.epoch)
     return result.text
   } finally {
     if(options.signal?.aborted)forgetBrowserTurn(channel)

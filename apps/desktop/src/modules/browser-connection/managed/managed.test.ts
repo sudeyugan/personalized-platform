@@ -21,11 +21,18 @@ it('keeps old settings on Edge and only retains an explicitly selected managed b
 it('does not tell dedicated-browser users to reload an extension or keep a daily tab open',()=>{
   for(const code of ['BROWSER_SITE_PERMISSION','BROWSER_RESULT','BROWSER_TAB_CHANGED','BROWSER_TIMEOUT'])expect(browserNativeError(code+': PRIVATE-SECRET','managed_browser_request').message).not.toMatch(/PRIVATE-SECRET|重新加载|保持目标页面|Edge确认/u)
 })
-it('routes the actual task to the dedicated backend without cached password login or foreground flags',async()=>{
+it('routes dedicated queries in background and keeps login opt-in separate from model flags',async()=>{
   await createBrowserServices('查看我的邮箱有没有未读邮件').browserRead!({kind:'ensure',origin,cachedLogin:true,queryMode:'foreground'})
-  expect(mock.native).toHaveBeenCalledWith('managed_browser_configure',{enabled:true,sites:[origin],interactionSites:[]})
+  expect(mock.native).toHaveBeenCalledWith('managed_browser_configure',{enabled:true,sites:[origin],interactionSites:[],cachedLoginSites:[origin]})
   expect(mock.native).toHaveBeenCalledWith('managed_browser_request',{request:{kind:'ensure',origin,targetUrl:origin+'/',queryMode:'background'},expectedEpoch:8})
   expect(mock.configure).not.toHaveBeenCalled();expect(mock.native.mock.calls.some(([name])=>name.startsWith('browser_bridge'))).toBe(false)
+})
+it('only injects login permission for opted-in page observations, never from model input',async()=>{
+  await createBrowserServices('查看我的邮箱').browserRead!({kind:'observe',origin,tabId:8})
+  expect(mock.native).toHaveBeenCalledWith('managed_browser_request',{request:{kind:'observe',origin,tabId:8,queryMode:'background',cachedLogin:true},expectedEpoch:8})
+  useLibraryStore.getState().data.companion.browser!.cachedLoginSites=[];mock.native.mockClear()
+  await createBrowserServices('查看我的邮箱').browserRead!({kind:'observe',origin,tabId:8,cachedLogin:true})
+  expect(mock.native).toHaveBeenCalledWith('managed_browser_request',{request:{kind:'observe',origin,tabId:8,queryMode:'background'},expectedEpoch:8})
 })
 it('does not fall back to a different account/backend on failure and rejects unrelated websites',async()=>{
   mock.native.mockImplementation(async command=>{if(command==='managed_browser_request')throw new Error('需要专用登录');return {epoch:8}})
@@ -44,4 +51,17 @@ it('stops the owned worker on abort and discards late private results',async()=>
 it('changing backend invalidates the in-flight task instead of using its result',async()=>{
   mock.native.mockImplementation(async command=>{if(command==='managed_browser_request')useLibraryStore.getState().data.companion.browser!.backend=undefined;return {epoch:8,verified:true,data:[]}})
   await expect(createBrowserServices('查看我的邮箱').browserRead!({kind:'tabs',origin})).rejects.toThrow('已改变')
+})
+it('does not let a model expand a normal query into continuous browsing or a different website',async()=>{
+  const service=createBrowserServices('查看我的邮箱未读邮件')
+  await expect(service.browserCollect!({origin,tabId:8})).rejects.toThrow('未授权连续')
+  const data=useLibraryStore.getState().data;data.companion.browser!.interactionSites=[origin]
+  await expect(createBrowserServices('逐页汇总我的邮箱未读邮件').browserCollect!({origin:'https://other.com',tabId:8})).rejects.toThrow('本次目标')
+  expect(mock.native).not.toHaveBeenCalled()
+})
+it('counts internal collection requests in the same bounded page budget',async()=>{
+  const service=createBrowserServices('查看我的邮箱')
+  for(let index=0;index<12;index++)await service.browserRead!({kind:'tabs',origin})
+  await expect(service.browserRead!({kind:'tabs',origin})).rejects.toThrow('12次')
+  expect(mock.native.mock.calls.filter(([name])=>name==='managed_browser_request')).toHaveLength(12)
 })

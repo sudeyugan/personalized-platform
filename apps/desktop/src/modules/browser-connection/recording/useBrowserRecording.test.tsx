@@ -12,6 +12,16 @@ beforeEach(()=>{
   mock.native.mockImplementation(async name=>name==='browser_bridge_record_status'?null:name==='browser_bridge_request'?{verified:true,data:[{origin,tabId:7,title:'Fictional mailbox',url:origin+'/inbox'}]}:name==='browser_bridge_record_begin'?record:null)
 })
 afterEach(()=>{cleanup();vi.unstubAllGlobals()})
+it('opens a dedicated semantic demonstration explicitly, without Edge extension or AI consent',async()=>{
+  useLibraryStore.getState().data.companion.browser!.backend='managed'
+  mock.native.mockImplementation(async(name,args)=>name==='managed_browser_configure'?{epoch:3}:name==='managed_browser_record'&&args.command.action==='begin'?record:null)
+  const {result,unmount}=renderHook(useBrowserRecording)
+  await act(async()=>{await result.current.begin(origin,0)})
+  expect(result.current.record?.id).toBe(record.id)
+  expect(mock.native).toHaveBeenCalledWith('managed_browser_record',{command:{action:'begin',origin,url:origin},expectedEpoch:3})
+  expect(mock.native.mock.calls.some(([name])=>name.startsWith('browser_bridge'))).toBe(false)
+  unmount();await waitFor(()=>expect(mock.native).toHaveBeenCalledWith('managed_browser_record',{command:{action:'cancel',recordingId:record.id},expectedEpoch:3}))
+})
 it('requires explicit page choice, allows local capture with AI off, and cancels on leaving',async()=>{
   const {result,unmount}=renderHook(useBrowserRecording)
   await act(async()=>{await result.current.begin(origin,7)});expect(result.current.error).toContain('请选择');expect(mock.native).not.toHaveBeenCalledWith('browser_bridge_record_begin',expect.anything())

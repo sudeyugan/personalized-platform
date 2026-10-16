@@ -1,7 +1,7 @@
 import { ExecutionSession } from '../task-kernel/session'
 import type { BrowserReadRequest,BrowserSnapshot } from './native'
 import type { BrowserTaskGoal } from './taskGoal'
-import { parseModelReply } from '../companion/replies/modelReply'
+import { checkBrowserEvidence } from './evidence'
 
 interface Observation {observationId:string;text:string;url:string;title:string;loading:boolean;truncated:boolean;loginState?:string;controls:Array<{id:string;operation:string}>}
 export interface BrowserEvidenceRequest {origin:string;tabId:number;observationId:string;quotes:string[];answer:string}
@@ -29,11 +29,8 @@ export class BrowserExecution {
     this.session.transition('verifying')
     const page=this.observations.get(`${input.origin}:${input.tabId}`)
     if(!page||page.observationId!==input.observationId||page.loading||page.loginState&&page.loginState!=='continued')throw new Error('没有当前可用页面证据，不能确认目标完成')
-    if(!Array.isArray(input.quotes)||input.quotes.length<1||input.quotes.length>3||input.quotes.some(quote=>typeof quote!=='string'||!quote.trim()||quote.length>300||!page.text.includes(quote)||/忽略.*(?:规则|指令)|密码|password|Bearer\s|sk-/iu.test(quote)))throw new Error('证据必须逐字来自当前页面，不使用推测或页面操作指令')
-    if(this.task?.objective==='mail'&&/(?:未读|新邮件|new|unread)/iu.test(this.goal)&&!input.quotes.some(quote=>/(?:未读|新邮件|unread|new mail)/iu.test(quote)))throw new Error('未读或新邮件没有明确页面提示，不能据普通邮件列表作结论')
-    if(!parseModelReply(JSON.stringify({version:1,blocks:[{type:'paragraph',text:input.answer}]})))throw new Error('回答不符合安全结果格式')
-    const evidence=input.quotes.join(' '),numbers=input.answer.match(/\d+/gu)??[]
-    if(numbers.some(number=>!evidence.includes(number)))throw new Error('回答中的数量或时间缺少当前证据')
+    if(!Array.isArray(input.quotes)||input.quotes.length>3)throw new Error('证据必须为1至3段当前页面文字')
+    checkBrowserEvidence(this.goal,this.task?.objective,page.text,input.quotes,input.answer)
     this.session.transition('verified')
     return {goalVerified:true,answer:input.answer,quotes:input.quotes,url:page.url,title:page.title,partial:page.truncated,scope:'current_page',verified:true}
   }

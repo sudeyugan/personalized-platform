@@ -34,6 +34,8 @@ const messages: Record<string, string> = {
 }
 
 const managedMessages:Record<string,string>={
+  BROWSER_LOGIN_ACTIVE:'专用浏览器正在登录或示范，查询不会打断它。请先结束登录，或保存/丢弃示范；当前未取得查询结果。',
+  BROWSER_BUSY:'专用浏览器正被另一项操作使用。请先结束当前登录、示范或查询；没有关闭或替换当前窗口。',
   BROWSER_SITE_PERMISSION:'本次网站尚未在专用浏览器授权，或页面操作未开启。请在浏览器连接设置核对精确网站与操作范围；不会改查其他账号或Edge扩展。',
   BROWSER_DISABLED:'小鱼专用浏览器尚未开启，请在浏览器设置开启，并核对联网与外部AI处理权限。',
   BROWSER_TIMEOUT:'专用浏览器或网站响应超时，已停止本次操作；结果未知，不代表没有邮件或更新。',

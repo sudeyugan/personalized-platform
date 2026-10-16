@@ -6,6 +6,7 @@ import { useLibraryStore } from '../../state/useLibraryStore'
 import { automaticMethodHint } from './automaticHint'
 import { learned } from '../../domain/operations/fixtures'
 import { operationDraftOf } from '../../domain/operations/catalog'
+import { recordingDraft } from '../browser-connection/recording/method'
 import type { AgentAuditRecord, AgentSession } from '../companion/agent/types'
 vi.mock('../../infrastructure/libraryRepository', () => ({ libraryRepository: { save: vi.fn().mockResolvedValue(undefined) } }))
 const definitions = createCompanionToolRegistry().definitions()
@@ -19,6 +20,15 @@ function trace(names: string[], values: unknown[] = names.map(() => ({ verified:
 }
 beforeEach(() => { useLibraryStore.setState({data:createSeedLibrary(),saveStatus:'idle'}) })
 describe('automatic tool contract learning', () => {
+  it('reuses a reviewed demonstration only for its current exact website and detects edits',()=>{
+    const origin='https://mail.example.com',data=useLibraryStore.getState().data
+    data.companion.browser={enabled:true,backend:'managed',sites:[origin]}
+    let current=learned({...recordingDraft({id:'a'.repeat(64),origin,tabId:1,phase:'review',events:['inbox','unread'],remainingSeconds:1},'查看我的邮箱未读'),pattern:undefined,source:undefined})
+    const hint=automaticMethodHint('查看我的邮箱未读',[{id:current.id}],{getOperation:()=>current})!
+    expect(hint.instruction).toContain('用户审查保存');expect(hint.instruction).toContain('重新定位')
+    current={...current,revision:2};expect(()=>hint.assertCurrent()).toThrow('已编辑')
+    data.companion.browser.sites=['https://other-mail.example.com'];expect(automaticMethodHint('查看我的邮箱未读',[{id:current.id}],{getOperation:()=>current})).toBeUndefined()
+  })
   it('requires actual calls, results and success audits; never captures values or user prose', () => {
     const f=trace(['todo.create'],[{id:'PRIVATE-OBJECT',body:'PRIVATE-RESULT'}])
     const learned=deriveOperation('PRIVATE-USER-MESSAGE',f,definitions)!

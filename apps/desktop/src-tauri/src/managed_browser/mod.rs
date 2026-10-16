@@ -2,6 +2,7 @@ mod assets;
 mod job;
 mod worker;
 mod policy;
+pub(crate) mod recording;
 #[cfg(test)]mod integration_tests;
 use std::sync::{Arc,Mutex,atomic::{AtomicU64,Ordering}};
 use serde_json::{Value,json};
@@ -18,15 +19,15 @@ pub fn cancel_all(runtime:&ManagedBrowserRuntime){
 }
 fn status(runtime:&Runtime)->Result<Value,String>{
     let config=runtime.config.lock().map_err(|_|"BROWSER_STATE:")?;
-    let login=runtime.worker.try_lock().is_ok_and(|worker|worker.as_ref().is_some_and(|worker|worker.login));
-    Ok(json!({"enabled":config.enabled,"paired":config.enabled,"online":config.enabled,"sites":config.sites,"browserSites":config.sites,"epoch":runtime.epoch.load(Ordering::SeqCst),"mode":if login{"login"}else{"background"},"backend":"managed"}))
+    let mode=runtime.worker.try_lock().ok().and_then(|worker|worker.as_ref().map(|worker|if worker.recording{"recording"}else if worker.login{"login"}else{"background"})).unwrap_or("background");
+    Ok(json!({"enabled":config.enabled,"paired":config.enabled,"online":config.enabled,"sites":config.sites,"browserSites":config.sites,"epoch":runtime.epoch.load(Ordering::SeqCst),"mode":mode,"backend":"managed"}))
 }
 #[tauri::command]
 pub fn managed_browser_status(window:WebviewWindow,runtime:State<'_,ManagedBrowserRuntime>)->Result<Value,String>{main_only(&window)?;status(&runtime.inner)}
 #[tauri::command]
-pub fn managed_browser_configure(window:WebviewWindow,runtime:State<'_,ManagedBrowserRuntime>,enabled:bool,sites:Vec<String>,interaction_sites:Vec<String>)->Result<Value,String>{
+pub fn managed_browser_configure(window:WebviewWindow,runtime:State<'_,ManagedBrowserRuntime>,enabled:bool,sites:Vec<String>,interaction_sites:Vec<String>,cached_login_sites:Option<Vec<String>>)->Result<Value,String>{
     main_only(&window)?;
-    let next=policy::Config::new(enabled,sites,interaction_sites)?;
+    let next=policy::Config::new(enabled,sites,interaction_sites)?.with_logins(cached_login_sites.unwrap_or_default())?;
     {let mut config=runtime.inner.config.lock().map_err(|_|"BROWSER_STATE:")?;if *config!=next{*config=next;cancel_all(&runtime);}}
     status(&runtime.inner)
 }
@@ -55,16 +56,17 @@ fn execute(app:&AppHandle,runtime:&Runtime,expected:u64,command:Value)->Result<V
             std::fs::create_dir_all(&profile).map_err(|_|"BROWSER_STATE:")?;
             if std::fs::symlink_metadata(&profile).map_err(|_|"BROWSER_STATE:")?.file_type().is_symlink(){return Err("BROWSER_RUNTIME_INTEGRITY:".into())}
             let mut worker=Worker::start(&directory,&profile)?;
-            worker.call(json!({"kind":"configure","sites":config.sites,"interactions":config.interactions}),&runtime.epoch,expected)?;
+            worker.call(json!({"kind":"configure","sites":config.sites,"interactions":config.interactions,"logins":config.logins}),&runtime.epoch,expected)?;
             *slot=Some(worker);
         }
         let worker=slot.as_mut().ok_or("BROWSER_STATE:")?;
         let output=worker.call(command.clone(),&runtime.epoch,expected)?;
         if command["kind"]=="login"{worker.login=true;}else if command["kind"]=="finish"||command["kind"]=="request"{worker.login=false;}
+        if command["kind"]=="record"{worker.recording=!output.is_null();}
         if runtime.epoch.load(Ordering::SeqCst)!=expected{return Err("BROWSER_CANCELLED:".into())}Ok(output)
     })();
     // Broken/cancelled workers cannot leave stale output or browser instances.
-    if result.as_ref().is_err_and(|error:&String|!["BROWSER_LOGIN_ACTIVE:","BROWSER_STALE:","BROWSER_ARGUMENT:","BROWSER_SITE_PERMISSION:"].contains(&error.as_str())){*slot=None;}
+    if result.as_ref().is_err_and(|error:&String|!["BROWSER_BUSY:","BROWSER_LOGIN_ACTIVE:","BROWSER_STALE:","BROWSER_ARGUMENT:","BROWSER_SITE_PERMISSION:"].contains(&error.as_str())){*slot=None;}
     result
 }
 #[tauri::command]

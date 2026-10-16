@@ -128,6 +128,7 @@ pub fn run() {
             managed_browser::managed_browser_request,
             managed_browser::managed_browser_login,
             managed_browser::managed_browser_finish_login,
+            managed_browser::recording::managed_browser_record,
             managed_browser::managed_browser_clear_session,
             browser_bridge::browser_bridge_configure,
             browser_bridge::browser_bridge_status,

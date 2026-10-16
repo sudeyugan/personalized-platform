@@ -29,6 +29,7 @@ import { assertExternalAiAllowed } from '../trust/trustPolicy'
 import { PrivacySession, type PrivacyReviewRequest } from '../privacy'
 import { usePlannerNotifications } from './usePlannerNotifications'
 import { useLyricsWindowBridge } from '../music-companion/lyrics-window/useLyricsWindowBridge'
+import { cancelBrowserHandoff,receiveBrowserHandoff } from '../browser-connection/managed/handoff'
 
 const isTauri = () => '__TAURI_INTERNALS__' in window
 
@@ -37,6 +38,7 @@ export function CompanionDesktopBridge() {
   usePlannerNotifications(data)
   const learnedTrack = useRef<string | undefined>(undefined)
   const sending = useRef(false)
+  useEffect(()=>isTauri()?receiveBrowserHandoff('desktop',message=>{if(sending.current)return false;void emitTo('main','companion:chat-send',{message,resumeBrowserTask:true});return true}):undefined,[])
   const spokenAudio = useRef<HTMLAudioElement | undefined>(undefined)
   const resetStateTimer = useRef<number | undefined>(undefined)
   const wasDesktopVisible = useRef(false)
@@ -202,6 +204,7 @@ export function CompanionDesktopBridge() {
       else if (visualStateRef.current === 'listening') setVisualState(undefined)
     }).then((stop) => { stopVoiceActivity = stop })
     void listen('companion:turn-stop', () => {
+      cancelBrowserHandoff()
       cancelActiveTurn()
     }).then((stop) => { stopTurn = stop })
     void listen<{ id: string; action: 'pause' | 'resume' | 'confirm' | 'cancel' }>('companion:task-control', (event) => {
@@ -216,7 +219,7 @@ export function CompanionDesktopBridge() {
       setVisualState(event.payload.active ? 'speaking' : undefined)
     }).then((stop) => { stopTaskSpeech = stop })
 
-    void listen<{ message: string; inputMode?: 'text' | 'voice'; wake?: boolean; replace?: boolean; requestId?: string }>('companion:chat-send', (event) => {
+    void listen<{ message: string; inputMode?: 'text' | 'voice'; wake?: boolean; replace?: boolean; requestId?: string;resumeBrowserTask?:boolean }>('companion:chat-send', (event) => {
       if (!event.payload.message.trim()) return
       if (sending.current) {
         if (!event.payload.replace) return
@@ -263,6 +266,7 @@ export function CompanionDesktopBridge() {
         },
       })
       void sendCompanionTurn(event.payload.message, {
+        resumeBrowserTask:event.payload.resumeBrowserTask===true,
         conversationChannel:'desktop',
         onTransientMessage: (message) => {
           if (activeTurn.current === turn && !turn.signal.aborted) void emitTo('companion-chat', 'companion:transient-message', message)
@@ -331,6 +335,7 @@ export function CompanionDesktopBridge() {
       })
     }).then((stop) => { stopChat = stop })
     void listen('companion:new-chat', () => {
+      cancelBrowserHandoff()
       if (sending.current) return
       clearCompanionMessages()
       void emitTo('companion-chat', 'companion:transient-clear')

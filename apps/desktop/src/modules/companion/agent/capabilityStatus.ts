@@ -17,7 +17,7 @@ export function describeCapabilityStatus(data: LibraryData, temporaryWorkIds: st
     if (name.startsWith('browser.') && name !== 'browser.status' && decision.allowed) return {
       name, description: tool.description,
       status: data.companion.browser?.enabled && data.settings.trust.externalAiProcessing ? data.companion.browser.backend==='managed'?'按网站授权核验':'需连接与网站授权' : '暂不可用',
-      reason: data.companion.browser?.backend==='managed'?'使用小鱼专用浏览器，首次需在设置中手动登录；后续无窗口查询，仅访问授权网站。低风险导航/检索/筛选需逐站允许，发送/删除/支付不开放；结论需当前页面证据。':'先连接Edge扩展并确认已添加网站。只访问本次目标；已填登录接续与导航/检索分别授权，任务结论需当前页面证据。',
+      reason: data.companion.browser?.backend==='managed'?'使用小鱼专用浏览器，按需无窗口查询，仅访问授权网站。已填登录可逐站另行许可，符合条件时可信提交一次再核验；未填或需验证仍手动处理，不取密码。低风险导航/检索/筛选另行允许，发送/删除/支付不开放；结论需当前页面证据。':'先连接Edge扩展并确认已添加网站。只访问本次目标；已填登录接续与导航/检索分别授权，任务结论需当前页面证据。',
     }
     const status = tool.computer && data.companion.computer.enabled ? '按目标复核' : decision.allowed ? '可以执行' : decision.requiresConfirmation ? '需要确认' : '暂不可用'
     return { name, description: tool.description, status, reason: decision.reason }

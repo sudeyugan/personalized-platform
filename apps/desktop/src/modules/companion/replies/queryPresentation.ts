@@ -14,6 +14,8 @@ function item(value: unknown): ReplyItem | undefined {
 }
 export function queryPresentation(receipt: ToolReceipt, label: string): ReplyDocument | undefined {
   const { call, result } = receipt, name = call.name, data = object(result.data)
+  if(name==='browser.verify_collection')return {state:data.goalVerified===true?'partial':'unknown',title:'已核对本次连续浏览',blocks:[{type:'text',text:text(data.answer,800)??'跨页证据不足。'}],notes:[`本次访问 ${Number.isSafeInteger(data.visitedPages)?data.visitedPages:0} 页；${text(data.coverage,100)??'覆盖尚未确认'}。`,'仅覆盖本次访问的列表页面，不代表全账号或历史新增；动态内容可能变化。']}
+  if(name==='browser.collect')return {state:'pending',title:'已读取连续页面，等待证据核验',blocks:[],notes:[`本次访问 ${Number.isSafeInteger(data.visitedPages)?data.visitedPages:0} 页；${text(data.coverage,100)??'覆盖尚未确认'}。`]}
   if(name==='browser.verify')return {state:data.goalVerified===true?data.partial===true?'partial':'completed':'unknown',title:'已核对本次页面证据',blocks:[{type:'text',text:text(data.answer,800)??'当前证据不足。'}],notes:['只覆盖本次页面；不代表全部账号、历史新增或所有分页。']}
   if(name==='browser.act')return {state:'pending',title:data.data&&object(data.data).actionStatus==='dispatched'?'页面动作已发出，正在核验':'页面动作尚未执行',blocks:[],notes:['点击或检索提交不表示目标完成。']}
   if (name === 'browser.status') return { state: 'completed', title: label, blocks: [{ type: 'text', text: data.enabled !== true ? '浏览器连接未开启。' : data.paired !== true ? 'Edge扩展尚未配对。' : data.online !== true ? 'Edge扩展暂未在线。' : 'Edge扩展已连接；这只是连接检查，还没有读取目标内容。' }], notes: [] }

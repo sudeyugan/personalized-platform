@@ -2,11 +2,12 @@ import { useEffect,useRef,useState } from 'react'
 import { useLibraryStore } from '../../../state/useLibraryStore'
 import { validateOperationDraft } from '../../../domain/operations/method'
 import { browserConnectionEnabled } from '../authority'
-import { browserNative } from '../native'
+import { recordingStatus,recordingControl } from './native'
 import { recordingDraft } from './method'
 import { waitForMethodSave } from './persistence'
 import type { BrowserRecording } from './types'
 export function RecordingReview({record,goal,onDone,onBusyChange}:{record:BrowserRecording;goal:string;onDone():void;onBusyChange?(busy:boolean):void}) {
+  const managed=useRef(useLibraryStore.getState().data.companion.browser?.backend==='managed').current
   const base=recordingDraft(record,goal),[title,setTitle]=useState(base.title),[steps,setSteps]=useState(base.steps.join('\n')),[completion,setCompletion]=useState(base.completion)
   const [reviewed,setReviewed]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('')
   const saved=useRef<{id:string;revision:number}|undefined>(undefined),pending=useRef<AbortController|undefined>(undefined)
@@ -16,13 +17,13 @@ export function RecordingReview({record,goal,onDone,onBusyChange}:{record:Browse
     setBusy(true);onBusyChange?.(true);setError('')
     try{
       if(/名称未保存|请补充操作目的/u.test(steps))throw new Error('请先补充未知控件的操作目的，或移除这一步。没有保存网页原文。')
-      const current=await browserNative<BrowserRecording|null>('browser_bridge_record_status')
+      const current=await recordingStatus(managed)
       if(!current||current.id!==record.id||current.phase!=='review'||!browserConnectionEnabled()||!useLibraryStore.getState().data.companion.browser?.sites.includes(record.origin))throw new Error('示范或网站授权已变化，请重新开始；未保存方法。')
       const draft=validateOperationDraft({...base,title,steps:steps.split('\n').map(value=>value.trim()).filter(Boolean),completion})
       const method=useLibraryStore.getState().saveOperation(draft,saved.current?.id,saved.current?.revision)
       saved.current={id:method.id,revision:method.revision};pending.current=new AbortController()
       await waitForMethodSave(method.id,method.revision,pending.current.signal)
-      try{await browserNative('browser_bridge_record_control',{recordingId:record.id,action:'cancel'})}catch(reason){const live=await browserNative<BrowserRecording|null>('browser_bridge_record_status');if(live?.id===record.id)throw reason}
+      try{await recordingControl(managed,record.id,'cancel')}catch(reason){const live=await recordingStatus(managed);if(live?.id===record.id)throw reason}
       onDone()
     }catch(reason){setError(reason instanceof Error?reason.message:'方法保存未完成，预览保留。')}finally{setBusy(false);onBusyChange?.(false)}
   }

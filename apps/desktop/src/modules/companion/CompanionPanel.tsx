@@ -1,5 +1,6 @@
 import { BookmarkPlus, CircleStop, LockKeyhole, Send, Sparkles, Trash2 } from 'lucide-react'
-import { useMemo, useRef, useState } from 'react'
+import { useEffect,useMemo, useRef, useState } from 'react'
+import { cancelBrowserHandoff,receiveBrowserHandoff } from '../browser-connection/managed/handoff'
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { buildAgentAccess, buildAgentContext, type AgentRuntimeStatus } from './agent'
 import { sendCompanionTurn } from './companionConversation'
@@ -43,6 +44,7 @@ export function CompanionPanel() {
   const task = [...data.companion.tasks].reverse().find((item) => item.status !== 'cancelled')
   const savedMessages = data.companion.messages.filter(message => !isLegacyBrowserSummary(message))
   const stopTurn = () => {
+    cancelBrowserHandoff()
     activeTurn.current?.controller.abort()
     activeTurn.current = undefined
     permissionRequest?.resolve(false)
@@ -53,13 +55,14 @@ export function CompanionPanel() {
     setAgentStatus(undefined)
     setStreamedReply('')
   }
-  const send = async () => {
-    const message = draft.trim(); if (!message || busy) return
+  const send = async (resumedMessage?:string) => {
+    const message = resumedMessage??draft.trim(); if (!message || activeTurn.current || busy) return
     const turn = { id: crypto.randomUUID(), controller: new AbortController() }
     activeTurn.current = turn
     setDraft(''); setBusy(true); setError(''); setStreamedReply('')
     try {
       await sendCompanionTurn(message, {
+        resumeBrowserTask:resumedMessage!==undefined,
         signal: turn.controller.signal,
         onTransientMessage: (message) => { if (activeTurn.current?.id === turn.id) setTransientMessages((messages) => [...messages, message]) },
         onStatus: (status) => { if (activeTurn.current?.id === turn.id) setAgentStatus(status) },
@@ -81,6 +84,9 @@ export function CompanionPanel() {
       }
     }
   }
+  const resume=useRef<(goal:string)=>boolean>(()=>false)
+  resume.current=goal=>{if(activeTurn.current||busy)return false;void send(goal);return true}
+  useEffect(()=>receiveBrowserHandoff('main',goal=>resume.current(goal)),[])
   return <section className="companion-panel context-section">
     <header><div><span className={`companion-avatar ${data.companion.expression} hair-${data.companion.appearance.hair} outfit-${data.companion.appearance.outfit}`}>隅</span><span><strong>{data.companion.name}</strong><small>{context.activeChapter?.title ?? context.activeWork?.title ?? '未授权任何创作上下文'}</small></span></div>{savedMessages.length + transientMessages.length > 0 && <button aria-label="清空伙伴对话" onClick={() => { clearCompanionMessages(); setTransientMessages([]) }}><Trash2 size={13} /></button>}</header>
     {encryptedNeedsGrant && <button className="temporary-grant" onClick={() => grantTemporaryCompanionWork(work!.id, true)}><LockKeyhole size={13} />仅本次解锁会话允许读取《{work!.title}》</button>}

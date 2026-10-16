@@ -5,6 +5,7 @@ import { browserConnectionEnabled } from './authority'
 import { browserNative, configureBrowser } from './native'
 import { forgetBrowserTurn } from './taskSession'
 import { configureManagedBrowser,stopManagedBrowser } from './managed/native'
+import { cancelBrowserHandoff } from './managed/handoff'
 export function BrowserConnectionController() {
   const ready = useLibraryStore(state => state.ready)
   const authority = useLibraryStore(state => JSON.stringify([state.data.companion.provider, state.data.settings.trust, state.data.companion.permissions.fullAccess, state.data.companion.permissions.internet, state.data.settings.modules.find(item => item.id === 'companion'),state.data.companion.browser?.foregroundQueries===true,state.data.companion.browser?.confirmQueryEgress===true]))
@@ -18,6 +19,7 @@ export function BrowserConnectionController() {
     // late cancel erasing a setup request just issued by the settings UI.
     const browser = useLibraryStore.getState().data.companion.browser
     forgetBrowserTurn('main');forgetBrowserTurn('desktop')
+    cancelBrowserHandoff()
     void configureBrowser(browserConnectionEnabled()&&browser?.backend!=='managed', browser?.sites ?? [], invalidate, browser?.cachedLoginSites ?? [],browser?.interactionSites??[]).catch(() => undefined)
     void configureManagedBrowser(invalidate).catch(()=>undefined)
   }, [ready, signature, authority])

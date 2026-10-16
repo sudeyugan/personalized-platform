@@ -19,7 +19,7 @@ struct Control {id:String,name:String,operation:String}
 struct Action {tab_id:u64,origin:String,action_status:String}
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all="snake_case")]
-enum LoginState { NotAllowed, Unfilled, NeedsUser, Continued, Pending, SubmitRejected, ManagedLogin }
+enum LoginState { NotAllowed, Unfilled, NeedsUser, Continued, Pending, SubmitRejected, ManagedLogin, ManagedUnfilled, ManagedNeedsUser, ManagedPending }
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct Room { uid: u64, room_id: u64, name: String, title: String, live_status: u8 }
@@ -45,8 +45,8 @@ fn validate_inner(request:&Request,value:Value,managed:bool)->Result<Value,Strin
         },
         "page" | "observe" => {
             let page: Page = serde_json::from_value(value).map_err(|_| invalid)?;
-            if !managed && matches!(page.login_state,Some(LoginState::ManagedLogin)){return Err(invalid.into())}
-            if !request.cached_login && matches!(page.login_state, Some(LoginState::Continued | LoginState::Pending | LoginState::SubmitRejected)) { return Err(invalid.into()); }
+            if !managed && matches!(page.login_state,Some(LoginState::ManagedLogin|LoginState::ManagedUnfilled|LoginState::ManagedNeedsUser|LoginState::ManagedPending)){return Err(invalid.into())}
+            if !request.cached_login && matches!(page.login_state, Some(LoginState::Continued | LoginState::Pending | LoginState::SubmitRejected|LoginState::ManagedUnfilled|LoginState::ManagedNeedsUser|LoginState::ManagedPending)) { return Err(invalid.into()); }
             let operations:&[&str]=if managed{&["invoke","search","fill","select","scroll"]}else{&["invoke","search"]};
             if page.observation_id.as_ref().is_some_and(|id|!reference(id))||page.controls.len()>60||page.controls.iter().any(|control|!reference(&control.id)||!text(&control.name,100)||!operations.contains(&control.operation.as_str()))||!page.controls.is_empty()&&page.observation_id.is_none(){return Err(invalid.into())}
             if Some(page.tab_id) != request.tab_id || page.origin != request.origin || !safe_url(&page.url, Some(&request.origin)) || !text(&page.title, 200) || !text(&page.text, 12000) || page.links.len() > 40 || page.links.iter().any(|link| !text(&link.text, 100) || !safe_url(&link.url, None)) { return Err(invalid.into()); }
@@ -75,6 +75,15 @@ fn reference(id:&str)->bool{id.len()==36&&id.bytes().all(|b|b.is_ascii_hexdigit(
         let value=json!({"tabId":1,"origin":"https://example.com","url":"https://example.com/inbox","title":"邮箱","text":"未读 2","links":[],"truncated":false,"loading":false,"observationId":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","controls":[{"id":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","name":"筛选","operation":"select"}]});
         assert!(validate_managed(&request,value.clone()).is_ok());assert!(validate(&request,value.clone()).is_err());
         let mut login=value;login["loginState"]=json!("managed_login");assert!(validate_managed(&request,login.clone()).is_ok());assert!(validate(&request,login).is_err());
+    }
+    #[test]fn managed_login_results_require_opt_in_and_never_expand_legacy(){
+        let mut request=Request{kind:"observe".into(),origin:"https://example.com".into(),tab_id:Some(1),cached_login:false,query_mode:None,target_url:None,interaction:None};
+        let base=json!({"tabId":1,"origin":"https://example.com","url":"https://example.com/login","title":"登录","text":"","links":[],"truncated":false,"loading":false});
+        for state in ["managed_unfilled","managed_needs_user","managed_pending"]{
+            let mut value=base.clone();value["loginState"]=json!(state);
+            assert!(validate_managed(&request,value.clone()).is_err());request.cached_login=true;
+            assert!(validate_managed(&request,value.clone()).is_ok());assert!(validate(&request,value).is_err());request.cached_login=false;
+        }
     }
     #[test] fn observation_controls_and_action_receipts_fail_closed() {
         let request=Request{kind:"observe".into(),origin:"https://example.com".into(),tab_id:Some(1),cached_login:false,query_mode:None,target_url:None,interaction:None};

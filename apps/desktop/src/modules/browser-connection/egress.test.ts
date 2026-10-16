@@ -5,6 +5,14 @@ import type { AgentModelProvider, AgentModelRequest } from '../companion/agent/t
 const request:AgentModelRequest={messages:[{role:'user',content:'虚构页面'}],tools:[],context:{page:'browser-query',companion:{name:'小鱼'},localTime:{timeZone:'Asia/Shanghai',date:'2026-10-12',time:'12:00',weekday:'周一',period:'中午'}}}
 function fixture(){const generate=vi.fn(async()=>({type:'text' as const,text:'虚构结果'}));const provider:AgentModelProvider={id:'fixture-not-mock',generate,testConnection:async()=>''};const trust={...createSeedLibrary().settings.trust,outboundReviewMode:'strict' as const};return {provider,generate,trust}}
 describe('private browser egress has live send boundaries',()=>{
+  it('sanitizes every collected page and still blocks secrets nested in cross-page results',async()=>{
+    const f=fixture(),provider=createPrivacyProtectedProvider(f.provider,{trust:f.trust,destination:'fixture',purpose:'collection',authorizeSanitizedQuery:()=>{}})
+    const message=(text:string)=>({...request,messages:[{role:'tool' as const,content:JSON.stringify({verified:true,privateBrowser:true,pages:[{page:1,text:'first@example.com'},{page:2,text}]})}]})
+    await provider.generate(message('second@example.com'))
+    expect(JSON.stringify(f.generate.mock.calls)).not.toMatch(/first@example.com|second@example.com/)
+    await expect(provider.generate(message('password=fixture-secret-password'))).rejects.toThrow('已阻止')
+    expect(f.generate).toHaveBeenCalledTimes(1)
+  })
   it('rechecks authorization after an awaited review, before any real send',async()=>{
     const f=fixture();let valid=true
     const protectedProvider=createPrivacyProtectedProvider(f.provider,{trust:f.trust,destination:'fixture',purpose:'test',assertAllowed:()=>{if(!valid)throw new Error('已撤销')},requestReview:async()=>{valid=false;return true}})

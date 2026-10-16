@@ -6,6 +6,7 @@ import { resolveBrowserTask, type BrowserTaskGoal } from './taskGoal'
 import { browserNative, configureBrowser, type BrowserConnectionStatus, type BrowserSnapshot, type BrowserReadRequest } from './native'
 import { BrowserExecution,type BrowserEvidenceRequest } from './execution'
 import { configureManagedBrowser,stopManagedBrowser } from './managed/native'
+import { BrowserCollection,type CollectionRequest,type CollectionEvidence } from './collection'
 export interface BrowserServices {
   browserTaskGoal?: BrowserTaskGoal
   assertBrowserAuthority?(): void
@@ -13,6 +14,9 @@ export interface BrowserServices {
   browserStatus?(): Promise<BrowserConnectionStatus>
   browserRead?(request: BrowserReadRequest): Promise<BrowserSnapshot>
   browserVerify?(request:BrowserEvidenceRequest):Promise<unknown>
+  browserHandoff?():{origin:string;epoch:number}|undefined
+  browserCollect?(request:CollectionRequest):Promise<unknown>
+  browserVerifyCollection?(request:CollectionEvidence):Promise<unknown>
 }
 export function createBrowserServices(goal: string, signal?: AbortSignal): BrowserServices {
   const initial = useLibraryStore.getState().data
@@ -22,6 +26,10 @@ export function createBrowserServices(goal: string, signal?: AbortSignal): Brows
   const requested = task?.origins ?? []
   const execution=new BrowserExecution(task,goal)
   let loginUsed = false
+  let handoff:{origin:string;epoch:number}|undefined
+  let reads=0,actions=0,collecting=false
+  const deadline=Date.now()+120000
+  const collection=new BrowserCollection(request=>services.browserRead!(request),goal,task)
   const guard = () => {
     if (signal?.aborted) throw new DOMException('浏览器读取已取消', 'AbortError')
     if (!browserAccessEnabled()) throw new Error('浏览器连接、联网权限或外部模型处理未开启；请在AI伙伴设置中核对')
@@ -30,6 +38,14 @@ export function createBrowserServices(goal: string, signal?: AbortSignal): Brows
     assertExternalAiAllowed(live.companion.provider.providerId, live.settings.trust, 'companion')
   }
   const services:BrowserServices={
+    browserHandoff:()=>handoff,
+    async browserCollect(request){
+      guard();if(!managed)throw new Error('连续浏览目前只在专用浏览器启用，兼容模式仍可逐页观察')
+      if(!/(?:全部|所有|查全|多页|翻页|逐页|连续|继续查找|汇总|all\b|pages?\b)/iu.test(goal))throw new Error('本次只要求普通查询，未授权连续翻页；如需汇总请明确范围')
+      if(!requested.includes(request.origin)||!initial.companion.browser?.interactionSites?.includes(request.origin))throw new Error('本次目标尚未允许页面导航与检索')
+      collecting=true;try{const result=await collection.collect(request);guard();return result}finally{collecting=false}
+    },
+    async browserVerifyCollection(request){guard();const result=await collection.verify(request);guard();return result},
     browserTaskGoal: task,
     assertBrowserAuthority: guard,
     authorizeBrowserQueryEgress(){guard();if(!task?.origins.length||task.clarification||initial.companion.browser?.confirmQueryEgress)throw new Error('本次查询没有自动脱敏发送许可')},
@@ -49,6 +65,8 @@ export function createBrowserServices(goal: string, signal?: AbortSignal): Brows
     },
     async browserRead(request) {
       guard()
+      if(++reads>12||Date.now()>=deadline)throw new Error('本轮浏览已达到12次页面请求或2分钟预算，请缩小范围')
+      if(request.kind==='act'){if(++actions>4)throw new Error('本轮已达到4次低风险页面动作上限');if(!collecting)collection.clear()}
       const origin = browserOrigin(request.origin)
       if (!requested.includes(origin) || (request.kind === 'followed_live' && (task?.objective !== 'followed_live' || !bilibiliBrowserSites.every(site => requested.includes(site))))) throw new Error(task?.clarification ?? '当前用户请求没有明确这个网站或用途；不可自行遍历其他已授权网站')
       // This flag is program-owned and independently opted into per website.
@@ -64,9 +82,10 @@ export function createBrowserServices(goal: string, signal?: AbortSignal): Brows
       execution.before(readRequest)
       if(managed){
         const status=await configureManagedBrowser();guard()
+        const cachedLogin=['page','observe'].includes(request.kind)&&initial.companion.browser?.cachedLoginSites?.includes(origin)===true
         const cancel=()=>{void stopManagedBrowser().catch(()=>undefined)}
         signal?.addEventListener('abort',cancel,{once:true})
-        try{guard();const result=await browserNative<BrowserSnapshot>('managed_browser_request',{request:{...readRequest,queryMode:'background'},expectedEpoch:status.epoch});guard();execution.accept(readRequest,result);return result}
+        try{guard();const result=await browserNative<BrowserSnapshot>('managed_browser_request',{request:{...readRequest,queryMode:'background',...(cachedLogin?{cachedLogin:true}:{})},expectedEpoch:status.epoch});guard();execution.accept(readRequest,result);const state=(result.data as {loginState?:string})?.loginState;if(result.verified===true&&state?.startsWith('managed_'))handoff={origin,epoch:status.epoch};return result}
         finally{signal?.removeEventListener('abort',cancel)}
       }
       const cachedLogin = !loginUsed && ['page','observe'].includes(request.kind) && initial.companion.browser?.cachedLoginSites?.includes(origin) === true
