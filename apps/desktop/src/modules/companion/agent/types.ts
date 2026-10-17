@@ -113,7 +113,7 @@ export type AgentErrorCode =
 export interface AgentToolResult {
   success: boolean
   data?: unknown
-  error?: { code: AgentErrorCode; message: string }
+  error?: { code: AgentErrorCode; message: string; browserCode?:string }
 }
 
 export type AgentSessionEvent =

@@ -15,6 +15,7 @@ export interface PrivacyReviewRequest {
   purpose: string
   findingCounts: Partial<Record<PrivacyFindingKind, number>>
   sanitizedPreview: string
+  fullPreview?: boolean
 }
 
 export class PrivacyEgressError extends Error {

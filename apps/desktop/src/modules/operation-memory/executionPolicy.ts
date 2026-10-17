@@ -4,7 +4,7 @@ import type { AgentToolCall, AgentToolDefinition } from '../companion/agent/type
 /** Method text cannot install an executor, broaden scope or create nested work. */
 export function operationAllows(scope: OperationScope, tool: AgentToolDefinition) {
   if (tool.name === 'app.capabilities') return true
-  if (scope === 'browser') return ['browser.status','browser.tabs','browser.read_page','browser.followed_live','browser.ensure_page','browser.observe','browser.act','browser.verify','browser.collect','browser.verify_collection'].includes(tool.name) && (tool.risk === 'read_only' || ['browser.read_page','browser.ensure_page','browser.act','browser.collect'].includes(tool.name) && tool.risk === 'low') && ['read','external'].includes(tool.capability)
+  if (scope === 'browser') return ['browser.status','browser.tabs','browser.read_page','browser.read_content','browser.followed_live','browser.ensure_page','browser.observe','browser.act','browser.verify','browser.collect','browser.verify_collection'].includes(tool.name) && (tool.risk === 'read_only' || ['browser.read_page','browser.read_content','browser.ensure_page','browser.act','browser.collect'].includes(tool.name) && tool.risk === 'low') && ['read','external'].includes(tool.capability)
   if (tool.name.startsWith('browser.')) return false
   if (tool.name.startsWith('operation.') || tool.name.startsWith('memory.') || tool.name === 'task.create' || tool.name === 'companion.set_state' || tool.computer || ['system', 'delete'].includes(tool.capability) || ['high', 'critical'].includes(tool.risk)) return false
   if (scope === 'public_web') return tool.scope === 'web' && tool.capability === 'external'

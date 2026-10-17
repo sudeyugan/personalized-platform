@@ -54,7 +54,8 @@ export class AgentToolRegistry {
     try {
       return { success: true, data: await tool.execute(args, services, context) }
     } catch (error) {
-      return { success: false, error: { code: 'ExecutionFailed', message: error instanceof Error ? error.message : '工具执行失败' } }
+      const browserCode=call.name.startsWith('browser.')&&error instanceof Error?(error as Error&{browserCode?:string}).browserCode:undefined
+      return { success: false, error: { code: 'ExecutionFailed', message: error instanceof Error ? error.message : '工具执行失败',...(['BROWSER_STALE','BROWSER_ACTION_BLOCKED','BROWSER_ACTION_UNKNOWN','BROWSER_PAGE_PENDING'].includes(browserCode??'')?{browserCode}:{}) } }
     }
   }
 }

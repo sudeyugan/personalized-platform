@@ -25,7 +25,7 @@ describe('task evidence and current control authority',()=>{
   })
   it('consumes observations on action, rejects old/unknown controls and unsupported search words',()=>{
     const execution=new BrowserExecution(undefined,'查找申请截止');execution.accept({kind:'page',origin,tabId:7},snapshot())
-    execution.before(action);expect(()=>execution.before(action)).toThrow('已观察')
+    execution.before(action);expect(()=>execution.before(action)).toThrow('旧操作引用')
     execution.accept({kind:'page',origin,tabId:7},snapshot('',{controls:[{id:elementId,operation:'search'}]}))
     expect(()=>execution.before({...action,interaction:{...action.interaction,operation:'search',query:'PRIVATE-INJECTED'}})).toThrow('用户本次')
   })

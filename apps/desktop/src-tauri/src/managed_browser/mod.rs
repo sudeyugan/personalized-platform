@@ -66,7 +66,7 @@ fn execute(app:&AppHandle,runtime:&Runtime,expected:u64,command:Value)->Result<V
         if runtime.epoch.load(Ordering::SeqCst)!=expected{return Err("BROWSER_CANCELLED:".into())}Ok(output)
     })();
     // Broken/cancelled workers cannot leave stale output or browser instances.
-    if result.as_ref().is_err_and(|error:&String|!["BROWSER_BUSY:","BROWSER_LOGIN_ACTIVE:","BROWSER_STALE:","BROWSER_ARGUMENT:","BROWSER_SITE_PERMISSION:"].contains(&error.as_str())){*slot=None;}
+    if result.as_ref().is_err_and(|error:&String|!["BROWSER_BUSY:","BROWSER_LOGIN_ACTIVE:","BROWSER_STALE:","BROWSER_ACTION_BLOCKED:","BROWSER_ACTION_UNKNOWN:","BROWSER_PAGE_PENDING:","BROWSER_ARGUMENT:","BROWSER_SITE_PERMISSION:"].contains(&error.as_str())){*slot=None;}
     result
 }
 #[tauri::command]

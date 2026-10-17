@@ -36,7 +36,7 @@ impl Worker {
             if epoch.load(Ordering::SeqCst)!=expected{return Err("BROWSER_CANCELLED:".into())}
             if Instant::now()>deadline{return Err("BROWSER_TIMEOUT:".into())}
             match self.output.recv_timeout(Duration::from_millis(50)) {
-                Ok(result)=>{let value=result?;if value["id"].as_u64()!=Some(self.sequence){return Err("BROWSER_RESULT:".into())}if value["ok"]==true{return Ok(value["data"].clone())}let code=value["error"].as_str().unwrap_or("BROWSER_RUNTIME");return Err(match code {"BROWSER_BUSY"|"BROWSER_LOGIN_ACTIVE"|"BROWSER_MANAGED_LOGIN"|"BROWSER_STALE"|"BROWSER_TAB_CHANGED"|"BROWSER_SITE_PERMISSION"|"BROWSER_PAGE_PENDING"|"BROWSER_PAGE_OPEN"|"BROWSER_ARGUMENT"=>format!("{code}:"),_=>"BROWSER_MANAGED_FAILED:".into()})},
+                Ok(result)=>{let value=result?;if value["id"].as_u64()!=Some(self.sequence){return Err("BROWSER_RESULT:".into())}if value["ok"]==true{return Ok(value["data"].clone())}let code=value["error"].as_str().unwrap_or("BROWSER_RUNTIME");return Err(match code {"BROWSER_BUSY"|"BROWSER_LOGIN_ACTIVE"|"BROWSER_MANAGED_LOGIN"|"BROWSER_STALE"|"BROWSER_ACTION_BLOCKED"|"BROWSER_ACTION_UNKNOWN"|"BROWSER_TAB_CHANGED"|"BROWSER_SITE_PERMISSION"|"BROWSER_PAGE_PENDING"|"BROWSER_PAGE_OPEN"|"BROWSER_ARGUMENT"=>format!("{code}:"),_=>"BROWSER_MANAGED_FAILED:".into()})},
                 Err(mpsc::RecvTimeoutError::Timeout)=>continue,
                 Err(_)=>return Err("BROWSER_RUNTIME:".into()),
             }

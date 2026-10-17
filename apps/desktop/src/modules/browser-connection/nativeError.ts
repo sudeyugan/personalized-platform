@@ -7,6 +7,8 @@ const messages: Record<string, string> = {
   BROWSER_LOGIN_ACTIVE:'专用浏览器正在手动登录。请完成登录后回到设置点“结束登录”，再查询；不会自动切走你的登录窗口。',
   BROWSER_RUNTIME_INTEGRITY:'专用浏览器运行文件校验未通过，已停止执行。请更新或重新安装一隅，不会继续运行被改变的文件。',
   BROWSER_STALE:'页面或控件已经变化，旧操作引用已作废；需要重新观察后再操作。',
+  BROWSER_ACTION_BLOCKED:'控件尚不能安全点击，没有派发操作；可重新观察当前页面。',
+  BROWSER_ACTION_UNKNOWN:'已经尝试操作，但页面结果尚未确认；只允许重新观察和核验，本轮不会重复操作。',
   BROWSER_UPDATE_REQUIRED:'扩展需要更新。旧扩展本次需在Edge重新加载一次，之后自动维护；请在连接设置中核对扩展版本和加载目录。',
   BROWSER_NOT_CONNECTED: '尚未连接Edge扩展。请到「设置 → AI伙伴 → 权限与记录 → Edge浏览器连接」准备扩展文件，在Edge加载扩展并输入连接码。浏览器已登录不代表小鱼已连接。',
   BROWSER_OFFLINE: '已配对的Edge扩展当前不在线。请打开安装该扩展的Edge配置，检查扩展已启用并显示连接正常，再重试。',
@@ -42,9 +44,9 @@ const managedMessages:Record<string,string>={
   BROWSER_TAB_CHANGED:'后台页面发生跳转或已关闭，旧页面引用不可用；需要重新准备并观察，不必手动保持日常Edge标签页。',
   BROWSER_RESULT:'专用浏览器结果未通过页面身份或字段校验，不能确认查询结果；没有继续使用可疑结果。',
 }
-export function browserNativeError(reason: unknown,command=''): Error {
+export function browserNativeError(reason: unknown,command=''): Error & {browserCode?:string} {
   const raw = typeof reason === 'string' ? reason : reason instanceof Error ? reason.message : ''
   const code = /^\s*(BROWSER_[A-Z_]+):/u.exec(raw)?.[1]
-  if(command.startsWith('managed_browser_')&&code&&Object.hasOwn(managedMessages,code))return new Error(managedMessages[code])
-  return new Error(code && Object.hasOwn(messages, code) ? messages[code] : '本机浏览器连接调用失败，请在Edge浏览器连接设置中检查连接状态，必要时重启一隅。查询结果未知。')
+  const message=command.startsWith('managed_browser_')&&code&&Object.hasOwn(managedMessages,code)?managedMessages[code]:code&&Object.hasOwn(messages,code)?messages[code]:'本机浏览器连接调用失败，请在Edge浏览器连接设置中检查连接状态，必要时重启一隅。查询结果未知。'
+  return Object.assign(new Error(message),code&&Object.hasOwn(messages,code)?{browserCode:code}:{})
 }

@@ -61,7 +61,29 @@ it('does not let a model expand a normal query into continuous browsing or a dif
 })
 it('counts internal collection requests in the same bounded page budget',async()=>{
   const service=createBrowserServices('查看我的邮箱')
-  for(let index=0;index<12;index++)await service.browserRead!({kind:'tabs',origin})
-  await expect(service.browserRead!({kind:'tabs',origin})).rejects.toThrow('12次')
-  expect(mock.native.mock.calls.filter(([name])=>name==='managed_browser_request')).toHaveLength(12)
+  for(let index=0;index<24;index++)await service.browserRead!({kind:'tabs',origin})
+  await expect(service.browserRead!({kind:'tabs',origin})).rejects.toThrow('24次')
+  expect(mock.native.mock.calls.filter(([name])=>name==='managed_browser_request')).toHaveLength(24)
+})
+it('does not repeat an uncertain action even after successfully reobserving',async()=>{
+  useLibraryStore.getState().data.companion.browser!.interactionSites=[origin]
+  const observationId=crypto.randomUUID(),elementId=crypto.randomUUID(),page={observationId,text:'未读邮件 2',controls:[{id:elementId,name:'查看未读',operation:'invoke'}],loading:false,truncated:false,url:origin+'/inbox',title:'邮箱'}
+  let dispatched=0
+  mock.native.mockImplementation(async(command,args)=>{
+    if(command==='managed_browser_configure')return {epoch:8}
+    if(args.request.kind==='act'){dispatched++;throw browserNativeError('BROWSER_ACTION_UNKNOWN:','managed_browser_request')}
+    return {verified:true,data:page}
+  })
+  const service=createBrowserServices('查看我的邮箱未读邮件'),read={kind:'observe' as const,origin,tabId:8},act={kind:'act' as const,origin,tabId:8,interaction:{observationId,elementId,operation:'invoke' as const}}
+  await service.browserRead!(read);await expect(service.browserRead!(act)).rejects.toMatchObject({browserCode:'BROWSER_ACTION_UNKNOWN'})
+  await service.browserRead!(read);await expect(service.browserRead!(act)).rejects.toThrow('不能重新执行');expect(dispatched).toBe(1)
+  expect(await service.browserVerify!({origin,tabId:8,observationId,quotes:['未读邮件 2'],answer:'当前页面显示2封未读邮件。'})).toMatchObject({goalVerified:true})
+})
+it('does not request page content without a current content purpose and bounds explicit excerpts',async()=>{
+  const ordinary=createBrowserServices('查看我的邮箱未读邮件')
+  await expect(ordinary.browserContent!({origin,tabId:8})).rejects.toThrow('没有明确正文');expect(mock.native).not.toHaveBeenCalled()
+  mock.native.mockImplementation(async command=>command==='managed_browser_configure'?{epoch:8}:{verified:true,data:{text:'虚构正文'.repeat(1000),controls:[],loading:false}})
+  const content=createBrowserServices('查看我的邮箱并总结正文内容')
+  const result=await content.browserContent!({origin,tabId:8});expect(result.contentReview).toBe(true);expect((result.data as {text:string}).text.length).toBe(2000)
+  await content.browserContent!({origin,tabId:8});await expect(content.browserContent!({origin,tabId:8})).rejects.toThrow('2次')
 })

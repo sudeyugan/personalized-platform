@@ -96,6 +96,11 @@ try {
   const logged=await engine.request({kind:'observe',origin:site,tabId:automaticId,cachedLogin:true})
   assert.equal(sessionPosts,beforePosts+1);assert.equal(logged.loginState,'continued');assert.match(logged.text,/未读邮件 2/)
   assert.doesNotMatch(JSON.stringify(logged),/FICTIONAL-ACCOUNT|FICTIONAL-SECRET|fixture-session/)
+  const afterLoginAction=logged.controls.find(control=>control.name==='查看未读')
+  assert.ok(afterLoginAction)
+  await engine.request({kind:'act',origin:site,tabId:automaticId,interaction:{observationId:logged.observationId,elementId:afterLoginAction.id,operation:'invoke'}})
+  assert.match((await engine.request({kind:'observe',origin:site,tabId:automaticId,cachedLogin:true})).text,/查看未读邮件/)
+  assert.equal(sessionPosts,beforePosts+1)
   await engine.close();await engine.request({kind:'tabs',origin:site})
   const pending=await engine.context.newPage();await pending.goto(site+'/auto-pending')
   const pendingId=[...engine.pages.entries()].find(([,page])=>page===pending)[0]

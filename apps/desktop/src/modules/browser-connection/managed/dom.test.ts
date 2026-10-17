@@ -25,3 +25,25 @@ it('only exposes semantic low-risk operations, not arbitrary fields or buttons',
 it('marks an explicit busy page as loading instead of verifying stale text',()=>{
   document.body.innerHTML='<section aria-busy="true">未读 2</section>';expect(pageText().loading).toBe(true)
 })
+it('recognizes common filter widgets, date fields and safe dialog dismissal without exposing their values',()=>{
+  document.body.innerHTML='<div role="combobox" aria-label="排序"></div><div role="listbox"><div role="option" aria-label="最新优先"></div></div><input type="date" aria-label="开始日期" value="2026-10-01"><div role="dialog"><button aria-label="关闭"></button><button aria-label="确定删除"></button></div><div role="menuitem" aria-label="标记为已读"></div>'
+  expect(describeElement(document.querySelector('[role=combobox]')!)).toMatchObject({operation:'invoke'})
+  expect(describeElement(document.querySelector('[role=option]')!)).toMatchObject({operation:'invoke'})
+  expect(describeElement(document.querySelector('input')!)).toEqual({name:'开始日期',operation:'fill',format:'date'})
+  expect(describeElement(document.querySelector('button')!)).toMatchObject({operation:'invoke'})
+  expect(describeElement(document.querySelectorAll('button')[1])).toBeNull()
+  expect(describeElement(document.querySelector('[role=menuitem]')!)).toBeNull()
+})
+it('only exposes explicit filter checkboxes/radios, not arbitrary choices or account forms',()=>{
+  document.body.innerHTML='<input type="checkbox" aria-label="只看未读"><div role="checkbox" aria-label="筛选状态" aria-checked="true"></div><input type="checkbox" aria-label="订阅邮件"><form method="post"><input type="radio" aria-label="筛选通知"></form>'
+  expect(describeElement(document.querySelector('input')!)).toMatchObject({operation:'invoke',checked:false})
+  expect(describeElement(document.querySelector('[role=checkbox]')!)).toMatchObject({checked:true})
+  expect(describeElement(document.querySelectorAll('input')[1])).toBeNull();expect(describeElement(document.querySelectorAll('input')[2])).toBeNull()
+})
+it('does not expose account switching or credential autofill fields as filters',()=>{
+  vi.stubGlobal('location',{origin:'https://example.com',href:'https://example.com/'})
+  try{
+    document.body.innerHTML='<select aria-label="账号筛选"><option>用户A</option><option>用户B</option></select><input type="search" aria-label="搜索" autocomplete="username"><button aria-label="查看并切换账户"></button><a href="https://example.com/switch_account">查看未读</a>'
+    for(const element of document.querySelectorAll('select,input,button,a'))expect(describeElement(element)).toBeNull()
+  }finally{vi.unstubAllGlobals()}
+})

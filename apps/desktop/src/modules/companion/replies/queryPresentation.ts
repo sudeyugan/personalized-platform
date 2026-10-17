@@ -33,7 +33,7 @@ export function queryPresentation(receipt: ToolReceipt, label: string): ReplyDoc
     const tabs = Array.isArray(data.data) ? data.data.map(object) : []
     return listDocument(tabs.map(tab => ({ title: text(tab.title) ?? '已授权网页', url: safeReplyUrl(tab.url) })), label)
   }
-  if (name === 'browser.read_page' || name==='browser.observe' || name === 'web.read_page') {
+  if (name === 'browser.read_page' || name==='browser.observe' || name==='browser.read_content' || name === 'web.read_page') {
     const page = name.startsWith('browser.') ? object(data.data) : data
     const loginReply = name.startsWith('browser.') ? browserLoginReply(text(page.loginState)) : undefined
     if (loginReply) return { state:'pending',title:'尚未进入账号页面',blocks:[{type:'text',text:loginReply}],notes:[queryTime(data.fetchedAtEpochMs)??'本次检查'] }

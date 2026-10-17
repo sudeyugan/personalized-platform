@@ -66,7 +66,7 @@ function EdgeConnectionSection() {
         <label className="browser-open-site"><input type="checkbox" checked={openSite} onChange={event=>setOpenSite(event.target.checked)}/>连接后打开目标网站</label>
         <BrowserRecordingCard/>
         {status?.setupPending&&<p className="browser-note" role="status">已发起本次连接，Edge将打开确认页。点击确认即可，不必重复输入域名；取消或超时后可重试。</p>}
-        <p className="browser-privacy-note"><ShieldCheck size={14}/><span>不读取 Cookie 或密码。必要网页文字可能交给你配置的模型；自动登录、导航与检索在各网站选项中分别授权，不包含发送、删除或支付。</span></p>
+        <p className="browser-privacy-note"><ShieldCheck size={14}/><span>不读取Cookie或密码。普通规划只给模型固定控件语义和必要统计；明确要求理解正文时，节选仍需单独审查发送。最小信息也属于外发，自动脱敏并非绝对保护。登录、导航与检索分别授权，不包含发送、删除或支付。</span></p>
       </>}
       {error && <p role="alert">{error}</p>}
     </div>

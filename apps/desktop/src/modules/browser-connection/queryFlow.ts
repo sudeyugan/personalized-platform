@@ -14,15 +14,20 @@ export class BrowserQueryFlow {
   private prepared=false
   requiresVerification=false
   private checkedUncertainAction=false
+  private staleRecoveries=0
+  private loadingRecoveries=0
   constructor(task: BrowserTaskGoal, message: string) { this.task = task; this.message = message }
   get initialCall(): AgentToolCall | undefined {
     if (this.task.clarification || this.task.objective === 'followed_live' || this.task.origins.length !== 1) return
     return this.call('browser.tabs', { origin: this.task.origins[0] })
   }
   advance(call: AgentToolCall, result: AgentToolResult): { nextCall?: AgentToolCall; reply?: string } | undefined {
-    if(call.name==='browser.collect'){this.requiresVerification=true;return}
+    if(call.name==='browser.collect'||call.name==='browser.read_content'){this.requiresVerification=true;return}
     if (!['browser.tabs','browser.ensure_page','browser.read_page','browser.observe','browser.act'].includes(call.name)) return
-    if(call.name==='browser.act'&&!result.success&&!this.checkedUncertainAction&&result.error?.code!=='PermissionDenied'&&!/授权|权限|取消|停止|不在线|失效/u.test(result.error?.message??'')){
+    const code=result.error?.browserCode
+    if(!result.success&&code==='BROWSER_PAGE_PENDING'&&this.loadingRecoveries++<1)return {nextCall:this.call('browser.observe',{origin:this.task.origins[0],tabId:(call.arguments as {tabId:number}).tabId})}
+    if(call.name==='browser.act'&&!result.success&&['BROWSER_STALE','BROWSER_ACTION_BLOCKED'].includes(code??'')&&this.staleRecoveries++<2)return {nextCall:this.call('browser.observe',{origin:this.task.origins[0],tabId:(call.arguments as {tabId:number}).tabId})}
+    if(call.name==='browser.act'&&!result.success&&!this.checkedUncertainAction&&result.error?.code!=='PermissionDenied'&&(!code||code==='BROWSER_ACTION_UNKNOWN')&&!/授权|权限|取消|停止|不在线|失效/u.test(result.error?.message??'')){
       this.checkedUncertainAction=true
       return {nextCall:this.call('browser.observe',{origin:this.task.origins[0],tabId:(call.arguments as {tabId:number}).tabId})}
     }
@@ -31,7 +36,8 @@ export class BrowserQueryFlow {
     if (envelope?.verified !== true) return { reply: '页面回执无法核验，暂时不能判断本次查询结果。' }
     if(call.name==='browser.act'){
       if((envelope.data as {actionStatus?:string})?.actionStatus!=='dispatched')return {reply:'页面控件已变化或动作不符合安全范围；没有重复执行，请重新发起并观察。'}
-      return {nextCall:this.call('browser.observe',{origin:this.task.origins[0],tabId:(call.arguments as {tabId:number}).tabId})}
+      const next=(envelope.data as {nextTabId?:number})?.nextTabId
+      return {nextCall:this.call('browser.observe',{origin:this.task.origins[0],tabId:next??(call.arguments as {tabId:number}).tabId})}
     }
     if (['browser.read_page','browser.observe'].includes(call.name)) {
       const page = envelope.data as { loginState?: string;observationId?:string } | undefined

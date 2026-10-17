@@ -16,7 +16,7 @@ struct Page { tab_id: u64, origin: String, title: String, url: String, text: Str
 struct Control {id:String,name:String,operation:String}
 #[derive(Deserialize,Serialize)]
 #[serde(rename_all="camelCase",deny_unknown_fields)]
-struct Action {tab_id:u64,origin:String,action_status:String}
+struct Action {tab_id:u64,origin:String,action_status:String,#[serde(default,skip_serializing_if="Option::is_none")]next_tab_id:Option<u64>}
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all="snake_case")]
 enum LoginState { NotAllowed, Unfilled, NeedsUser, Continued, Pending, SubmitRejected, ManagedLogin, ManagedUnfilled, ManagedNeedsUser, ManagedPending }
@@ -54,7 +54,7 @@ fn validate_inner(request:&Request,value:Value,managed:bool)->Result<Value,Strin
         },
         "act" => {
             let action:Action=serde_json::from_value(value).map_err(|_|invalid)?;
-            if Some(action.tab_id)!=request.tab_id||action.origin!=request.origin||!["dispatched","stale","blocked"].contains(&action.action_status.as_str()){return Err(invalid.into())}
+            if Some(action.tab_id)!=request.tab_id||action.origin!=request.origin||!["dispatched","stale","blocked"].contains(&action.action_status.as_str())||action.next_tab_id.is_some_and(|id|!managed||id==0||id>9007199254740991||Some(id)==request.tab_id||action.action_status!="dispatched"){return Err(invalid.into())}
             serde_json::to_value(action)
         },
         "followed_live" => {
@@ -70,6 +70,13 @@ fn reference(id:&str)->bool{id.len()==36&&id.bytes().all(|b|b.is_ascii_hexdigit(
 
 #[cfg(test)] mod tests {
     use super::*; use serde_json::json;
+    #[test]fn next_tab_requires_managed_current_action_receipt(){
+        let request:Request=serde_json::from_value(json!({"kind":"act","origin":"https://example.com","tabId":1})).unwrap();
+        let receipt=json!({"tabId":1,"origin":"https://example.com","actionStatus":"dispatched","nextTabId":2});
+        assert!(validate_managed(&request,receipt.clone()).is_ok());assert!(validate(&request,receipt.clone()).is_err());
+        let mut bad=receipt.clone();bad["nextTabId"]=json!(0);assert!(validate_managed(&request,bad).is_err());
+        let mut bad=receipt;bad["actionStatus"]=json!("blocked");assert!(validate_managed(&request,bad).is_err());
+    }
     #[test]fn managed_operations_do_not_expand_legacy_bridge(){
         let request=Request{kind:"observe".into(),origin:"https://example.com".into(),tab_id:Some(1),cached_login:false,query_mode:None,target_url:None,interaction:None};
         let value=json!({"tabId":1,"origin":"https://example.com","url":"https://example.com/inbox","title":"邮箱","text":"未读 2","links":[],"truncated":false,"loading":false,"observationId":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","controls":[{"id":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","name":"筛选","operation":"select"}]});

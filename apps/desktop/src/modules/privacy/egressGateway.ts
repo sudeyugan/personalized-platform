@@ -2,6 +2,7 @@ import type { LibraryData } from '../../domain/models'
 import type { AgentModelProvider, AgentModelRequest, AgentModelResponse } from '../companion/agent/types'
 import { PrivacySession } from './privacySession'
 import type { PrivacyFinding, PrivacyReviewRequest } from './types'
+import { projectBrowserRequest } from '../browser-connection/modelView'
 
 interface EgressGatewayOptions {
   assertAllowed?: () => void
@@ -53,6 +54,7 @@ export function createPrivacyProtectedProvider(provider: AgentModelProvider, opt
   if (provider.id === 'mock') return provider
   const session = new PrivacySession(options.trust.privateDictionary)
   let reviewed = false
+  const reviewedContent=new Set<string>()
   return {
     id: provider.id,
     testConnection: () => provider.testConnection(),
@@ -64,15 +66,29 @@ export function createPrivacyProtectedProvider(provider: AgentModelProvider, opt
         findings.push(...result.findings)
         return result.text
       }
-      const protectedRequest = mapStrings(request, sanitize) as AgentModelRequest
+      const projection=projectBrowserRequest(request)
+      const contentKeys=projection.reviewKeys.filter(key=>!reviewedContent.has(key))
+      // Tool contents are serialized JSON. Inspect leaf strings before their
+      // newline/Unicode escapes can hide credential boundaries from detectors.
+      const leafProtected={...projection.request,messages:projection.request.messages.map(message=>{
+        if(message.role!=='tool')return message
+        let value:unknown
+        try{value=JSON.parse(message.content)}catch{return message}
+        return {...message,content:JSON.stringify(mapStrings(value,sanitize))}
+      })}
+      const protectedRequest = mapStrings(leafProtected, sanitize) as AgentModelRequest
       options.authorizeSanitizedQuery?.()
-      const needsReview = !options.authorizeSanitizedQuery && (!reviewed || options.reviewEachRequest) && Boolean(options.requestReview) && (options.trust.outboundReviewMode === 'strict' || findings.length > 0)
+      if(contentKeys.length&&!options.requestReview)throw new Error('私人正文需要发送前审查；当前界面无法确认，内容没有发送。')
+      const needsReview = contentKeys.length>0 || !options.authorizeSanitizedQuery && (!reviewed || options.reviewEachRequest) && Boolean(options.requestReview) && (options.trust.outboundReviewMode === 'strict' || findings.length > 0)
       if (needsReview) {
         const findingCounts = findings.reduce<PrivacyReviewRequest['findingCounts']>((counts, finding) => ({ ...counts, [finding.kind]: (counts[finding.kind] ?? 0) + 1 }), {})
-        const previewSource = protectedRequest.messages.at(-1)?.content ?? ''
-        const allowed = await options.requestReview!({ destination: options.destination, purpose: options.purpose, findingCounts, sanitizedPreview: previewSource.slice(0, 800) })
+        const previewSource = contentKeys.length?protectedRequest.messages.filter(message=>message.role==='tool'&&message.content.includes('"contentReview":true')).map(message=>{
+          const result=JSON.parse(message.content) as {data:{data:{text?:string}}};return result.data.data.text??''
+        }).join('\n\n——\n\n'):protectedRequest.messages.at(-1)?.content ?? ''
+        const allowed = await options.requestReview!({ destination: options.destination, purpose: contentKeys.length?'理解网页正文节选（每段最多2000字，单独确认发送）':options.purpose, findingCounts, sanitizedPreview: contentKeys.length?previewSource:previewSource.slice(0,800),...(contentKeys.length?{fullPreview:true}:{}) })
         if (!allowed) throw new Error('已取消发送，内容没有离开本机。')
         reviewed = true
+        contentKeys.forEach(key=>reviewedContent.add(key))
       }
       let rawStream = ''; let emitted = ''
       options.assertAllowed?.()

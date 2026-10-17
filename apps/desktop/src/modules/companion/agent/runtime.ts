@@ -16,6 +16,7 @@ import { followedLiveReply } from '../../browser-connection/followedReply'
 import { ReplySession } from '../replies/session'
 import { REPLY_PROMPT } from '../replies/modelReply'
 import { safeError } from '../replies/safety'
+import { BROWSER_AGENT_LIMITS,BROWSER_AGENT_PROMPT } from '../../browser-connection/agentPolicy'
 import { automaticMethodHint } from '../../operation-memory/automaticHint'
 import { operationAllows, operationWriteKey, OPERATION_PROMPT } from '../../operation-memory/executionPolicy'
 import type { OperationScope } from '../../../domain/operations/types'
@@ -99,7 +100,7 @@ export async function runAgent(input: RunAgentInput) {
     events: [{ type: 'context', context: input.context, timestamp }, { type: 'user', content: input.message, timestamp }],
   }
   const audit: AgentAuditRecord[] = []
-  const execution=new ExecutionSession(input.services.browserTaskGoal?'browser':input.operation?.scope==='public_web'?'public_web':'application',16)
+  const execution=new ExecutionSession(input.services.browserTaskGoal?'browser':input.operation?.scope==='public_web'?'public_web':'application',input.services.browserTaskGoal?BROWSER_AGENT_LIMITS.requests:16)
   const reply = new ReplySession()
   const finishLocal = (text: string) => {
     guard()
@@ -140,6 +141,7 @@ export async function runAgent(input: RunAgentInput) {
   messages.push({ role: 'system', content: '若用户请求接管电脑或外部窗口，使用 computer.takeover 准备单窗口接管面板；此工具不能放进 task.create。准备成功不表示开始操作，必须告知用户选择窗口、确认本次界面文字外发并点击开始。窗口接管支持UIA普通控件；已连接Edge另有browser只读DOM工具，不具备截图视觉或任意网页写入，不能承诺所有软件可用。' })
   messages.push({ role:'system', content:BROWSER_PROMPT })
   messages.push({ role:'system', content:BROWSER_CONTINUATION_PROMPT })
+  messages.push({ role:'system', content:BROWSER_AGENT_PROMPT })
   messages.push({ role: 'system', content: REPLY_PROMPT })
   messages.push({ role: 'system', content: `本轮权限状态：${JSON.stringify(input.permissions.summary())}。完整程序权限仅授权已登记的程序内 Tool，不是全部 UI 或电脑的万能权限。必须区分“未接入动作”“用户关闭授权”“需要执行确认”“模块已关闭”和“执行失败”；没有 PermissionDenied 结果不得声称无权限。app.capabilities 可核对各模块的查询与写入。fortune.draw、truth.draw、answer_book.draw 是本地真实抽取，用户要求时调用对应 Tool；不自行生成签文，也不把 app.open 当作抽取完成。` })
   const actionIntent = input.operation ? { expectsTool: false } : detectActionIntent(input.message, toolDefinitions, input.context.companion.name)
@@ -160,7 +162,7 @@ export async function runAgent(input: RunAgentInput) {
   let malformedToolRetryUsed = false
   let verificationRetry=false
   let toolAttempted = false
-  const maxToolSteps = input.maxToolSteps ?? (browserTask?12:DEFAULT_MAX_TOOL_STEPS)
+  const maxToolSteps = input.maxToolSteps ?? (browserTask?BROWSER_AGENT_LIMITS.requests:DEFAULT_MAX_TOOL_STEPS)
 
   while (true) {
     guard()
@@ -172,7 +174,8 @@ export async function runAgent(input: RunAgentInput) {
       directAction = undefined
     } else {
       try {
-        if (++modelRounds > 10) throw new AgentRuntimeError('AgentStepLimit', '已达到10次模型轮次上限，公开查询安全停止')
+        const roundLimit=browserTask?BROWSER_AGENT_LIMITS.modelRounds:10
+        if (++modelRounds > roundLimit) throw new AgentRuntimeError('AgentStepLimit', `已达到${roundLimit}次模型轮次上限，本轮安全停止`)
         const bufferActionResponse = actionIntent.expectsTool && !toolAttempted
         response = await withCancellation(input.provider.generate(
           { messages, context: input.context, tools: modelToolDefinitions.filter(tool => publicReads.allows(tool) && browserReads.allows(tool)) },

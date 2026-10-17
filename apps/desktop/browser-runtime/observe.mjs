@@ -22,7 +22,7 @@ export async function observe(page, tabId, site, allowActions) {
     texts.push(result.text.slice(0,remaining));remaining-=Math.min(result.text.length,remaining)
     if(remaining<=0){truncated=true;break}
     if(allowActions) {
-      const locator=frame.locator('a[href],button,input,select,[role="button"]'),count=Math.min(await locator.count(),300)
+      const locator=frame.locator('a[href],button,input,select,[role="button"],[role="tab"],[role="menuitem"],[role="combobox"],[role="option"],[role="checkbox"],[role="radio"]'),count=Math.min(await locator.count(),300)
       for (let index=0;index<count&&controls.length<59;index++) {
         const handle=await locator.nth(index).elementHandle()
         if(!handle)continue
@@ -30,7 +30,7 @@ export async function observe(page, tabId, site, allowActions) {
         if(!info || controls.length>=59){await handle.dispose();continue}
         const id=randomUUID()
         refs.set(id,{handle,info,url:frame.url(),frame,document})
-        controls.push({id,name:(info.options?`${info.name}（${info.options.join('、')}）`:info.name).slice(0,100),operation:info.operation})
+        controls.push({id,name:(info.options?`${info.name}（${info.options.join('、')}）`:info.format?`${info.name}（${info.format==='date'?'YYYY-MM-DD':'YYYY-MM'}）`:typeof info.checked==='boolean'?`${info.name}（${info.checked?'已选':'未选'}）`:info.name).slice(0,100),operation:info.operation})
         if(info.href && links.length<40) links.push({text:info.name,url:safePageUrl(info.href,site)})
       }
     }

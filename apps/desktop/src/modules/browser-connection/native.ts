@@ -1,7 +1,8 @@
 import { invoke } from '@tauri-apps/api/core'
 import { browserNativeError } from './nativeError'
+import type { BrowserParameterIntent } from './parameters'
 export interface BrowserConnectionStatus { enabled: boolean; paired: boolean; online: boolean; sites: string[]; browserSites: string[]; epoch: number; extensionVersion?:string|null; expectedVersion?:string; extensionPath?:string|null; updateRequired?:boolean; setupPending?:boolean }
-export interface BrowserInteraction { observationId:string; elementId:string; operation:'invoke'|'search'|'fill'|'select'|'scroll'; query?:string }
+export interface BrowserInteraction { observationId:string; elementId:string; operation:'invoke'|'search'|'fill'|'select'|'scroll'; query?:string;intent?:BrowserParameterIntent }
 export interface BrowserReadRequest { kind: 'tabs' | 'page' | 'followed_live' | 'ensure' | 'observe' | 'act'; origin: string; tabId?: number; cachedLogin?: boolean; targetUrl?:string; interaction?:BrowserInteraction; queryMode?:'background'|'foreground' }
 export interface BrowserSnapshot { data: unknown; origin: string; fetchedAtEpochMs: number; untrusted: true; privateBrowser: true; verified: true }
 export function browserNative<T>(command: string, args?: Record<string, unknown>): Promise<T> {

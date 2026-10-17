@@ -50,13 +50,9 @@ export class BrowserEngine {
   async settle(page) {
     await page.waitForLoadState('domcontentloaded',{timeout:10000}).catch(()=>{throw new Error('BROWSER_PAGE_PENDING')})
     await page.locator('body').waitFor({state:'attached',timeout:5000})
-    let previous='',stable=0
-    for(let index=0;index<10;index++) {
-      const text=await page.locator('body').innerText({timeout:2000})
-      if(text&&text===previous)stable++;else stable=0
-      if(stable>=2)return
-      previous=text;await new Promise(resolve=>setTimeout(resolve,200))
-    }
+    // Fixed local readiness predicate: no model-supplied JS and no waiting for
+    // unrelated clocks/ads to stop changing all of body.innerText.
+    await page.waitForFunction(()=>document.readyState==='complete'&&!!document.body&&!Array.from(document.querySelectorAll('[aria-busy="true"]')).some(node=>node.getClientRects().length),{},{timeout:8000}).catch(()=>{throw new Error('BROWSER_PAGE_PENDING')})
   }
   async login(site,url) {
     if(this.recorder||this.mode==='recording')throw new Error('BROWSER_BUSY')
@@ -117,8 +113,13 @@ export class BrowserEngine {
     if(request.kind==='act') {
       if(!this.interactions.includes(site))throw new Error('BROWSER_SITE_PERMISSION')
       const observation=this.observations.get(request.tabId);this.observations.delete(request.tabId)
-      try{await act(page,observation,request.interaction);await this.settle(page)}finally{await release(observation)}
-      return {tabId:request.tabId,origin:site,actionStatus:'dispatched'}
+      let nextTabId
+      try{
+        const popup=await act(page,observation,request.interaction)
+        if(popup){await popup.waitForLoadState('domcontentloaded',{timeout:8000}).catch(()=>{throw new Error('BROWSER_ACTION_UNKNOWN')});if(new URL(popup.url()).origin!==site)throw new Error('BROWSER_ACTION_UNKNOWN');this.register(popup);nextTabId=[...this.pages.entries()].find(([,value])=>value===popup)?.[0]}
+        try{await this.settle(popup??page)}catch{throw new Error('BROWSER_ACTION_UNKNOWN')}
+      }finally{await release(observation)}
+      return {tabId:request.tabId,origin:site,actionStatus:'dispatched',...(nextTabId?{nextTabId}:{})}
     }
     throw new Error('BROWSER_ARGUMENT')
   }
