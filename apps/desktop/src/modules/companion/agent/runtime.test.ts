@@ -267,8 +267,8 @@ describe('agent runtime', () => {
     ])
     const result = await runAgent({ message: '我写过外婆吗？', history: [], provider, registry: createCompanionToolRegistry(), ...current })
     expect(result.text).toContain('你写过外婆。')
-    expect(result.text).toContain('## 已完成')
-    expect(provider.requests[1].messages.at(-1)).toMatchObject({ role: 'tool', toolName: 'character.search' })
+    expect(result.text).toBe('你写过外婆。')
+    expect(provider.requests[1].messages.findLast(message => message.role === 'tool')).toMatchObject({ role: 'tool', toolName: 'character.search' })
     expect(result.session.events.map((event) => event.type)).toEqual(['context', 'user', 'tool_call', 'tool_result', 'assistant'])
     expect(result.audit[0]).toMatchObject({ permissionDecision: 'allowed', resultStatus: 'success', toolName: 'character.search' })
   })
@@ -301,13 +301,13 @@ describe('agent runtime', () => {
     const current = fixture(false)
     const provider = new ScriptedProvider([
       { type: 'tool_call', call: { id: 'call-1', name: 'character.search', arguments: { query: '外婆' } } },
-      { type: 'text', text: '人物资料尚未授权。' },
+      { type: 'text', text: JSON.stringify({ version: 1, blocks: [{ type: 'paragraph', text: '人物资料尚未授权。' }] }) },
     ])
     const result = await runAgent({ message: '查人物', history: [], provider, registry: createCompanionToolRegistry(), ...current })
     expect(result.text).toContain('人物资料未授权')
-    expect(result.text).toContain('## 未完成')
+    expect(result.text).toContain('无法确认查询结论')
     expect(result.audit[0]).toMatchObject({ permissionDecision: 'denied', errorCode: 'PermissionDenied' })
-    expect(provider.requests[1].messages.at(-1)?.content).toContain('PermissionDenied')
+    expect(provider.requests[1].messages.findLast(message => message.role === 'tool')?.content).toContain('PermissionDenied')
   })
 
   it('executes an enabled write tool only after explicit confirmation', async () => {

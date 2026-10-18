@@ -5,6 +5,7 @@ import { parseModelReply } from './modelReply'
 import { toolPresentation, visibleReceipt } from './toolPresentation'
 import { inlineText } from './safety'
 import { publicReadTools } from '../agent/publicReadTools'
+import { canSynthesize, composeQueryAnswer, queryAnswerInstruction, validQueryAnswer } from './queryAnswer'
 
 // Formatting is separate from tool scheduling: collecting a receipt never ends
 // an execution. Only the runtime's existing completion paths call finish().
@@ -12,8 +13,11 @@ export class ReplySession {
   private readonly receipts: ToolReceipt[] = []
   accept(receipt: ToolReceipt) { if (visibleReceipt(receipt) && this.receipts.length < 12) this.receipts.push(receipt) }
   get hasTools() { return this.receipts.length > 0 }
+  get answerInstruction() { return queryAnswerInstruction(this.receipts) }
+  needsAnswerRepair(value: string) { return canSynthesize(this.receipts) && !validQueryAnswer(this.receipts, value) }
   finish(modelText?: string, localText?: string) {
     if (!this.hasTools) return localText ?? modelText ?? ''
+    if (modelText !== undefined && canSynthesize(this.receipts)) return composeQueryAnswer(this.receipts, modelText)
     const verified=this.receipts.some(receipt=>['browser.verify','browser.verify_collection'].includes(receipt.call.name)&&receipt.result.success)
     const pageAttempted = this.receipts.some(receipt => ['browser.read_page','browser.observe','browser.followed_live'].includes(receipt.call.name))
     const displayed = this.receipts.filter(receipt => !(receipt.result.success && (verified&&receipt.call.name.startsWith('browser.')&&!['browser.verify','browser.verify_collection'].includes(receipt.call.name)||pageAttempted&&['browser.status','browser.tabs','browser.ensure_page'].includes(receipt.call.name))))
@@ -35,6 +39,7 @@ export class ReplySession {
     return parts.join('\n\n')
   }
   stopped(reason: string) {
+    if (canSynthesize(this.receipts)) return composeQueryAnswer(this.receipts, undefined, `本轮已停止：${reason}`)
     return [`## 部分结果 · 本轮已停止`, this.finish(), ...formatBlocks([{type:'text',text:reason}]), '> 之前已执行的步骤可能已生效，不会自动撤销。'].join('\n\n')
   }
 }

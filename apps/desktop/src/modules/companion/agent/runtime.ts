@@ -15,6 +15,7 @@ import { BrowserQueryFlow, browserPurposeBlock } from '../../browser-connection/
 import { followedLiveReply } from '../../browser-connection/followedReply'
 import { ReplySession } from '../replies/session'
 import { REPLY_PROMPT } from '../replies/modelReply'
+import { QUERY_INTENT_PROMPT } from './queryIntent'
 import { safeError } from '../replies/safety'
 import { BROWSER_AGENT_LIMITS,BROWSER_AGENT_PROMPT } from '../../browser-connection/agentPolicy'
 import { automaticMethodHint } from '../../operation-memory/automaticHint'
@@ -143,6 +144,7 @@ export async function runAgent(input: RunAgentInput) {
   messages.push({ role:'system', content:BROWSER_CONTINUATION_PROMPT })
   messages.push({ role:'system', content:BROWSER_AGENT_PROMPT })
   messages.push({ role: 'system', content: REPLY_PROMPT })
+  messages.push({ role: 'system', content: QUERY_INTENT_PROMPT })
   messages.push({ role: 'system', content: `本轮权限状态：${JSON.stringify(input.permissions.summary())}。完整程序权限仅授权已登记的程序内 Tool，不是全部 UI 或电脑的万能权限。必须区分“未接入动作”“用户关闭授权”“需要执行确认”“模块已关闭”和“执行失败”；没有 PermissionDenied 结果不得声称无权限。app.capabilities 可核对各模块的查询与写入。fortune.draw、truth.draw、answer_book.draw 是本地真实抽取，用户要求时调用对应 Tool；不自行生成签文，也不把 app.open 当作抽取完成。` })
   const actionIntent = input.operation ? { expectsTool: false } : detectActionIntent(input.message, toolDefinitions, input.context.companion.name)
   const followedQuery = !input.operation && followedLiveIntent(input.message) && Boolean(input.registry.lookup('browser.followed_live'))
@@ -161,6 +163,7 @@ export async function runAgent(input: RunAgentInput) {
   let actionRetryUsed = false
   let malformedToolRetryUsed = false
   let verificationRetry=false
+  let answerRepairUsed = false
   let toolAttempted = false
   const maxToolSteps = input.maxToolSteps ?? (browserTask?BROWSER_AGENT_LIMITS.requests:DEFAULT_MAX_TOOL_STEPS)
 
@@ -177,8 +180,9 @@ export async function runAgent(input: RunAgentInput) {
         const roundLimit=browserTask?BROWSER_AGENT_LIMITS.modelRounds:10
         if (++modelRounds > roundLimit) throw new AgentRuntimeError('AgentStepLimit', `已达到${roundLimit}次模型轮次上限，本轮安全停止`)
         const bufferActionResponse = actionIntent.expectsTool && !toolAttempted
+        const answerInstruction = reply.answerInstruction
         response = await withCancellation(input.provider.generate(
-          { messages, context: input.context, tools: modelToolDefinitions.filter(tool => publicReads.allows(tool) && browserReads.allows(tool)) },
+          { messages: answerInstruction ? [...messages, { role: 'system', content: answerInstruction }] : messages, context: input.context, tools: answerRepairUsed ? [] : modelToolDefinitions.filter(tool => publicReads.allows(tool) && browserReads.allows(tool)) },
           {
             onTextDelta: bufferActionResponse || reply.hasTools ? undefined : (delta) => {
               streamedThisStep = true
@@ -221,6 +225,11 @@ export async function runAgent(input: RunAgentInput) {
         })
         continue
       }
+      if (!answerRepairUsed && reply.needsAnswerRepair(response.text)) {
+        answerRepairUsed = true
+        messages.push({ role: 'system', content: '最后的回答未通过展示格式检查，尚未展示给用户。不要再次查询或执行工具；请仅根据已有结果重新整合，返回version=1、blocks非空、sourceIds可选的JSON。不要表格、链接、操作成功声明或技术字段。第一段直接回答，证据不足就明确说明。' })
+        continue
+      }
       input.onStatus?.({ phase: 'responding' })
       const formatted = reply.finish(response.text)
       execution.transition('handoff')
@@ -229,6 +238,7 @@ export async function runAgent(input: RunAgentInput) {
       return { text: formatted, session, audit,execution:execution.snapshot }
     }
     if (streamedThisStep) input.onTextReset?.()
+    if (answerRepairUsed) return finishStopped('回答格式整理未完成，没有再次执行工具。')
     if (toolSteps >= maxToolSteps) {
       const message = `Agent 已达到最多 ${maxToolSteps} 次工具调用，已安全停止。`
       input.onStatus?.({ phase: 'error', message })

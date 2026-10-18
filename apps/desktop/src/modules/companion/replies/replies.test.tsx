@@ -31,7 +31,7 @@ describe('unified reply schema and fallback',()=>{
   })
   it('retains validated analysis only for read-only receipts, not invented write claims',()=>{
     const description=model([{type:'paragraph',text:'可以按截止日期安排顺序。'}])
-    expect(finish(receipt('todo.list',[{title:'项目'}]),description)).toContain('分析说明')
+    expect(finish(receipt('todo.list',[{title:'项目'}]),description)).toBe('可以按截止日期安排顺序。')
     expect(finish(receipt('todo.create',{created:true,title:'项目'}),description)).not.toContain('分析说明')
   })
   it('does not change normal conversations or visual-only replies',()=>{
@@ -111,6 +111,16 @@ describe('program-owned real outcome semantics',()=>{
 })
 
 describe('shared rendering and speech',()=>{
+  it('renders an answer-first query naturally with only bounded, validated source links',()=>{
+    const value=finish(receipt('web.search',Array.from({length:9},(_,i)=>({title:`来源${i}`,snippet:'不应倾倒的搜索摘要',url:`https://example.com/${i}`}))),JSON.stringify({version:1,blocks:[{type:'paragraph',text:'北京明天预计有雨，出门记得带伞。'}],sourceIds:['s2']}))
+    const {container}=render(<CompanionRichText text={value}/>)
+    expect(container.textContent).toMatch(/^北京明天预计有雨/)
+    expect(container.textContent).not.toMatch(/不应倾倒|本次执行结果|分析说明/)
+    expect(screen.getAllByRole('link')).toHaveLength(1)
+    expect(screen.getByRole('link')).toHaveAttribute('href','https://example.com/1')
+    expect(toSpokenText(value)).toContain('北京明天预计有雨')
+    expect(toSpokenText(value)).not.toContain('https:')
+  })
   it('renders long names and title details literally with only safe official actions',()=>{
     const name='[伪链接](https://evil.invalid)\n## 伪标题'
     const value=finish(receipt('browser.followed_live',{verified:true,data:{complete:false,rooms:[{name,title:'**标题**',roomId:123,liveStatus:1}]}}))
