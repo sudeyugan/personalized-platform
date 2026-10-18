@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 
-// Small semantic runs remain real, selectable text. Layout never depends on the
-// animation, and the bounded delay is independent of the provider's token rate.
+// Ink appears at several scattered sites, never along a reading-direction wipe.
+// Stable runs keep selection and layout identical before/after developing.
 function inkRuns(text: string): string[] {
   return text.match(/[^，。！？；：、\n]{1,6}[，。！？；：、\n]?|[，。！？；：、\n]/gu) ?? []
 }
@@ -10,7 +10,10 @@ export function InkText({ text, reveal = false, offset = 0, className = '' }: {
   text: string; reveal?: boolean; offset?: number; className?: string
 }) {
   return <span className={`idea-ink-text ${className}`} data-reveal={reveal || undefined}>
-    {inkRuns(text).map((run, index) => <span className="idea-ink-run" key={index} style={{ '--ink-delay': `${Math.min(offset + index * 48, 1350)}ms` } as CSSProperties}>{run}</span>)}
+    {inkRuns(text).map((run, index) => <span className="idea-ink-run" key={index} style={{
+      '--ink-delay': `${Math.min(offset + ((index * 137 + 71) % 430), 700)}ms`,
+      '--ink-site-x': `${18 + (index * 29) % 65}%`, '--ink-site-y': `${20 + (index * 37) % 55}%`,
+    } as CSSProperties}><span className="idea-ink-glyph">{run}</span></span>)}
   </span>
 }
 
