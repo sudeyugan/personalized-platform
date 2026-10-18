@@ -184,6 +184,26 @@ fn personal_experiences_and_local_covers_round_trip_in_both_backup_formats() {
     }
 }
 #[test]
+fn idea_manuscripts_and_pending_turns_round_trip_in_both_backup_formats() {
+    for automatic in [false, true] {
+        let (_dir, repository, library) = fixture();
+        let mut data = library.load().unwrap().unwrap().data;
+        data["ideas"] = json!({"activeId":"idea-fixture","sessions":[{
+            "id":"idea-fixture","seed":"模糊的起点","draft":"我修改过的想法","draftEdited":true,
+            "draftVersions":["早先的手稿"],"revision":4,"pending":{"input":"继续想想","mode":"explore"},
+            "turns":[{"input":"暂时还说不清","frame":{"manuscript":"模型的暂定整理"}}],"forkOf":"original"
+        }]});
+        library.save(&data, 1).unwrap();
+        let receipt = if automatic {
+            repository.ensure_automatic(&library, 3, 3, "2026-10-18", "2026-10-18T12:00:00.000Z").unwrap().unwrap()
+        } else { repository.create(&library, false, "2026-10-18T12:00:00.000Z").unwrap() };
+        let mut changed = data.clone(); changed["ideas"] = json!({"sessions":[]});
+        library.save(&changed, 2).unwrap();
+        repository.restore_saved(&library, &receipt.path).unwrap();
+        assert_eq!(library.load().unwrap().unwrap().data["ideas"], data["ideas"]);
+    }
+}
+#[test]
 fn shared_snapshots_deduplicate_and_restore_every_media_directory() {
     let (_dir, repository, library) = fixture();
     let first = repository.ensure_automatic(&library, 3, 3, "2026-10-03", "2026-10-02T17:00:00.000Z").unwrap().unwrap();

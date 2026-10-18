@@ -173,7 +173,8 @@ describe('companion local rituals and capability coverage', () => {
     const registry = createCompanionToolRegistry()
     const result = await registry.execute({ id: 'capabilities', name: 'app.capabilities', arguments: {} }, createAgentApplicationServices(data, access))
     const features = result.data as Array<{ id: string; enabled: boolean; tools: string[] }>
-    expect(features).toHaveLength(16)
+    expect(features).toHaveLength(17)
+    expect(features.find(feature => feature.id === 'ideas')).toMatchObject({ enabled: true, tools: [] })
     expect(features.find((feature) => feature.id === 'fortune')).toMatchObject({ enabled: false, tools: ['fortune.draw'] })
     expect(features.find((feature) => feature.id === 'todos')!.tools).toEqual(expect.arrayContaining(['todo.create', 'todo.update']))
     expect(features.find((feature) => feature.id === 'music')!.tools).toContain('music.control')

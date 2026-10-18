@@ -3,11 +3,12 @@ import type { AssignmentsActions } from './assignmentsSlice'
 import type { OperationsActions } from './operationsSlice'
 import type { BrowserActions } from './browserSlice'
 import type { ExperiencesActions } from './experiencesSlice'
+import type { IdeasActions } from './ideasSlice'
 import type { AgentNavigationIntent, AgentTask, AiGeneration, AnswerBookFavorite, Asset, BackgroundSettings, CalendarEvent, CompanionAgentAuditEntry, CompanionDesktopMode, CompanionMemory, CompanionMessage, CompanionPersonality, CompanionVideoPlacement, CompanionVideoState, Course, DailyQuestion, DiaryEntry, EntityRef, LibraryData, MoodEntry, Person, Place, PlaybackContextKind, RecordType, SaveStatus, TextAnchor, ThemeId, TimelineEvent, TodoItem, Track, ViewId } from '../domain/models'
 import type { HealthStatus, RecoveryDraft } from '../infrastructure/libraryRepository'
 import type { ImportChapter } from '../infrastructure/documentTransfer'
 
-export interface LibraryStore extends ExperiencesActions, AssignmentsActions, OperationsActions, BrowserActions {
+export interface LibraryStore extends IdeasActions, ExperiencesActions, AssignmentsActions, OperationsActions, BrowserActions {
   setCompanionPixelEnhancements: (changes: Partial<import('../domain/pixelPetEnhancements').PixelPetEnhancements>) => void
   drawFortune: (kind?: import('../domain/fortune').FortuneKind) => import('../domain/fortune').FortuneDraw
   data: LibraryData; ready: boolean; saveStatus: SaveStatus; health: HealthStatus | null; recoveryDrafts: Record<string, RecoveryDraft>; playback: { playing: boolean; context: PlaybackContextKind; queue: string[] }; temporaryCompanionWorkIds: string[]

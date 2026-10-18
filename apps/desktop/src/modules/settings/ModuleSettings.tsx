@@ -6,6 +6,7 @@ import { useLibraryStore } from '../../state/useLibraryStore'
 import { CoverSourceSettings } from '../experiences/CoverSourceSettings'
 
 const modules = [
+  { id: 'ideas', label: '想法工坊', description: '水墨手稿，陪模糊念头慢慢成形', icon: <Sparkles /> },
   { id: 'writing', label: '写作', description: '作品、资料与时间线', icon: <span>文</span> },
   { id: 'answerBook', label: '答案之书', description: '偶然的一句话，陪你想一想', icon: <BookMarked /> },
   { id: 'fortune', label: '一隅签', description: '今日、恋爱、前程，每类每日一签', icon: <Sparkles /> },

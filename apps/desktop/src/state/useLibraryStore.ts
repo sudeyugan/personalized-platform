@@ -19,6 +19,7 @@ import { createBrowserSlice } from './browserSlice'
 import { createPixelPetEnhancementsSlice } from './pixelPetEnhancementsSlice'
 import { createFortuneSlice } from './fortuneSlice'
 import { createExperiencesSlice } from './experiencesSlice'
+import { createIdeasSlice } from './ideasSlice'
 import { createAnswerBookSlice } from './answerBookSlice'
 import { formatLocalDate } from '../domain/localDate'
 import { viewForAgentDestination } from '../modules/companion/agent/featureContract'
@@ -50,6 +51,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   playback: { playing: false, context: 'global', queue: [] },
   temporaryCompanionWorkIds: [],
   ...createExperiencesSlice(get, set),
+  ...createIdeasSlice(get, set),
   ...createOperationsSlice(get, set),
   ...createBrowserSlice(get, set),
   ...createPixelPetEnhancementsSlice(get, set),
@@ -445,6 +447,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
       || (moduleId === 'truth' && current.session.activeView === 'truth')
       || (moduleId === 'fortune' && current.session.activeView === 'fortune')
       || (moduleId === 'experiences' && current.session.activeView === 'experiences')
+      || (moduleId === 'ideas' && current.session.activeView === 'ideas')
     )
     const session = hidesActiveView
       ? { ...current.session, activeView: 'home' as const }

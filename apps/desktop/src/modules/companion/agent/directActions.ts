@@ -37,6 +37,7 @@ function resolveWebOpen(message: string, tools: AgentToolDefinition[]) {
 }
 
 const pageRoutes: Array<{ pattern: RegExp; destination: string; extras?: Record<string, unknown> }> = [
+  { pattern: /^(?:打开|进入|跳转到|切换到).*(?:想法工坊|酝酿想法)/, destination: 'ideas' },
   { pattern: /^(?:打开|进入|跳转到|切换到).*(?:本月|月度).*(?:情绪回望|情绪统计)/, destination: 'mood.reflection', extras: { range: 'month' } },
   { pattern: /^(?:打开|进入|跳转到|切换到).*(?:本周|周度).*(?:情绪回望|情绪统计)/, destination: 'mood.reflection', extras: { range: 'week' } },
   { pattern: /^(?:打开|进入|跳转到|切换到).*(?:情绪回望|情绪统计)/, destination: 'mood.reflection' },

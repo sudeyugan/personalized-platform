@@ -1,4 +1,5 @@
 import { normalizeLyricLibrary } from './lyricLibrary'
+import { normalizeIdeas } from './ideas/normalization'
 import { moodKinds } from './moods'
 import { normalizeAssignments } from './assignments/normalization'
 import { normalizeFortunes } from './fortune'
@@ -164,6 +165,7 @@ export function createSeedLibrary(): LibraryData {
     planner: { courses: importedScheduleCourses.map((course) => ({ ...course })), diaryEntries: [], moodEntries: [], todos: [], holidayDates: [], dailyQuestions: [], calendarEvents: [], term: { startDate: '2026-09-14', totalWeeks: 16 }, courseImportVersion: 1 },
     answerBook: { favorites: [] },
     experiences: emptyExperiences(),
+    ideas: { sessions: [] },
     settings: {
       theme: 'warm',
       showRightPanel: true,
@@ -177,9 +179,10 @@ export function createSeedLibrary(): LibraryData {
         { id: 'truth', enabled: true, available: true },
         { id: 'fortune', enabled: true, available: true },
         { id: 'experiences', enabled: true, available: true },
+        { id: 'ideas', enabled: true, available: true },
       ],
       layoutProfile: 'writing',
-      navigationOrder: ['home', 'answerBook', 'truth', 'fortune', 'experiences', 'calendar', 'todos', 'writing', 'diary', 'people', 'places', 'timeline', 'assets', 'music', 'help', 'settings'],
+      navigationOrder: ['home', 'ideas', 'answerBook', 'truth', 'fortune', 'experiences', 'calendar', 'todos', 'writing', 'diary', 'people', 'places', 'timeline', 'assets', 'music', 'help', 'settings'],
       backgrounds: { images: {}, sidebarMode: 'decoration' },
       ai: { providerId: 'mock', endpoint: '', model: 'mock-illustration-v1', stylePreset: '温暖手绘' },
       webSearch: { providerId: 'tencent', fallbackToBing: true },
@@ -237,6 +240,7 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
   if (!navigationOrder.includes('truth')) navigationOrder.splice(navigationOrder.indexOf('answerBook') + 1, 0, 'truth')
   if (!navigationOrder.includes('fortune')) navigationOrder.splice(navigationOrder.indexOf('truth') + 1, 0, 'fortune')
   if (!navigationOrder.includes('experiences')) navigationOrder.splice(navigationOrder.indexOf('fortune') + 1, 0, 'experiences')
+  if (!navigationOrder.includes('ideas')) navigationOrder.splice(Math.max(1, navigationOrder.indexOf('home') + 1), 0, 'ideas')
   if (!navigationOrder.includes('diary')) navigationOrder.splice(Math.max(0, navigationOrder.indexOf('people')), 0, 'diary')
   if (!navigationOrder.includes('todos')) navigationOrder.splice(Math.max(2, navigationOrder.indexOf('writing')), 0, 'todos')
   const storedPlanner = data.planner ?? { courses: [], diaryEntries: [], moodEntries: [], todos: [], holidayDates: [], dailyQuestions: [], calendarEvents: [], term: seed.planner.term }
@@ -327,6 +331,7 @@ export function normalizeLibrary(data: LibraryData): LibraryData {
       courseImportVersion: 1,
     },
     works: data.works.map((work) => ({ ...work, volumeIds: work.volumeIds ?? [] })),
+    ideas: normalizeIdeas(data.ideas),
     chapters: Object.fromEntries(Object.entries(data.chapters).map(([chapterId, chapter]) => [chapterId, { ...chapter, summary: chapter.summary ?? '' }])),
     settings: {
       ...seed.settings,

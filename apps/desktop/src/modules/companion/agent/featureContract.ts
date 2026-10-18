@@ -17,6 +17,7 @@ export interface AgentFeatureContract {
  * instead of an easy-to-forget follow-up.
  */
 export const agentFeatureContracts: Record<ViewId, AgentFeatureContract> = {
+  ideas: { id: 'ideas', view: 'ideas', description: '水墨想法工坊；独立调用模型，未授权伙伴读取手稿', readScope: 'none', destinations: ['ideas'], tools: [] },
   experiences: { id: 'experiences', view: 'experiences', description: '个人经历册与作品、足迹记录', readScope: 'experiences', destinations: ['experiences'], tools: ['experience.list', 'experience.get'] },
   fortune: { id: 'fortune', view: 'fortune', description: '本地今日、恋爱、前程签与临时客签', readScope: 'fortune', destinations: ['fortune'], tools: ['fortune.draw'] },
   home: { id: 'daily', view: 'home', description: '首页、朝问与情绪回望', readScope: 'mood', destinations: ['home', 'mood.reflection'], tools: ['mood.get_day', 'mood.get_summary', 'daily_question.list'] },

@@ -13,6 +13,7 @@ import { OperationMemoryPanel } from '../modules/operation-memory/OperationMemor
 import { BrowserConnectionController } from '../modules/browser-connection/controller'
 
 const HomeView = lazy(() => import('../modules/home/HomeView').then((module) => ({ default: module.HomeView })))
+const IdeaWorkshopView = lazy(() => import('../modules/ideas/IdeaWorkshopView').then(module => ({ default: module.IdeaWorkshopView })))
 const AnswerBookView = lazy(() => import('../modules/answer-book/AnswerBookView').then((module) => ({ default: module.AnswerBookView })))
 const FortuneView = lazy(() => import('../modules/fortune/FortuneView').then((module) => ({ default: module.FortuneView })))
 const ExperiencesView = lazy(() => import('../modules/experiences').then((module) => ({ default: module.ExperiencesView })))
@@ -43,7 +44,8 @@ export function AppShell() {
   const truthEnabled = data.settings.modules.find((module) => module.id === 'truth')?.enabled ?? true
   const fortuneEnabled = data.settings.modules.find((module) => module.id === 'fortune')?.enabled ?? true
   const experiencesEnabled = data.settings.modules.find((module) => module.id === 'experiences')?.enabled ?? true
-  const orderedNavigation = data.settings.navigationOrder.map((id) => navigationItems.find((item) => item.id === id)).filter((item) => item && !item.secondary && (item.group !== 'writing' || writingEnabled) && (item.id !== 'music' || musicEnabled) && (item.id !== 'answerBook' || answerBookEnabled) && (item.id !== 'truth' || truthEnabled) && (item.id !== 'fortune' || fortuneEnabled) && (item.id !== 'experiences' || experiencesEnabled))
+  const ideasEnabled = data.settings.modules.find(module => module.id === 'ideas')?.enabled ?? true
+  const orderedNavigation = data.settings.navigationOrder.map((id) => navigationItems.find((item) => item.id === id)).filter((item) => item && !item.secondary && (item.group !== 'writing' || writingEnabled) && (item.id !== 'music' || musicEnabled) && (item.id !== 'answerBook' || answerBookEnabled) && (item.id !== 'truth' || truthEnabled) && (item.id !== 'fortune' || fortuneEnabled) && (item.id !== 'experiences' || experiencesEnabled) && (item.id !== 'ideas' || ideasEnabled))
   const writingViewActive = navigationItems.some((item) => item.group === 'writing' && item.id === activeView)
   const contentBackground = resolveContentBackground(data.settings, activeView)
   const sidebarBackground = useBackgroundImage(data.settings.backgrounds.images.sidebar)
@@ -58,6 +60,7 @@ export function AppShell() {
 
   const view = (() => {
     if (activeView === 'home') return <HomeView />
+    if (activeView === 'ideas') return ideasEnabled ? <IdeaWorkshopView /> : <HomeView />
     if (activeView === 'answerBook') return <AnswerBookView />
     if (activeView === 'fortune') return fortuneEnabled ? <FortuneView /> : <HomeView />
     if (activeView === 'experiences') return experiencesEnabled ? <ExperiencesView /> : <HomeView />

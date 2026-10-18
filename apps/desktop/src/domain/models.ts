@@ -1,7 +1,7 @@
 import type { JSONContent } from '@tiptap/react'
 
 export type ThemeId = 'warm' | 'light' | 'dark'
-export type ViewId = 'home' | 'answerBook' | 'truth' | 'fortune' | 'experiences' | 'calendar' | 'todos' | 'writing' | 'diary' | 'people' | 'places' | 'timeline' | 'assets' | 'music' | 'help' | 'settings'
+export type ViewId = 'home' | 'ideas' | 'answerBook' | 'truth' | 'fortune' | 'experiences' | 'calendar' | 'todos' | 'writing' | 'diary' | 'people' | 'places' | 'timeline' | 'assets' | 'music' | 'help' | 'settings'
 export type BackgroundSlot = 'default' | 'daily' | 'creation' | 'immersive' | 'sidebar'
 export type SidebarBackgroundMode = 'soft' | 'decoration'
 
@@ -447,7 +447,7 @@ export interface PersonRelation { id: string; fromPersonId: string; toPersonId: 
 export interface EntityLink { id: string; sourceType: EntityType; sourceId: string; targetType: EntityType; targetId: string; relationType: 'mentions' | 'occurs_at' | 'involves' | 'related'; anchor?: TextAnchor; createdAt: string }
 
 export interface ModuleSetting {
-  id: 'writing' | 'music' | 'companion' | 'answerBook' | 'truth' | 'fortune' | 'experiences'
+  id: 'writing' | 'music' | 'companion' | 'answerBook' | 'truth' | 'fortune' | 'experiences' | 'ideas'
   enabled: boolean
   available: boolean
 }
@@ -471,6 +471,7 @@ export interface LibraryData {
   answerBook: AnswerBookData
   fortune?: import('./fortune').FortuneData
   experiences?: import('./experiences').ExperienceData
+  ideas?: import('./ideas/types').IdeaData
   lyricLibrary?: import('./lyricLibrary').LyricLibrary
   settings: {
     theme: ThemeId
