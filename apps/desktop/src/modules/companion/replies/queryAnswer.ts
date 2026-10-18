@@ -5,6 +5,21 @@ import { object, safeReplyUrl, text } from './safety'
 import { toolPresentation } from './toolPresentation'
 import { publicReadTools } from '../agent/publicReadTools'
 
+export function requestsQuerySources(message: string) {
+  const topic = /来源|出处|参考链接|引用依据|\b(?:sources?|citations?|references?)\b|(?:给|提供|附上|展示|列出|查看).{0,6}链接/i
+  const declined = /(?:不需要|不要|不用|无需|不必|不想|不希望|不显示|不展示|别).{0,8}(?:来源|出处|参考|引用|链接)|(?:来源|出处|链接).{0,4}(?:不需要|不用|不要)|(?:without|no|omit|hide).{0,12}(?:sources?|citations?|references?)/i
+  return topic.test(message) && !declined.test(message)
+}
+
+export function withoutSourceLinks(blocks: ReplyBlock[]): ReplyBlock[] {
+  return blocks.flatMap<ReplyBlock>(block => {
+    if (block.type !== 'list') return [block]
+    const items = block.items.filter(item => !item.link || !['网页来源', '数据来源'].includes(item.title)).map(item =>
+      item.link && ['查看来源', '查看原页', '查询来源'].includes(item.link.label) ? { ...item, link: undefined } : item)
+    return items.length ? [{ ...block, items }] : []
+  })
+}
+
 // Only synthesize already permitted reads. Browser verification, actions and
 // local rituals keep their program-owned outcome/provenance presentation.
 export function canSynthesize(receipts: readonly ToolReceipt[]) {
@@ -35,7 +50,7 @@ export function validQueryAnswer(receipts: readonly ToolReceipt[], value: string
   return answer?.blocks.length && answer.sourceIds.every(id => available.some(source => source.id === id)) ? answer : undefined
 }
 
-export function composeQueryAnswer(receipts: readonly ToolReceipt[], value?: string, reason?: string) {
+export function composeQueryAnswer(receipts: readonly ToolReceipt[], value?: string, reason?: string, showSources = false) {
   const documents = receipts.map(toolPresentation)
   const answer = value ? validQueryAnswer(receipts, value) : undefined
   const useful = documents.some((document, index) => ['completed', 'partial'].includes(document.state) ||
@@ -60,6 +75,6 @@ export function composeQueryAnswer(receipts: readonly ToolReceipt[], value?: str
   if (reason) blocks.push({ type: 'text', text: reason })
   const available = sources(receipts)
   const selected = answer?.sourceIds.length ? available.filter(source => answer.sourceIds.includes(source.id)) : available.slice(0, 2)
-  if (selected.length) blocks.push({ type: 'list', items: selected.map(source => ({ title: source.label, link: { label: '查询来源', url: source.url } })) })
-  return formatBlocks(blocks).join('\n\n')
+  if (showSources && selected.length) blocks.push({ type: 'list', items: selected.map(source => ({ title: source.label, link: { label: '查询来源', url: source.url } })) })
+  return formatBlocks(showSources ? blocks : withoutSourceLinks(blocks)).join('\n\n')
 }

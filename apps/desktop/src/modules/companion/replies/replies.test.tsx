@@ -17,7 +17,7 @@ function receipt(name: string, data: unknown, args: Record<string,unknown> = {},
   const result: AgentToolResult = error ? {success:false,error:{code:'ExecutionFailed',message:error}} : {success:true,data}
   return {call:{id:name,name,arguments:args},result,definition:registry.lookup(name)?.definition}
 }
-function finish(entry:ToolReceipt, model?:string) { const session=new ReplySession();session.accept(entry);return session.finish(model) }
+function finish(entry:ToolReceipt, model?:string, showSources = false) { const session=new ReplySession(showSources);session.accept(entry);return session.finish(model) }
 const model = (blocks: unknown[]) => JSON.stringify({version:1,blocks})
 
 describe('unified reply schema and fallback',()=>{
@@ -99,7 +99,7 @@ describe('program-owned real outcome semantics',()=>{
     expect(finish(receipt('web.read_page',{title:'测试页面',text:'样本',cached:true,truncated:true}))).toContain('缓存结果')
   })
   it('shows selected public values and search snippets, not arbitrary object fields',()=>{
-    const value=finish(receipt('web.read_json',{data:0,url:'https://example.com/data',cached:true,fetchedAtEpochMs:Date.now()}))
+    const value=finish(receipt('web.read_json',{data:0,url:'https://example.com/data',cached:true,fetchedAtEpochMs:Date.now()}),undefined,true)
     expect(value).toContain('\n\n0');expect(value).toContain('缓存结果');expect(value).toContain('查看来源')
     expect(finish(receipt('web.read_json',{data:{password:'PRIVATE-NESTED'}}))).not.toContain('PRIVATE-NESTED')
     expect(finish(receipt('web.search',[{title:'公开结果',snippet:'返回的摘要',url:'https://example.com/article'}]))).toContain('返回的摘要')
@@ -111,8 +111,17 @@ describe('program-owned real outcome semantics',()=>{
 })
 
 describe('shared rendering and speech',()=>{
+  it('hides citations by default, without hiding requested room actions or weakening source validation',()=>{
+    const raw=receipt('web.search',[{title:'来源页',url:'https://example.com/',snippet:'摘要'}])
+    const value=finish(raw,model([{type:'paragraph',text:'这是查询结论。'}]))
+    const {container}=render(<CompanionRichText text={value}/>)
+    expect(container.textContent).toBe('这是查询结论。')
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(finish(receipt('browser.read_page',{verified:true,data:{title:'邮箱',url:'https://example.com/',text:'PRIVATE'}}))).not.toMatch(/网页来源|查看原页/)
+    expect(finish(receipt('browser.followed_live',{verified:true,data:{complete:true,rooms:[{name:'主播',roomId:123,liveStatus:1}]}}))).toContain('进入直播间')
+  })
   it('renders an answer-first query naturally with only bounded, validated source links',()=>{
-    const value=finish(receipt('web.search',Array.from({length:9},(_,i)=>({title:`来源${i}`,snippet:'不应倾倒的搜索摘要',url:`https://example.com/${i}`}))),JSON.stringify({version:1,blocks:[{type:'paragraph',text:'北京明天预计有雨，出门记得带伞。'}],sourceIds:['s2']}))
+    const value=finish(receipt('web.search',Array.from({length:9},(_,i)=>({title:`来源${i}`,snippet:'不应倾倒的搜索摘要',url:`https://example.com/${i}`}))),JSON.stringify({version:1,blocks:[{type:'paragraph',text:'北京明天预计有雨，出门记得带伞。'}],sourceIds:['s2']}), true)
     const {container}=render(<CompanionRichText text={value}/>)
     expect(container.textContent).toMatch(/^北京明天预计有雨/)
     expect(container.textContent).not.toMatch(/不应倾倒|本次执行结果|分析说明/)

@@ -44,11 +44,16 @@ describe('public read tools and bounded runtime', () => {
     const history = [{ role: 'user' as const, content: '我想查北京天气' }]
     const result = await runAgent({ ...f.input, message: '明天还会下雨吗？', history })
     expect(result.text).toMatch(/^北京明天预计有雨/)
-    expect(result.text).toContain('https://example.com/forecast')
+    expect(result.text).not.toContain('https://')
     expect(result.text).not.toMatch(/天气结果|无关导航|本次执行结果|分析说明/)
     expect(result.audit).toHaveLength(2)
     expect(f.generate.mock.calls[0][0].messages).toContainEqual(history[0])
     expect(f.generate.mock.calls[2][0].messages.at(-1)?.content).toContain('"s1"')
+  })
+  it('shows validated source links only when the current user requests them', async () => {
+    const f = fixture([call('web.search', { query: '公开资料' }), { type: 'text', text: JSON.stringify({ version: 1, blocks: [{ type: 'paragraph', text: '这是本次查询结论。' }], sourceIds: ['s1'] }) }])
+    const result = await runAgent({ ...f.input, message: '查询公开资料，给我出处' })
+    expect(result.text).toContain(url)
   })
   it('does not dump raw search results if the model fails while synthesizing', async () => {
     const f = fixture([call('web.search', { query: '天气预报' })])

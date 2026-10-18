@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ReplySession } from './session'
-import { canSynthesize, composeQueryAnswer, queryAnswerInstruction, validQueryAnswer } from './queryAnswer'
+import { canSynthesize, composeQueryAnswer, queryAnswerInstruction, requestsQuerySources, validQueryAnswer } from './queryAnswer'
 import type { ToolReceipt } from './types'
 
 const answer = (text: string, sourceIds: string[] = []) => JSON.stringify({ version: 1, blocks: [{ type: 'paragraph', text }], sourceIds })
@@ -13,12 +13,12 @@ describe('answer-first query presentation', () => {
   it('answers a simple weather follow-up without nine search snippets or an execution heading', () => {
     const value = composeQueryAnswer([search()], answer('北京明天有雨，出门记得带伞。', ['s2']))
     expect(value).toMatch(/^北京明天有雨/)
-    expect(value).toContain('https://example.com/1')
+    expect(value).not.toMatch(/https:|查询来源|结果1/)
     expect(value).not.toMatch(/本次执行结果|分析说明|导航|旧新闻|结果0|结果2/)
   })
   it('integrates multiple sources once and caps program-owned source links', () => {
     const page: ToolReceipt = { call: { id: 'p', name: 'web.read_page', arguments: {} }, result: { success: true, data: { url: 'https://official.example.com/forecast', title: '官方预报', text: 'RAW-ENTIRE-PAGE', cached: true, truncated: true } } }
-    const value = composeQueryAnswer([search(), page], answer('两地都可能下雨，第一天优先安排室内活动。', ['s1', 's3']))
+    const value = composeQueryAnswer([search(), page], answer('两地都可能下雨，第一天优先安排室内活动。', ['s1', 's3']), undefined, true)
     expect(value).toMatch(/^两地都可能下雨/)
     expect(value).toContain('official.example.com/forecast')
     expect(value).toContain('缓存结果'); expect(value).toContain('不完整')
@@ -43,7 +43,7 @@ describe('answer-first query presentation', () => {
     const value = session.stopped('模型暂时不可用')
     expect(value).toContain('还没能')
     expect(value).toContain('模型暂时不可用'); expect(value).not.toMatch(/导航|旧新闻|本次返回 9 项/)
-    expect(value.match(/\]\(https/g)).toHaveLength(2)
+    expect(value).not.toContain('https:')
   })
   it('keeps browser evidence and write receipts out of synthesis', () => {
     for (const name of ['browser.observe', 'browser.read_content', 'browser.verify', 'todo.create', 'fortune.draw']) {
@@ -56,5 +56,11 @@ describe('answer-first query presentation', () => {
     const entry: ToolReceipt = { call: { id: 'todos', name: 'todo.list', arguments: {} }, result: { success: true, data: [] }, definition: { name: 'todo.list', description: '待办', capability: 'read', risk: 'read_only', scope: 'none', inputSchema: { type: 'object', properties: {} } } }
     expect(composeQueryAnswer([entry], answer('今天没有待办。'))).toMatch(/^今天没有待办/)
     expect(composeQueryAnswer([{ ...search(), result: { success: true, data: [] } }], answer('明天不会下雨。'))).not.toContain('明天不会下雨')
+  })
+  it('only opts in when the current user asks for sources, never when they decline them', () => {
+    for (const message of ['明天会下雨吗', '不需要来源', '不要显示出处', '来源不需要', '给结论，不用参考链接', '我是不希望看到来源的', 'no sources']) expect(requestsQuerySources(message)).toBe(false)
+    for (const message of ['明天会下雨吗，给我出处', '有什么来源？', '附上参考链接', 'show sources']) expect(requestsQuerySources(message)).toBe(true)
+    expect(composeQueryAnswer([search()], answer('预计有雨。', ['s2']), undefined, true)).toContain('https://example.com/1')
+    expect(validQueryAnswer([search()], answer('预计有雨。', ['s99']))).toBeUndefined()
   })
 })

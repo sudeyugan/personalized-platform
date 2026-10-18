@@ -16,6 +16,7 @@ import { followedLiveReply } from '../../browser-connection/followedReply'
 import { ReplySession } from '../replies/session'
 import { REPLY_PROMPT } from '../replies/modelReply'
 import { QUERY_INTENT_PROMPT } from './queryIntent'
+import { requestsQuerySources } from '../replies/queryAnswer'
 import { safeError } from '../replies/safety'
 import { BROWSER_AGENT_LIMITS,BROWSER_AGENT_PROMPT } from '../../browser-connection/agentPolicy'
 import { automaticMethodHint } from '../../operation-memory/automaticHint'
@@ -102,7 +103,7 @@ export async function runAgent(input: RunAgentInput) {
   }
   const audit: AgentAuditRecord[] = []
   const execution=new ExecutionSession(input.services.browserTaskGoal?'browser':input.operation?.scope==='public_web'?'public_web':'application',input.services.browserTaskGoal?BROWSER_AGENT_LIMITS.requests:16)
-  const reply = new ReplySession()
+  const reply = new ReplySession(requestsQuerySources(input.message))
   const finishLocal = (text: string) => {
     guard()
     if(execution.phase!=='verified')execution.transition(input.services.browserTaskGoal?.clarification?'clarifying':'handoff')
