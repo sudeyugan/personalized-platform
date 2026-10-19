@@ -1,0 +1,78 @@
+.companion-room-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.companion-settings .companion-stage {
+  width: 58px;
+  height: 78px;
+  margin: 0;
+}
+.companion-room .figurine-greet {
+  display: block;
+  margin: -12px auto 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.companion-room .companion-stage {
+  width: 192px;
+  height: 256px;
+  margin: 0 auto;
+}
+.voice-controls {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin: 8px 0 20px;
+}
+.voice-controls button {
+  min-width: 170px;
+  min-height: 48px;
+  border-radius: 40px;
+  letter-spacing: 0.12em;
+}
+.voice-controls span {
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 100%;
+  text-align: center;
+}
+.voice-end {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.conversation-scope {
+  text-align: center;
+  line-height: 1.8;
+  padding: 0 12px;
+}
+.companion-room .chat-thread {
+  min-height: 0;
+  padding: 20px 0 4px;
+  border-top: 1px solid var(--line);
+  margin-top: 24px;
+}
+.ink-wait {
+  display: inline-block;
+  width: 28px;
+  height: 13px;
+  margin-right: 14px;
+  vertical-align: middle;
+  background: radial-gradient(ellipse at 40% 50%, var(--muted), transparent 65%);
+  animation: ink-thinking 2.6s ease-in-out infinite;
+}
+@keyframes ink-thinking {
+  50% {
+    opacity: 0.25;
+    transform: scaleX(1.4);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ink-wait {
+    animation: none;
+  }
+}

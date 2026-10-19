@@ -1,4 +1,4 @@
-// Isolated local fixture: two real Edge contexts, no real accounts/model calls.
+// Isolated local fixture: two browser contexts, no real accounts/model calls.
 import assert from 'node:assert/strict'
 import { mkdtemp, rm, mkdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -27,7 +27,7 @@ try {
       child.stdout.on('data', chunk => { if (chunk.toString().includes('127.0.0.1')) { clearTimeout(timeout); done() } })
     })
   }
-  browser = await chromium.launch({ channel: 'msedge', headless: true, chromiumSandbox: true })
+  browser = await chromium.launch({ ...(process.env.YIYU_UI_BROWSER_PATH ? { executablePath: process.env.YIYU_UI_BROWSER_PATH } : { channel: 'msedge' }), headless: true, chromiumSandbox: true })
   const desktopContext = await browser.newContext({ viewport: { width: 1280, height: 960 } })
   const mobileContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
   // Recent Edge gates loopback subresources of route-fulfilled documents. Grant
@@ -48,6 +48,7 @@ try {
     const saved = JSON.parse(localStorage.getItem('yiyu.library.preview.v1'))
     saved.data.session.activeView = 'settings'
     saved.data.planner.todos = [{ id: 'fixture-task', title: '双端同步测试', note: '虚构资料', priority: 'medium', completed: false, createdAt: '2026-10-18' }]
+    saved.data.companion.messages = [{id:'fixture-shared',role:'user',content:'电脑上的普通问候',createdAt:'2026-10-19T00:00:00Z',syncScope:'shared'},{id:'fixture-private',role:'user',content:'绝不迁移的私密会话',createdAt:'2026-10-19T00:00:01Z',syncScope:'local'}]
     localStorage.setItem('yiyu.library.preview.v1', JSON.stringify(saved))
     localStorage.setItem('yiyu.settings.activeTab', 'data')
   })
@@ -60,27 +61,31 @@ try {
   await desktop.getByRole('button', { name: '邀请另一台设备' }).click()
   const invitation = await desktop.getByLabel('设备邀请', { exact: true }).inputValue()
   await mobile.goto('http://127.0.0.1:1421/')
-  await mobile.getByRole('button', { name: '书房', exact: true }).click()
   await mobile.getByRole('button', { name: /连接与设置/ }).click()
   await mobile.getByRole('textbox', { name: /在电脑/ }).fill(invitation)
   await mobile.getByRole('button', { name: '连接我的中枢' }).click()
   await mobile.getByText('已连接 · 我的手机').waitFor()
   await mobile.getByRole('button', { name: '今日', exact: true }).click()
-  await mobile.getByRole('heading', { name: '双端同步测试' }).waitFor()
+  await mobile.getByText('双端同步测试', { exact: true }).waitFor()
   await mobile.getByRole('checkbox', { name: '完成待办' }).check()
-  await mobile.getByRole('button', { name: '同步', exact: true }).click()
-  await mobile.getByRole('button', { name: '同步', exact: true }).waitFor()
+  await mobile.getByRole('button', { name: '连接与设置', exact: true }).click()
+  await mobile.getByRole('button', { name: '现在同步', exact: true }).click()
+  await mobile.getByRole('button', { name: '现在同步', exact: true }).waitFor()
   await mobile.reload()
+  await mobile.getByRole('button', { name: '今日', exact: true }).click()
   await mobile.getByRole('checkbox', { name: '完成待办' }).waitFor()
   assert.equal(await mobile.getByRole('checkbox', { name: '完成待办' }).isChecked(), true)
   await desktop.getByRole('button', { name: '现在同步', exact: true }).click()
   await desktop.waitForFunction(() => JSON.parse(localStorage.getItem('yiyu.library.preview.v1')).data.planner.todos.find(item => item.id === 'fixture-task')?.completed === true)
+  await mobile.getByRole('button', { name: '小鱼', exact: true }).click()
+  await mobile.getByText('电脑上的普通问候', { exact: true }).waitFor()
+  assert.equal(await mobile.getByText('绝不迁移的私密会话', { exact: true }).count(), 0)
   await mobile.screenshot({ path: join(output, 'mobile-light.png'), fullPage: true })
   await mobile.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' })
   await mobile.screenshot({ path: join(output, 'mobile-dark.png'), fullPage: true })
   await desktop.screenshot({ path: join(output, 'desktop-settings.png'), fullPage: true })
   assert.deepEqual(errors, [])
-  console.log('YIYU_SYNC_UI_OK: isolated Edge enrollment, invitation, desktop→mobile, mobile→desktop, reload and light/dark checks passed')
+  console.log('YIYU_SYNC_UI_OK: isolated browser enrollment, invitation, desktop→mobile shared chat/private exclusion, mobile→desktop todo, reload and light/dark checks passed')
 } finally {
   await browser?.close()
   for (const child of children) { child.kill(); await new Promise(done => child.exitCode !== null ? done() : child.once('exit', done)) }

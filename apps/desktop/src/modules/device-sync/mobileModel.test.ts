@@ -55,4 +55,11 @@ describe('shared mobile model privacy and cancellation', () => {
     native('新的结果')
     expect(await requestModel('新的查询', 'chat')).toBe('新的结果')
   })
+  it('does not open a hidden privacy confirmation or send protected text in the background', async () => {
+    const chat = native('unused')
+    vi.spyOn(document, 'hidden', 'get').mockReturnValue(true)
+    const confirm = vi.spyOn(window, 'confirm')
+    await expect(requestModel('联系 somebody@example.org', 'chat')).rejects.toThrow('没有向模型发送')
+    expect(chat).not.toHaveBeenCalled(); expect(confirm).not.toHaveBeenCalled()
+  })
 })

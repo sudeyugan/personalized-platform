@@ -16,6 +16,16 @@ import android.webkit.WebViewClient;
 import androidx.webkit.WebViewAssetLoader;
 
 public class MainActivity extends Activity {
+    static final String START_VOICE = "com.yiyu.mobile.START_VOICE";
+    private static final VoiceLaunchGate voiceLaunch = new VoiceLaunchGate();
+    static Intent voiceIntent(android.content.Context context) { return new Intent(context, MainActivity.class).setAction(START_VOICE).putExtra("voiceConsent", voiceLaunch.issue(android.os.SystemClock.elapsedRealtime())); }
+    private boolean consumeVoiceIntent(Intent intent) {
+        if (!START_VOICE.equals(intent.getAction())) return false;
+        intent.setAction(null);
+        return voiceLaunch.consume(intent.getStringExtra("voiceConsent"), android.os.SystemClock.elapsedRealtime());
+    }
+    private boolean voiceClientReady, pendingVoice, voiceReturn, resumed, startWhenResumed;
+    static volatile boolean foreground;
     private WebView web;
     private MobileBridge bridge;
     private boolean awaitingOverlay = false;
@@ -64,6 +74,27 @@ public class MainActivity extends Activity {
         if (web == null) { finish(); return; }
         web.evaluateJavascript("!window.dispatchEvent(new Event('yiyu-back',{cancelable:true}))", handled -> { if (!"true".equals(handled)) finish(); });
     }
+    void voiceReady() {
+        voiceClientReady = true;
+        if (consumeVoiceIntent(getIntent())) { voiceReturn = true; requestVoice(); }
+    }
+    void requestVoice() {
+        if (!voiceClientReady || isFinishing()) return;
+        if (!resumed) { startWhenResumed = true; return; }
+        startWhenResumed = false;
+        if (!VoiceBackend.configured(this)) { voiceReturn = false; VoiceEvents.emit("error", "", "请在手机连接与设置中配置ElevenLabs密钥和声音。", ""); return; }
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            pendingVoice = true; requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 201); return;
+        }
+        try {
+            startForegroundService(new Intent(this, VoiceService.class));
+            if (voiceReturn) { voiceReturn = false; web.postDelayed(() -> { if (!isFinishing()) moveTaskToBack(true); }, 250); }
+        } catch (RuntimeException error) { voiceReturn = false; VoiceEvents.emit("error", "", "系统未允许开始语音，请在一隅内重新开启。", ""); }
+    }
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent); setIntent(intent);
+        if (voiceClientReady && consumeVoiceIntent(intent)) { voiceReturn = true; web.post(this::requestVoice); }
+    }
     @Override public void onBackPressed() { handleBack(); }
     void requestPet() {
         if (!Settings.canDrawOverlays(this)) {
@@ -80,14 +111,24 @@ public class MainActivity extends Activity {
     }
     @Override protected void onResume() {
         super.onResume();
+        resumed = true; foreground = true; PetService.visibilityChanged();
+        if (startWhenResumed) web.post(this::requestVoice);
         if (awaitingOverlay && Settings.canDrawOverlays(this)) { awaitingOverlay = false; requestPet(); }
     }
+    @Override protected void onPause() { resumed = false; foreground = false; PetService.visibilityChanged(); super.onPause(); }
     @Override public void onRequestPermissionsResult(int request, String[] permissions, int[] grants) {
         super.onRequestPermissionsResult(request, permissions, grants);
+        if (request == 201) {
+            boolean allowed = pendingVoice && grants.length > 0 && grants[0] == PackageManager.PERMISSION_GRANTED;
+            pendingVoice = false;
+            if (allowed) requestVoice(); else { voiceReturn = false; VoiceEvents.emit("error", "", "没有麦克风授权，未开始采集。", ""); }
+            return;
+        }
         awaitingOverlay = false;
         if (request == 100 && grants.length > 0 && grants[0] == PackageManager.PERMISSION_GRANTED && Settings.canDrawOverlays(this)) startForegroundService(new Intent(this, PetService.class));
     }
     @Override protected void onDestroy() {
+        stopService(new Intent(this, VoiceService.class));
         if (bridge != null) bridge.dispose();
         if (web != null) { web.removeJavascriptInterface("YiyuMobile"); web.destroy(); }
         super.onDestroy();

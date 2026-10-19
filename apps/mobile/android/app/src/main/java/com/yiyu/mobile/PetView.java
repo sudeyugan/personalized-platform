@@ -29,7 +29,7 @@ final class PetView extends FrameLayout {
     PetView(Context context, Runnable click, Runnable menu, Drag drag) {
         super(context); this.click = click; this.menu = menu; this.drag = drag;
         slop = ViewConfiguration.get(context).getScaledTouchSlop();
-        setContentDescription("小鱼，轻点聊天，拖动贴边，长按打开伙伴菜单");
+        setContentDescription("小鱼，轻点开始或结束语音，拖动放置，长按打开伙伴菜单");
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES); setClickable(true); setLongClickable(true);
         web = new WebView(context); web.setBackgroundColor(Color.TRANSPARENT);
         web.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
@@ -50,7 +50,7 @@ final class PetView extends FrameLayout {
     }
     void render(String style, String pose, boolean motion, boolean resting, boolean visible) {
         state = new JSONObject();
-        try { state.put("style", style).put("pose", pose).put("motion", motion).put("resting", resting).put("visible", visible); } catch (org.json.JSONException ignored) { }
+        try { state.put("style", style).put("pose", pose).put("motion", motion).put("resting", resting).put("visible", visible).put("phase", VoiceEvents.phase); } catch (org.json.JSONException ignored) { }
         if (visible) web.onResume();
         publish();
         if (!visible) web.onPause();

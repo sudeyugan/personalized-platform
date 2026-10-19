@@ -64,7 +64,7 @@ try {
       configurePet() {
         return true
       },
-      chat(id) {
+      chatWithContext(id) {
         setTimeout(
           () =>
             dispatchEvent(
@@ -74,6 +74,24 @@ try {
             ),
           30,
         )
+      },
+      voiceReady() {},
+      startVoice() {
+        dispatchEvent(
+          new CustomEvent('yiyu-voice', {
+            detail: { phase: 'listening', session: 'fixture-voice', note: '' },
+          }),
+        )
+      },
+      stopVoice() {
+        dispatchEvent(
+          new CustomEvent('yiyu-voice', {
+            detail: { phase: 'idle', session: 'fixture-voice', note: '已结束' },
+          }),
+        )
+      },
+      voiceConfigured() {
+        return true
       },
       ideaRound(id) {
         const count = Number(sessionStorage.getItem('fixture.round') ?? 0) + 1
@@ -105,208 +123,233 @@ try {
   page.on('pageerror', (error) => errors.push(error.message))
   page.on('dialog', (dialog) => dialog.accept())
   await page.goto(origin)
-  await page.getByRole('heading', { name: /生活有时很满/ }).waitFor()
+  await page.getByRole('heading', { name: '今天，从容一点。' }).waitFor()
   const records = {
-    'works/w1': {
-      id: 'w1',
-      kind: 'custom',
-      title: '虚构作品',
-      description: '用于验证',
-      chapterIds: ['c1'],
-      volumeIds: [],
-      targetWords: 0,
-      createdAt: '2026-10-19T01:00:00Z',
-      updatedAt: '2026-10-19T01:00:00Z',
+    'people/p1': {
+      id: 'p1',
+      name: '不应在手机出现的人物',
+      summary: '隐藏关键词',
+      customFields: [{ id: 'old', label: '保留', value: '资料' }],
     },
     'chapters/c1': {
       id: 'c1',
       workId: 'w1',
-      title: '原始章节',
-      content: {
-        type: 'doc',
-        content: [
-          {
-            type: 'paragraph',
-            attrs: { textAlign: 'center', lineHeight: '2' },
-            content: [
-              {
-                type: 'text',
-                text: '原来的正文',
-                marks: [
-                  { type: 'entityReference', attrs: { entityType: 'person', entityId: 'p1', label: '人物' } },
-                  { type: 'authorAnnotation', attrs: { id: 'a1', note: '保留批注', createdAt: 'then' } },
-                ],
-              },
-            ],
-          },
-          {
-            type: 'imageAsset',
-            attrs: {
-              assetId: 'asset-original',
-              alt: '原图',
-              caption: '仍在原设备',
-              align: 'center',
-              width: 72,
-            },
-          },
-        ],
-      },
-      plainText: '原来的正文',
+      title: '隐藏关键词',
+      plainText: '不能从手机搜索露出',
       summary: '',
-      revision: 1,
-      wordCount: 6,
-      status: 'draft',
-      updatedAt: '2026-10-19T01:00:00Z',
+      content: { type: 'doc', content: [{ type: 'paragraph' }] },
     },
-    'people/p1': {
-      id: 'p1',
-      name: '虚构人物',
-      summary: '旧印象',
-      aliases: ['别名'],
-      chapterIds: ['c1'],
-      customFields: [{ id: 'f1', label: '偏好', value: '读书' }],
-      tags: [],
-      importantExperiences: '',
-      usage: 'fiction',
-      workId: 'w1',
+    'experiences/e1': { id: 'e1', title: '隐藏关键词' },
+    'diary/2026-10-18': {
+      date: '2026-10-18',
+      title: '读书的一天',
+      content: '窗外是远山。',
+      updatedAt: '2026-10-18T00:00:00Z',
     },
   }
-  await page.evaluate(async (records) => {
-    await new Promise((done, reject) => {
-      const open = indexedDB.open('yiyu-mobile-library-v1', 1)
-      open.onerror = reject
-      open.onsuccess = () => {
-        const db = open.result,
-          tx = db.transaction('records', 'readwrite')
-        tx.objectStore('records').put(records, 'current')
-        tx.oncomplete = () => {
-          db.close()
-          done()
+  const read = () =>
+    page.evaluate(
+      () =>
+        new Promise((done, reject) => {
+          const open = indexedDB.open('yiyu-mobile-library-v1', 1)
+          open.onerror = reject
+          open.onsuccess = () => {
+            const db = open.result,
+              tx = db.transaction('records', 'readonly'),
+              request = tx.objectStore('records').get('current')
+            tx.oncomplete = () => {
+              db.close()
+              done(request.result)
+            }
+          }
+        }),
+    )
+  await page.evaluate(
+    (records) =>
+      new Promise((done, reject) => {
+        const open = indexedDB.open('yiyu-mobile-library-v1', 1)
+        open.onerror = reject
+        open.onsuccess = () => {
+          const db = open.result,
+            tx = db.transaction('records', 'readwrite')
+          tx.objectStore('records').put(records, 'current')
+          tx.oncomplete = () => {
+            db.close()
+            done()
+          }
         }
-      }
-    })
-  }, records)
+      }),
+    records,
+  )
   await page.reload()
-  const room = async (name) => {
-    await page.getByRole('button', { name: '书房', exact: true }).click()
-    await page.getByRole('button', { name: new RegExp(name) }).click()
-  }
-  await page.getByRole('button', { name: '日常', exact: true }).click()
+  await page.getByRole('navigation', { name: '页面' }).waitFor()
+  assert.equal(await page.getByRole('navigation', { name: '页面' }).getByRole('button').count(), 3)
+  await page.getByRole('button', { name: '搜索手机记录' }).click()
+  await page.getByLabel('搜索关键词').fill('隐藏关键词')
+  await page.getByText('本机手机记录里还没有找到。').waitFor()
+  await page.getByRole('button', { name: '搜索手机记录' }).click()
+  await page.getByRole('button', { name: '管理待办' }).click()
   await page.getByRole('button', { name: '＋ 留一笔' }).click()
   await page.getByLabel('想做什么').fill('手机里的日常待办')
   await page.getByLabel('重复', { exact: true }).selectOption('daily')
   await page.getByRole('button', { name: '保存', exact: true }).click()
   await page.getByRole('heading', { name: '手机里的日常待办' }).waitFor()
   await page.getByRole('checkbox', { name: '完成待办' }).check()
-  await room('每日心情')
-  await page.getByRole('button', { name: '开心 0点', exact: true }).click()
-  for (let i = 1; i < 5; i++) await page.getByRole('button', { name: `开心 ${i}点`, exact: true }).click()
-  await page.getByRole('button', { name: '记下五点' }).click()
+  const journal = () =>
+    page
+      .getByRole('navigation', { name: '页面' })
+      .getByRole('button', { name: '手记', exact: true })
+      .click()
+  await journal()
+  await page.getByRole('button', { name: /展开日记册/ }).click()
+  await page.getByRole('heading', { name: '读书的一天' }).waitFor()
+  await page.getByRole('button', { name: '接着写', exact: true }).click()
+  await page.getByLabel('这一天').fill('窗外是远山。手机续写，不改变旧资料。')
+  await page.getByRole('button', { name: '保存', exact: true }).click()
+  await page.getByText('窗外是远山。手机续写，不改变旧资料。', { exact: true }).waitFor()
+  await journal()
+  await page.getByRole('button', { name: '记下五点 ＋', exact: true }).click()
+  for (let i = 0; i < 5; i++)
+    await page.getByRole('button', { name: '开心 ' + i + '点', exact: true }).click()
+  await page.getByRole('button', { name: '记下五点', exact: true }).click()
   await page.getByRole('button', { name: '色带', exact: true }).click()
   assert.ok(await page.locator('.mood-ribbons .mood-blend-bar').count())
-  await page.screenshot({ path: resolve(output, 'moods-light.png'), fullPage: true })
-  await room('人物')
-  await page.getByRole('button', { name: '展开编辑', exact: true }).click()
-  await page.getByLabel('名字', { exact: true }).fill('虚构人物的新名字')
-  await page.getByRole('button', { name: '保存', exact: true }).click()
-  await page.getByRole('heading', { name: '虚构人物的新名字' }).waitFor()
-  await page.getByRole('button', { name: '创作', exact: true }).click()
-  await page.getByRole('button', { name: /原始章节/ }).click()
-  await page.getByLabel('章节标题', { exact: true }).fill('手机续写的一章')
-  await page.getByRole('button', { name: '保存', exact: true }).click()
-  await page.getByRole('heading', { name: '手机续写的一章' }).waitFor()
-  await room('想法工坊')
+  await page.screenshot({
+    path: resolve(output, 'moods-light.png'),
+    fullPage: true,
+  })
+  await journal()
+  await page.getByRole('button', { name: /从一个模糊念头开始/ }).click()
   await page.getByLabel('写下最初的念头').fill('想把时间留给重要的事')
   await page.getByRole('button', { name: /从这一念开始/ }).click()
   await page.getByRole('button', { name: '方向1：先留下半小时' }).click()
   await page.locator('[data-turn-id]').nth(1).waitFor()
   assert.equal(await page.locator('[data-turn-id]').count(), 2)
-  await page.screenshot({ path: resolve(output, 'ideas-light.png'), fullPage: true })
-  await page.getByRole('button', { name: '小鱼', exact: true }).click()
-  await page.getByRole('checkbox', { name: '仅在本机保留对话' }).check()
-  await page.getByLabel('给小鱼的话').fill('这是虚构的测试问候')
+  await page.screenshot({
+    path: resolve(output, 'ideas-light.png'),
+    fullPage: true,
+  })
+  await page
+    .getByRole('navigation', { name: '页面' })
+    .getByRole('button', { name: '小鱼', exact: true })
+    .click()
+  await page.getByRole('button', { name: '也可以写下来' }).click()
+  await page.getByLabel('给小鱼的话').fill('这是普通会话的测试问候')
   await page.getByRole('button', { name: '发送给小鱼', exact: true }).click()
   await page.getByText('虚构的本机测试回复。', { exact: true }).waitFor()
-  await page.reload()
+  const shared = await read()
+  assert.equal(Object.keys(shared).filter((key) => key.startsWith('chat/')).length, 2)
+  await page.getByRole('button', { name: '普通会话', exact: true }).click()
+  await page.getByText('虚构的本机测试回复。', { exact: true }).waitFor({ state: 'hidden' })
+  await page.getByLabel('给小鱼的话').fill('这句只留在手机')
+  await page.getByRole('button', { name: '发送给小鱼', exact: true }).click()
   await page.getByText('虚构的本机测试回复。', { exact: true }).waitFor()
-  const mini = await context.newPage()
-  await mini.setViewportSize({ width: 320, height: 390 })
-  await mini.goto(`${origin}/chat.html`)
-  await mini.getByText('虚构的本机测试回复。', { exact: true }).waitFor()
-  await mini.screenshot({ path: resolve(output, 'mini-chat.png'), fullPage: true })
-  await page.getByRole('button', { name: '清空', exact: true }).click()
-  await mini.getByText('虚构的本机测试回复。', { exact: true }).waitFor({ state: 'hidden' })
-  await mini.close()
-  await room('连接与设置')
-  await page.getByRole('button', { name: 'Q 版', exact: true }).click()
-  await page.screenshot({ path: resolve(output, 'settings-light.png'), fullPage: true })
+  assert.equal(Object.keys(await read()).filter((key) => key.startsWith('chat/')).length, 2)
+  await page.reload()
+  await page.getByText('这句只留在手机', { exact: true }).waitFor()
+  await page.getByRole('button', { name: '和小鱼说话', exact: true }).click()
+  await page.locator('.phase-listening').waitFor()
+  await page.getByRole('button', { name: '结束语音', exact: true }).click()
+  await page.getByText('已结束', { exact: true }).waitFor()
+  await page.screenshot({
+    path: resolve(output, 'companion-light.png'),
+    fullPage: true,
+  })
   for (const [width, height, colorScheme] of [
     [320, 740, 'dark'],
     [844, 390, 'light'],
+    [390, 844, 'light'],
   ]) {
     await page.setViewportSize({ width, height })
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' })
-    for (const name of ['日记', '每日心情', '想法工坊', '经历册', '片刻仪式', '连接与设置']) {
-      await room(name)
-      const overflow = await page.evaluate(
-        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    for (const tab of ['今日', '手记', '小鱼']) {
+      await page
+        .getByRole('navigation', { name: '页面' })
+        .getByRole('button', { name: tab, exact: true })
+        .click()
+      assert.ok(
+        (await page.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        )) <= 1,
+        tab + ' layout overflow',
       )
-      assert.ok(overflow <= 1, `${name} overflows ${overflow}px at ${width}`)
     }
-    await page.screenshot({ path: resolve(output, `settings-${width}-${colorScheme}.png`), fullPage: true })
+    await page.getByRole('button', { name: '连接与设置', exact: true }).click()
+    assert.ok(
+      (await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      )) <= 1,
+      'settings layout overflow',
+    )
+    await page.screenshot({
+      path: resolve(output, 'settings-' + width + '-' + colorScheme + '.png'),
+      fullPage: true,
+    })
   }
-  const saved = await page.evaluate(
-    async () =>
-      new Promise((done) => {
-        const open = indexedDB.open('yiyu-mobile-library-v1', 1)
-        open.onsuccess = () => {
-          const db = open.result,
-            tx = db.transaction('records', 'readonly'),
-            read = tx.objectStore('records').get('current')
-          tx.oncomplete = () => {
-            db.close()
-            done(read.result)
-          }
-        }
-      }),
+  const saved = await read()
+  for (const key of ['people/p1', 'chapters/c1', 'experiences/e1'])
+    assert.deepEqual(saved[key], records[key])
+  assert.ok(
+    Object.values(saved).find((value) => value.title === '手机里的日常待办').completedDates
+      .length === 1,
   )
-  assert.deepEqual(saved['people/p1'].customFields, records['people/p1'].customFields)
-  assert.deepEqual(
-    saved['chapters/c1'].content.content[0].content[0].marks,
-    records['chapters/c1'].content.content[0].content[0].marks,
-  )
-  assert.deepEqual(
-    saved['chapters/c1'].content.content[1].attrs,
-    records['chapters/c1'].content.content[1].attrs,
-  )
-  const recurring = Object.values(saved).find((value) => value.title === '手机里的日常待办')
-  assert.equal(recurring.completed, false)
-  assert.equal(recurring.completedDates.length, 1)
   const pet = await context.newPage()
   pet.on('pageerror', (error) => errors.push(error.message))
-  await pet.setViewportSize({ width: 192, height: 240 })
-  await pet.goto(`${origin}/pet.html`)
+  await pet.setViewportSize({ width: 192, height: 256 })
+  await pet.goto(origin + '/pet.html')
   await pet.waitForFunction(() => typeof window.yiyuPetState === 'function')
-  for (const pose of ['right-edge', 'left-edge', 'bottom-edge', 'float']) {
+  for (const phase of ['idle', 'listening', 'thinking', 'speaking', 'error']) {
     await pet.evaluate(
-      (pose) => window.yiyuPetState({ style: 'pixel', pose, motion: false, resting: false, visible: true }),
-      pose,
+      (phase) =>
+        window.yiyuPetState({
+          style: 'figurine',
+          motion: false,
+          resting: false,
+          visible: true,
+          phase,
+        }),
+      phase,
     )
-    await pet.waitForFunction((pose) => {
+    await pet.waitForFunction(() => {
       const canvas = document.querySelector('canvas')
-      return (
-        canvas?.dataset.pose === pose &&
-        canvas?.width &&
-        [...canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data].some(
-          (value, index) => index % 4 === 3 && value > 0,
-        )
-      )
-    }, pose)
-    await pet.screenshot({ path: resolve(output, `pet-${pose}.png`), omitBackground: true })
+      if (!canvas?.width) return false
+      const pixels = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data
+      let foreground = 0,
+        transparent = 0
+      for (let i = 3; i < pixels.length; i += 4) {
+        if (pixels[i] > 160) foreground++
+        if (pixels[i] === 0) transparent++
+      }
+      return foreground > 1000 && transparent > 1000
+    })
+    await pet.screenshot({
+      path: resolve(output, 'pet-' + phase + '.png'),
+      omitBackground: true,
+    })
   }
+  await pet.evaluate(() =>
+    window.yiyuPetState({
+      style: 'mark',
+      motion: false,
+      resting: false,
+      visible: true,
+      phase: 'listening',
+    }),
+  )
+  await pet.locator('.ink-mark').waitFor()
+  await pet.evaluate(() =>
+    window.yiyuPetState({
+      style: 'mark',
+      motion: false,
+      resting: false,
+      visible: false,
+      phase: 'idle',
+    }),
+  )
+  await pet.locator('.mobile-overlay').waitFor({ state: 'hidden' })
   assert.deepEqual(errors, [])
   console.log(
-    'YIYU_MOBILE_EXPERIENCE_OK: mobile editing, recurrence, moods, idea continuity, chat opt-in/reload, PC metadata and 320/390/844 layouts; four shared Canvas poses. No real account/model used.',
+    'YIYU_MOBILE_EXPERIENCE_OK: seven-module routes, no hidden PC search, diary/todo/moods/ideas, private/shared chat isolation/reload, voice state fixture, transparent figurine/mark/hidden and 320/390/844 layouts. No real account, microphone or model used.',
   )
 } finally {
   await browser?.close()

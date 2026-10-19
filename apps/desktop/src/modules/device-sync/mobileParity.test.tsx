@@ -57,11 +57,14 @@ describe('mobile uses PC domain rules rather than simplified booleans', () => {
       searchable(
         {
           'chapters/a': { title: '故事', plainText: '远山有回声' },
+          'diary/2026-10-19': { title: '一天', content: '远山有回声' },
+          'people/visible': { name: '远山', summary: '仍在PC保留' },
+          'experiences/e1': { title: '远山' },
           'people/b': { name: '远山', deletedAt: 'now' },
         },
         '远山',
       ).map(([key]) => key),
-    ).toEqual(['chapters/a'])
+    ).toEqual(['diary/2026-10-19'])
   })
 })
 describe('mobile document compatibility', () => {

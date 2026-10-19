@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { HubStore } from './store.mjs'
 import { createHubServer } from './server.mjs'
+import { backupHub, inspectHub, restoreHub } from './maintenance.mjs'
 
 test('one-time bootstrap, expiry, independent credentials and revocation', () => {
   const store = new HubStore(':memory:')
@@ -70,4 +71,24 @@ test('lost enrollment response retries the same identity; recovery needs owner c
     store.revoke(admin, first.device)
     assert.throws(() => store.enroll(invitation.invite, 'revoked retry', Date.now(), phone))
   } finally { store.close() }
+})
+test('online backup includes WAL, restores exact identities, and never overwrites an existing target', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'yiyu-hub-backup-'))
+  const store = new HubStore(join(directory, 'hub.sqlite'))
+  let restored
+  try {
+    const owner = store.enroll(store.initialize(), 'temporary test'), device = store.authenticate(owner.token)
+    const envelope = { id: randomUUID(), device: owner.device, iv: 'AAAAAAAAAAAAAAAA', body: 'A'.repeat(24) }
+    store.exchange(device, 0, [envelope])
+    const file = join(directory, 'backup.sqlite')
+    assert.deepEqual(await backupHub(directory, file), { devices: 1, operations: 1 })
+    await assert.rejects(backupHub(directory, file))
+    assert.throws(() => restoreHub(file, directory))
+    const target = join(directory, 'restored')
+    assert.deepEqual(restoreHub(file, target), inspectHub(file))
+    restored = new HubStore(join(target, 'hub.sqlite'))
+    assert.equal(restored.space, store.space)
+    assert.equal(restored.authenticate(owner.token).id, owner.device)
+    assert.deepEqual(restored.exchange(restored.authenticate(owner.token), 0, []).entries[0].envelope, envelope)
+  } finally { restored?.close(); store.close(); rmSync(directory, { recursive: true }) }
 })

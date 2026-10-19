@@ -3,6 +3,7 @@ import { Cloud, RefreshCw, Link2, ShieldCheck, MonitorSmartphone } from 'lucide-
 import { conflicts, heads, recoveryBundle } from '@yiyu/sync'
 import { createDeviceInvite, disconnectDevice, joinDevice, resolveConflict, syncNow, transport, useDeviceSync } from './runtime'
 import './deviceSync.css'
+import { HubMigrationSettings } from './HubMigrationSettings'
 
 interface Device { id: string; name: string; revoked: number }
 export function DeviceSyncSettings() {
@@ -32,6 +33,7 @@ export function DeviceSyncSettings() {
     {state ? <>
       <div className="sync-status"><span>{busy ? '正在交换修改…' : error ? '连接暂不可用 · 本机仍可使用' : lastSync ? `最近同步 ${new Date(lastSync).toLocaleTimeString('zh-CN')}` : '已连接 · 等待同步'}</span><small>{state.pending.length} 项待发送 · {conflicts(state).length} 项待核对</small></div>
       <div className="sync-actions"><button disabled={working || busy} onClick={() => void syncNow()}><RefreshCw size={15} />现在同步</button><button disabled={working} onClick={() => void action(async () => setInvitation(await createDeviceInvite()))}><Link2 size={15} />邀请另一台设备</button><button disabled={working} onClick={() => void action(loadDevices)}>设备列表</button></div>
+      <HubMigrationSettings current={state.config.url} disabled={working || busy}/>
       {invitation && <div className="sync-secret"><strong>十分钟有效，仅能使用一次</strong><p>含同步密钥，请私下传给自己的设备，不要发到聊天、网盘公共链接或截图分享。</p><textarea readOnly value={invitation} aria-label="设备邀请" /><button onClick={() => setInvitation('')}>收起邀请</button></div>}
       {devices.map(device => <div className="sync-device" key={device.id}><span>{device.name}{device.id === state.config.device ? ' · 此设备' : ''}{device.revoked ? ' · 已撤销' : ''}</span>{device.id !== state.config.device && !device.revoked && <button disabled={working} onClick={() => {
         if (!window.confirm('撤销后此设备无法再同步；它已获得的资料和密钥不会远程消失。确定撤销？')) return

@@ -1,0 +1,31 @@
+[Unit]
+Description=Yiyu encrypted personal sync hub
+After=network.target
+
+[Service]
+Type=simple
+User=yiyu-hub
+Group=yiyu-hub
+WorkingDirectory=/opt/yiyu-hub
+ExecStart=/usr/bin/node /opt/yiyu-hub/src/main.mjs --host 127.0.0.1 --port 17839 --data /var/lib/yiyu-hub
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+StateDirectory=yiyu-hub
+StateDirectoryMode=0700
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+MemoryMax=384M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

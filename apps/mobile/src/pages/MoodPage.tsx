@@ -1,20 +1,36 @@
 import { useState } from 'react'
 import type { Records } from '@yiyu/sync'
 import type { MoodEntry, MoodPoints, MoodPeriod } from '../../../desktop/src/domain/models'
-import { currentMoodPeriod, moodOptions, moodPeriods } from '../../../desktop/src/modules/mood/moodConfig'
+import {
+  currentMoodPeriod,
+  moodOptions,
+  moodPeriods,
+} from '../../../desktop/src/modules/mood/moodConfig'
 import { ReflectionVisualizations } from '../../../desktop/src/modules/mood/visualizations/ReflectionVisualizations'
 import { MoodBlendBar } from '../../../desktop/src/modules/mood/MoodBlendBar'
 import { moodSummary } from '../../../desktop/src/modules/mood/moodUtils'
-import { datesFor, shiftReflectionDate } from '../../../desktop/src/modules/mood/moodReflectionDates'
+import {
+  datesFor,
+  shiftReflectionDate,
+} from '../../../desktop/src/modules/mood/moodReflectionDates'
 import { rows, today } from '../data'
 import { update } from '../repository'
 import type { Action } from './HomePage'
-export default function MoodPage({ records, action }: { records: Records; action: Action }) {
-  const [date, setDate] = useState(today()),
-    [period, setPeriod] = useState<MoodPeriod>(currentMoodPeriod)
+export default function MoodPage({
+  records,
+  action,
+  target,
+}: {
+  records: Records
+  action: Action
+  target?: string
+}) {
+  const match = target?.match(/^moods\/(\d{4}-\d{2}-\d{2})-(morning|afternoon|evening)$/)
+  const [date, setDate] = useState(match?.[1] ?? today()),
+    [period, setPeriod] = useState<MoodPeriod>((match?.[2] as MoodPeriod) ?? currentMoodPeriod())
   const [points, setPoints] = useState<MoodPoints>({}),
     [range, setRange] = useState<'week' | 'month'>('week'),
-    [reference, setReference] = useState(today())
+    [reference, setReference] = useState(match?.[1] ?? today())
   const [saving, setSaving] = useState(false)
   const total = Object.values(points).reduce((sum, value) => sum + (value ?? 0), 0),
     entries = rows<MoodEntry>(records, 'moods')
@@ -119,23 +135,36 @@ export default function MoodPage({ records, action }: { records: Records; action
         </div>
       </header>
       <div className="month-heading">
-        <button aria-label="前一段" onClick={() => setReference(shiftReflectionDate(reference, range, -1))}>
+        <button
+          aria-label="前一段"
+          onClick={() => setReference(shiftReflectionDate(reference, range, -1))}
+        >
           ←
         </button>
         <span>
           {dates[0]} — {dates.at(-1)}
         </span>
-        <button aria-label="后一段" onClick={() => setReference(shiftReflectionDate(reference, range, 1))}>
+        <button
+          aria-label="后一段"
+          onClick={() => setReference(shiftReflectionDate(reference, range, 1))}
+        >
           →
         </button>
       </div>
-      <ReflectionVisualizations dates={dates} entries={entries} activeDate={date} onChooseDate={setDate}>
+      <ReflectionVisualizations
+        dates={dates}
+        entries={entries}
+        activeDate={date}
+        onChooseDate={setDate}
+      >
         <div className="mood-ribbons">
           {dates.map((day) => (
             <button key={day} aria-pressed={day === date} onClick={() => setDate(day)}>
               <time>{day.slice(5)}</time>
               {moodPeriods.map((period) => {
-                const item = entries.find((entry) => entry.date === day && entry.period === period.id)
+                const item = entries.find(
+                  (entry) => entry.date === day && entry.period === period.id,
+                )
                 return item ? (
                   <MoodBlendBar key={period.id} points={item.points} compact />
                 ) : (

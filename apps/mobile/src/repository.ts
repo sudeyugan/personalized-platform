@@ -21,9 +21,23 @@ let applying = false
 let pendingWrites = 0
 let writes: Promise<unknown> = Promise.resolve()
 const listeners = new Set<() => void>()
-let snapshot = { records, state: null as SyncState | null, error, busy, applying, lastSync }
+let snapshot = {
+  records,
+  state: null as SyncState | null,
+  error,
+  busy,
+  applying,
+  lastSync,
+}
 function emit() {
-  snapshot = { records, state: client?.state ?? null, error, busy, applying, lastSync }
+  snapshot = {
+    records,
+    state: client?.state ?? null,
+    error,
+    busy,
+    applying,
+    lastSync,
+  }
   for (const listener of listeners) listener()
 }
 export const subscribe = (listener: () => void) => {
@@ -63,7 +77,11 @@ function install(state: SyncState) {
     },
     transport: fetchTransport,
     apply: async (next) => {
-      if (editHolds || pendingWrites || JSON.stringify(records) !== JSON.stringify(client?.state.baseline))
+      if (
+        editHolds ||
+        pendingWrites ||
+        JSON.stringify(records) !== JSON.stringify(client?.state.baseline)
+      )
         return false
       validateRecords(next)
       applying = true
@@ -134,15 +152,32 @@ export function update(key: string, value: Record<string, unknown> | null) {
     return next
   })
 }
-export function modify(key: string, change: (current: Record<string, unknown>) => Record<string, unknown>) {
+export function modify(
+  key: string,
+  change: (current: Record<string, unknown>) => Record<string, unknown>,
+) {
   return changeRecords((current) => {
-    if (!current[key] || current[key].deletedAt) throw new Error('这份记录已移走，没有覆盖或重新创建。')
+    if (!current[key] || current[key].deletedAt)
+      throw new Error('这份记录已移走，没有覆盖或重新创建。')
     return { ...current, [key]: change(current[key]) }
   })
 }
 export async function resolveVersion(key: string, id: string) {
   await client?.resolve(key, id)
   emit()
+  await sync()
+}
+export async function moveHub(url: string) {
+  if (!client || busy) throw new Error('请先连接并等待本轮同步结束。')
+  busy = true
+  emit()
+  try {
+    await writes
+    await client.moveEndpoint(url)
+  } finally {
+    busy = false
+    emit()
+  }
   await sync()
 }
 export async function sync() {

@@ -4,6 +4,7 @@
 @import './styles/editor.css';
 @import './styles/ideas.css';
 @import './styles/collection-and-companion.css';
+@import './styles/surfaces.css';
 :root {
   font-family: 'Noto Serif SC', 'Noto Serif CJK SC', 'Songti SC', serif;
   color: #443f37;

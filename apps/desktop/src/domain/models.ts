@@ -172,7 +172,7 @@ export interface CompanionComputerSettings {
   reminderLeadMinutes: number
   grants: ComputerGrant[]
 }
-export interface CompanionMessage { id: string; role: 'user' | 'companion'; content: string; createdAt: string; contextSummary?: string; localOnly?: boolean }
+export interface CompanionMessage { id: string; role: 'user' | 'companion'; content: string; createdAt: string; contextSummary?: string; localOnly?: boolean; syncScope?: 'shared' | 'local' | 'ordinary-local' }
 export interface CompanionMemory { id: string; content: string; source: 'manual' | 'conversation'; sourceLabel: string; createdAt: string; updatedAt: string; confidence: number; authorized: boolean; sourceWorkId?: string }
 export interface CompanionPersonality { warmth: number; curiosity: number; initiative: number }
 export interface CompanionGrowthLog { id: string; before: CompanionPersonality; after: CompanionPersonality; reason: string; createdAt: string }

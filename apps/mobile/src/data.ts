@@ -18,8 +18,13 @@ export function toggleTodo(todo: TodoItem, date: string, now = new Date()): Todo
     return {
       ...todo,
       quotaCompletions: progress.reached
-        ? (todo.quotaCompletions ?? []).filter((item) => item.id !== progress.completions.at(-1)?.id)
-        : [...(todo.quotaCompletions ?? []), { id: crypto.randomUUID(), completedAt: now.toISOString() }],
+        ? (todo.quotaCompletions ?? []).filter(
+            (item) => item.id !== progress.completions.at(-1)?.id,
+          )
+        : [
+            ...(todo.quotaCompletions ?? []),
+            { id: crypto.randomUUID(), completedAt: now.toISOString() },
+          ],
     }
   }
   if (todo.repeat && todo.repeat !== 'none') {
@@ -41,7 +46,10 @@ export function searchable(records: Records, query: string) {
   if (!needle) return []
   return Object.entries(records)
     .filter(
-      ([, value]) =>
+      ([key, value]) =>
+        ['todos', 'assignments', 'courses', 'calendar', 'diary', 'moods', 'ideas'].includes(
+          key.split('/')[0],
+        ) &&
         !value.deletedAt &&
         [
           'title',
@@ -56,7 +64,8 @@ export function searchable(records: Records, query: string) {
           'background',
         ].some(
           (field) =>
-            typeof value[field] === 'string' && String(value[field]).toLocaleLowerCase().includes(needle),
+            typeof value[field] === 'string' &&
+            String(value[field]).toLocaleLowerCase().includes(needle),
         ),
     )
     .slice(0, 80)

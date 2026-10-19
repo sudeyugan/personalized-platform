@@ -30,7 +30,9 @@ import android.widget.Toast;
 public class PetService extends Service {
     private WindowManager windows;
     private PetView pet;
-    private PetChatPanel chat;
+    private static volatile PetService current;
+    static void visibilityChanged() { PetService service = current; if (service != null && service.pet != null) service.pet.post(service::refreshVisibility); }
+    private final VoiceEvents.Listener voice = event -> { if (pet != null) render(); };
     private WindowManager.LayoutParams position;
     private PetGeometry.Area area;
     private SharedPreferences preferences;
@@ -54,10 +56,11 @@ public class PetService extends Service {
         manager.createNotificationChannel(new NotificationChannel("yiyu-pet", "桌面伙伴", NotificationManager.IMPORTANCE_LOW));
         PendingIntent stop = PendingIntent.getService(this, 1, new Intent(this, PetService.class).setAction("stop"), PendingIntent.FLAG_IMMUTABLE);
         PendingIntent open = PendingIntent.getActivity(this, 2, new Intent(this, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
-        Notification notification = new Notification.Builder(this, "yiyu-pet").setContentTitle("小鱼陪着你").setContentText("轻点聊天，拖动贴边，长按调整；锁屏时休息")
+        Notification notification = new Notification.Builder(this, "yiyu-pet").setContentTitle("小鱼陪着你").setContentText("轻点开始/结束语音，拖动放置，长按调整；锁屏时休息")
             .setSmallIcon(android.R.drawable.ic_menu_info_details).setContentIntent(open).addAction(new Notification.Action.Builder(null, "收起小鱼", stop).build()).setOngoing(true).build();
         if (Build.VERSION.SDK_INT >= 34) startForeground(18, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
         else startForeground(18, notification);
+        current = this; VoiceEvents.add(voice);
         windows = getSystemService(WindowManager.class); preferences = PetPreferences.get(this);
         pose = preferences.getString("pose", "right-edge"); resting = preferences.getBoolean("resting", false);
         position = new WindowManager.LayoutParams(dp(108), dp(135), WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
@@ -87,12 +90,14 @@ public class PetService extends Service {
     private void layout() {
         if (docking != null) docking.cancel();
         area = safeArea();
-        int width = Math.max(1, Math.min(dp(108 * preferences.getFloat("scale", 1)), Math.min(area.width(), Math.round(area.height() * .32f * .8f))));
+        String mode = preferences.getString("style", "figurine");
+        int base = "mark".equals(mode) ? 44 : "expanded".equals(mode) ? 112 : 56;
+        int width = Math.max(1, Math.min(dp(base * preferences.getFloat("scale", 1)), Math.min(area.width(), Math.round(area.height() * .32f * .8f))));
         position.width = width; position.height = Math.max(1, Math.min(area.height(), Math.round(width * 1.25f)));
         PetGeometry.Placement restored = PetGeometry.restore(area, position.width, position.height, preferences.getFloat("nx", 1), preferences.getFloat("ny", .4f), pose);
         position.x = restored.x; position.y = restored.y; dragging = false; updateWindow(); render();
     }
-    private void render() { if (pet != null) pet.render(preferences.getString("style", "pixel"), pose, preferences.getBoolean("motion", true), resting, shown); }
+    private void render() { if (pet != null) pet.render(preferences.getString("style", "figurine"), pose, preferences.getBoolean("motion", true), resting, shown); }
     private void updateWindow() { if (pet != null && pet.isAttachedToWindow()) { try { windows.updateViewLayout(pet, position); } catch (IllegalArgumentException ignored) { } } }
     private void persistPosition() { PetPreferences.position(this, area, position.width, position.height, position.x, position.y, pose); }
     private void drag(int dx, int dy, boolean finish) {
@@ -115,17 +120,17 @@ public class PetService extends Service {
         persistPosition(); updateWindow(); render();
     }
     private void refreshVisibility() {
-        shown = getSystemService(PowerManager.class).isInteractive() && !getSystemService(KeyguardManager.class).isKeyguardLocked();
+        shown = !MainActivity.foreground && getSystemService(PowerManager.class).isInteractive() && !getSystemService(KeyguardManager.class).isKeyguardLocked();
         if (!shown) { closeChat(); if (menu != null) menu.dismiss(); }
         if (pet != null) { pet.setVisibility(shown ? View.VISIBLE : View.GONE); render(); }
     }
     private void openMenu() {
         if (!shown || pet == null) return;
-        String[] actions = { "和小鱼说话", "自由放置", "靠左边", "靠右边", "趴在底部", resting ? "醒一醒" : "歇一会儿", "打开一隅", "收起小鱼" };
+        String[] actions = { VoiceService.running() ? "结束语音" : "和小鱼说话", "自由放置", "靠左边", "靠右边", "放在底部", resting ? "醒一醒" : "歇一会儿", "打开一隅", "收起小鱼" };
         menu = new AlertDialog.Builder(new android.view.ContextThemeWrapper(this, android.R.style.Theme_Material_Light_Dialog_Alert)).setTitle("小鱼 · 留在你喜欢的位置").setItems(actions, (dialog, which) -> {
             if (which == 0) toggleChat();
             else if (which <= 4) setPose(new String[]{"", "float", "left-edge", "right-edge", "bottom-edge"}[which]);
-            else if (which == 5) { resting = !resting; preferences.edit().putBoolean("resting", resting).apply(); render(); }
+            else if (which == 5) { resting = !resting; if (resting) stopService(new Intent(this, VoiceService.class)); preferences.edit().putBoolean("resting", resting).apply(); render(); }
             else if (which == 6) startActivity(new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             else stopSelf();
         }).create();
@@ -134,17 +139,15 @@ public class PetService extends Service {
     }
     private void toggleChat() {
         if (!shown) return;
-        if (chat != null) { closeChat(); return; }
-        chat = new PetChatPanel(this, this::closeChat);
-        int width = Math.min(dp(360), Math.max(1, area.width() - dp(24))), height = Math.min(dp(420), Math.max(1, area.height() - dp(32)));
-        WindowManager.LayoutParams panel = new WindowManager.LayoutParams(width, height, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL, PixelFormat.TRANSLUCENT);
-        panel.gravity = Gravity.TOP | Gravity.LEFT; panel.x = area.left + (area.width() - width) / 2; panel.y = PetGeometry.clamp(position.y - height, area.top + dp(12), area.bottom - height);
-        panel.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE;
-        try { windows.addView(chat, panel); } catch (RuntimeException error) { chat.dispose(); chat = null; }
+        if (VoiceService.running()) { stopService(new Intent(this, VoiceService.class)); return; }
+        resting = false; preferences.edit().putBoolean("resting", false).apply();
+        startActivity(MainActivity.voiceIntent(this).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP));
     }
-    private void closeChat() { if (chat != null) { chat.dispose(); try { windows.removeView(chat); } catch (IllegalArgumentException ignored) { } chat = null; } }
+    private void closeChat() { /* Voice-first: no overlay text panel or second repository writer. */ }
     @Override public void onConfigurationChanged(Configuration config) { super.onConfigurationChanged(config); closeChat(); if (menu != null) menu.dismiss(); if (pet != null) layout(); }
     @Override public void onDestroy() {
+        if (current == this) current = null;
+        VoiceEvents.remove(voice); stopService(new Intent(this, VoiceService.class));
         if (observing) unregisterReceiver(screen);
         if (preferences != null) preferences.unregisterOnSharedPreferenceChangeListener(changed);
         if (docking != null) docking.cancel(); if (menu != null) menu.dismiss(); closeChat();

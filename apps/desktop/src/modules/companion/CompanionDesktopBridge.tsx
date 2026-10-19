@@ -1,4 +1,5 @@
 import { useChatPresentationBridge } from './useChatPresentationBridge'
+import { privateConversation } from './conversationPrivacy'
 import { needsTaskConfirmation } from './feedback/taskFeedback'
 import type { ChatPresentation } from './chatPresentation'
 import { positionCompanionChat } from './companionChatLayout'
@@ -334,10 +335,12 @@ export function CompanionDesktopBridge() {
         }
       })
     }).then((stop) => { stopChat = stop })
-    void listen('companion:new-chat', () => {
+    void listen<{ scope?: 'local' | 'ordinary' }>('companion:new-chat', (event) => {
       cancelBrowserHandoff()
       if (sending.current) return
-      clearCompanionMessages()
+      const scope = privateConversation() ? 'local' : 'ordinary'
+      if (event.payload?.scope !== scope && !(scope === 'local' && !event.payload?.scope)) return
+      clearCompanionMessages(scope)
       void emitTo('companion-chat', 'companion:transient-clear')
       setAgentStatus(undefined)
       setVisualState(undefined)

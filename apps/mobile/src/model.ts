@@ -2,15 +2,21 @@ import { PrivacySession } from '../../desktop/src/modules/privacy/privacySession
 import './native'
 export async function requestModel(
   material: string,
-  kind: 'chat' | 'idea',
+  kind: 'chat' | 'idea' | 'conversation',
   signal?: AbortSignal,
 ): Promise<string> {
   if (signal?.aborted) throw new Error('本轮已暂停。')
   const native = window.YiyuMobile
-  if (!native || (kind === 'idea' && !native.ideaRound))
+  if (
+    !native ||
+    (kind === 'idea' && !native.ideaRound) ||
+    (kind === 'conversation' && !native.chatWithContext)
+  )
     throw new Error('请安装本次更新的安卓版，并在手机设置中配置模型密钥。')
   const privacy = new PrivacySession([]),
     clean = privacy.sanitize(material)
+  if (clean.findings.length && document.hidden)
+    throw new Error('这轮需要隐私确认，请回一隅后再发送；没有向模型发送。')
   if (
     clean.findings.length &&
     !confirm(`将把已脱敏的文字发送给 DeepSeek：\n\n${clean.text.slice(0, 600)}\n\n是否继续？`)
@@ -28,7 +34,8 @@ export async function requestModel(
       else resolve(privacy.restore(content ?? ''))
     }
     const listener = (event: Event) => {
-      const result = (event as CustomEvent<{ id: string; content: string; success: boolean }>).detail
+      const result = (event as CustomEvent<{ id: string; content: string; success: boolean }>)
+        .detail
       if (result?.id === id) finish(result.content, result.success ? undefined : result.content)
     }
     const abort = () => finish(undefined, '本轮已暂停；已发送的模型请求可能仍计入额度。')
@@ -40,6 +47,7 @@ export async function requestModel(
     signal?.addEventListener('abort', abort, { once: true })
     try {
       if (kind === 'idea') native.ideaRound!(id, clean.text)
+      else if (kind === 'conversation') native.chatWithContext!(id, clean.text)
       else native.chat(id, clean.text)
     } catch {
       finish(undefined, '手机模型连接暂不可用。')

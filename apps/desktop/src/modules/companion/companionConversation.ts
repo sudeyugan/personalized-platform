@@ -2,7 +2,7 @@ import type { CompanionMessage, CompanionVideoState } from '../../domain/models'
 import { createCompanionProvider } from '../../infrastructure/companionProvider'
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { applyContextPrivacy, applyHistoryPrivacy, assertExternalAiAllowed } from '../trust/trustPolicy'
-import { createPrivacyProtectedProvider, type PrivacyReviewRequest } from '../privacy'
+import { createPrivacyProtectedProvider, PrivacySession, type PrivacyReviewRequest } from '../privacy'
 import { AgentPermissionEngine, buildAgentAccess, buildAgentContext, createCompanionToolRegistry, runAgent } from './agent'
 import type { AgentPermissionRequest, AgentRuntimeStatus } from './agent/types'
 import { resolveDirectAction } from './agent/directActions'
@@ -13,6 +13,8 @@ import type { OperationSelection } from '../../domain/operations/types'
 import { prepareBrowserTurn, rememberBrowserTurn, forgetBrowserTurn } from '../browser-connection/taskSession'
 import { createLiveCompanionApplicationServices } from './liveApplicationServices'
 import { armBrowserHandoff,cancelBrowserHandoff } from '../browser-connection/managed/handoff'
+import { privateConversation } from './conversationPrivacy'
+import { inConversationLane } from './conversationLane'
 export { createLiveCompanionApplicationServices } from './liveApplicationServices'
 
 export interface CompanionTurnOptions {
@@ -40,9 +42,11 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
   if (!userText) throw new Error('请输入想说的话')
   const store = useLibraryStore.getState()
   const { data, temporaryCompanionWorkIds } = store
+  const privateSession = privateConversation()
   const channel=options.conversationChannel??'main'
   const prepared=operation?undefined:prepareBrowserTurn(userText,data.companion,channel)
   const clean=prepared?.message??userText
+  if (!privateSession) new PrivacySession([]).sanitize(clean)
   const taskText = operation?.goal ?? clean
   const privateBrowserQuery = Boolean(resolveBrowserTask(taskText, data.companion)) || operation?.scope === 'browser'
   const displayTransient = (role: CompanionMessage['role'], content: string) => {
@@ -56,7 +60,9 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
   const localAction = resolveDirectAction(taskText, registry.definitions(), data.companion.name)
   if (!localAction || !localRitualTools.has(localAction.name)) assertExternalAiAllowed(data.companion.provider.providerId, data.settings.trust, 'companion')
   const fullContext = applyContextPrivacy(buildAgentContext(data, access), data.settings.trust)
-  const context = operation || privateBrowserQuery ? { page: operation ? 'operation-memory' : 'browser-query', companion: fullContext.companion, localTime: fullContext.localTime } : fullContext
+  // Shared conversation never implicitly attaches local documents or memories.
+  // Any actual tool use keeps the entire turn local, even in ordinary mode.
+  const context = operation || privateBrowserQuery || !privateSession ? { page: operation ? 'operation-memory' : privateBrowserQuery ? 'browser-query' : 'shared-chat', companion: fullContext.companion, localTime: fullContext.localTime } : fullContext
   const services = createLiveCompanionApplicationServices(data, access, options.requestPrivacyReview, options.signal, taskText)
   const assertBrowserAllowed = privateBrowserQuery && data.companion.browser?.enabled ? services.assertBrowserAuthority : undefined
   const authorizeBrowserSend = assertBrowserAllowed && services.browserTaskGoal?.origins.length && !data.companion.browser?.confirmQueryEgress ? services.authorizeBrowserQueryEgress : undefined
@@ -71,7 +77,7 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
     }
   })
   const contextSummary = [context.activeWork?.title, context.activeChapter?.title].filter(Boolean).join('、') || '未授权作品或章节'
-  const history = operation || privateBrowserQuery ? [] : applyHistoryPrivacy(data.companion.messages.filter((item) => !item.localOnly).slice(-8).map((item) => ({
+  const history = operation || privateBrowserQuery ? [] : applyHistoryPrivacy(data.companion.messages.filter((item) => !item.localOnly && (privateSession ? inConversationLane(item, true) : item.syncScope === 'shared')).slice(-8).map((item) => ({
     role: item.role === 'companion' ? 'assistant' as const : 'user' as const,
     content: item.content,
   })), data.settings.trust)
@@ -92,14 +98,15 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
     }
     options.onStatus?.(status)
   }
-  if (!operation && !privateBrowserQuery && data.settings.trust.retainConversationHistory) store.addCompanionMessage({ id: `message-${crypto.randomUUID()}`, role: 'user', content: clean, createdAt: new Date().toISOString(), contextSummary, localOnly: Boolean(localAction && localRitualTools.has(localAction.name)) })
+  const pendingUser: CompanionMessage = { id: `message-${crypto.randomUUID()}`, role: 'user', content: clean, createdAt: new Date().toISOString(), contextSummary, syncScope: privateSession ? 'local' : 'ordinary-local', localOnly: Boolean(localAction && localRitualTools.has(localAction.name)) }
+  if (!operation && !privateBrowserQuery && data.settings.trust.retainConversationHistory) store.addCompanionMessage(pendingUser)
   try {
     const result = await runAgent({
       message: clean,
       history,
       context,
       provider: createPrivacyProtectedProvider(createCompanionProvider(data.companion.provider), {
-        trust: { ...data.settings.trust, outboundProtection: data.settings.trust.outboundProtection || Boolean(data.companion.browser?.enabled) },
+        trust: { ...data.settings.trust, outboundProtection: !privateSession || data.settings.trust.outboundProtection || Boolean(data.companion.browser?.enabled) },
         destination: data.companion.provider.providerId === 'deepseek' ? 'DeepSeek' : data.companion.provider.providerId,
         purpose: 'AI 伙伴对话',
         requestReview: options.requestPrivacyReview,
@@ -142,7 +149,12 @@ export async function sendCompanionTurn(message: string, options: CompanionTurnO
     if(!operation&&!options.signal?.aborted)rememberBrowserTurn(prepared?.task,useLibraryStore.getState().data.companion,channel,clean)
     const transientReply = operation || privateBrowserQuery || result.audit.some(entry => entry.toolName.startsWith('browser.') && entry.toolName !== 'browser.status') || !data.settings.trust.retainConversationHistory
     if (transientReply) displayTransient('companion', result.text)
-    else useLibraryStore.getState().addCompanionMessage({ id: `message-${crypto.randomUUID()}`, role: 'companion', content: result.text, createdAt: new Date().toISOString(), contextSummary, localOnly: result.audit.some((entry) => localRitualTools.has(entry.toolName)) })
+    else if (!options.signal?.aborted) {
+      let shared = !privateSession && !result.audit.length && !pendingUser.localOnly
+      if (shared) { try { new PrivacySession([]).sanitize(result.text) } catch { shared = false } }
+      if (shared) useLibraryStore.getState().addCompanionMessage({ ...pendingUser, syncScope: 'shared' })
+      useLibraryStore.getState().addCompanionMessage({ id: `message-${crypto.randomUUID()}`, role: 'companion', content: result.text, createdAt: new Date(Math.max(Date.now(), Date.parse(pendingUser.createdAt) + 1)).toISOString(), contextSummary, syncScope: shared ? 'shared' : privateSession ? 'local' : 'ordinary-local', localOnly: result.audit.some((entry) => localRitualTools.has(entry.toolName)) })
+    }
     const handoff=services.browserHandoff?.()
     const browserVerified=result.audit.some(item=>['browser.verify','browser.verify_collection'].includes(item.toolName)&&item.resultStatus==='success')
     if(handoff&&!browserVerified&&!operation&&!options.signal?.aborted)armBrowserHandoff(channel,clean,handoff.origin,handoff.epoch)

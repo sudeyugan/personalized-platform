@@ -1,0 +1,299 @@
+:root .mobile-app {
+  max-width: 720px;
+  isolation: isolate;
+}
+.mobile-app::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.2;
+  background-image: radial-gradient(var(--muted) 0.4px, transparent 0.5px);
+  background-size: 19px 23px;
+}
+.mobile-app .bottom-navigation {
+  grid-template-columns: repeat(3, 1fr);
+}
+.bottom-navigation button {
+  position: relative;
+}
+.bottom-navigation button[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  width: 25px;
+  height: 2px;
+  border-radius: 2px;
+  top: 0;
+  background: var(--accent);
+}
+.mobile-app .app-bar {
+  border-bottom-color: color-mix(in srgb, var(--line) 45%, transparent);
+}
+.mobile-app .page-content {
+  padding-top: 22px;
+}
+.mobile-today,
+.journal-page {
+  position: relative;
+  padding-bottom: 25px;
+}
+.mobile-today h1,
+.journal-page h1 {
+  font-size: clamp(26px, 7vw, 35px);
+  margin: 10px 0 30px;
+}
+.mobile-today h1::after {
+  content: '';
+  display: block;
+  width: 110px;
+  height: 7px;
+  border-bottom: 1px solid var(--accent);
+  border-radius: 50%;
+  opacity: 0.45;
+  margin-top: 5px;
+}
+.next-arrangement {
+  display: grid;
+  gap: 10px;
+  text-align: left;
+  position: relative;
+  width: 100%;
+  padding: 22px;
+  border: 0;
+  background: linear-gradient(
+    125deg,
+    color-mix(in srgb, var(--accent) 15%, var(--paper)),
+    color-mix(in srgb, var(--surface) 55%, transparent)
+  );
+  margin-bottom: 30px;
+}
+.next-arrangement strong {
+  font-size: 25px;
+  font-weight: 500;
+  padding-right: 20px;
+}
+.next-arrangement > svg {
+  position: absolute;
+  right: 20px;
+  top: 49%;
+  color: var(--accent);
+}
+.next-arrangement .muted {
+  font:
+    12px/1.8 system-ui,
+    sans-serif;
+  padding-right: 15px;
+}
+.today-assignment {
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 15px 0;
+  display: flex;
+  text-align: left;
+  gap: 12px;
+  align-items: center;
+  width: 100%;
+}
+.today-assignment small {
+  font:
+    11px/1.8 system-ui,
+    sans-serif;
+  max-width: 38%;
+  text-align: right;
+}
+.due-dot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.due-dot.overdue {
+  background: var(--seal);
+}
+.mobile-today .section-heading {
+  margin: 30px 0 12px;
+}
+.mobile-today h2 {
+  font-size: 17px;
+}
+.todo-title {
+  flex: 1;
+  display: grid;
+  gap: 5px;
+  text-align: left;
+  border: 0;
+  padding: 10px 0;
+  background: transparent;
+  min-width: 0;
+}
+.todo-title small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.todo-title .done {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.today-footer {
+  display: flex;
+  gap: 24px;
+  margin-top: 28px;
+  padding: 14px 0;
+}
+.paper-landscape {
+  position: absolute;
+  inset: auto -12px 0;
+  height: 100px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.25;
+}
+.paper-landscape i {
+  position: absolute;
+  width: 90%;
+  height: 125px;
+  left: 20%;
+  top: 35px;
+  border-radius: 46% 80% 0 0;
+  transform: rotate(-8deg);
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.paper-landscape i + i {
+  top: 60px;
+  left: -30%;
+  transform: rotate(12deg);
+  opacity: 0.7;
+}
+.journal-date {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 16px;
+}
+.journal-date label {
+  margin: 0;
+  font:
+    12px/1.7 system-ui,
+    sans-serif;
+  color: var(--muted);
+}
+.journal-date input {
+  background: transparent !important;
+  padding: 8px !important;
+  min-height: 44px;
+}
+.journal-entry {
+  border-bottom: 1px solid var(--line);
+  padding: 24px 0;
+}
+.journal-entry .section-heading {
+  margin: 0 0 14px;
+}
+.journal-entry .section-heading h2 {
+  font-size: 17px;
+}
+.journal-entry h2 {
+  font-size: 24px;
+  line-height: 1.6;
+}
+.journal-excerpt {
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 15px;
+}
+.journal-mood-row {
+  display: flex;
+  gap: 18px;
+  margin: 14px 0;
+  align-items: baseline;
+}
+.journal-mood-row > div {
+  display: flex;
+  gap: 7px 12px;
+  flex-wrap: wrap;
+}
+.journal-mood-row span {
+  font:
+    12px/1.7 system-ui,
+    sans-serif;
+  color: var(--accent);
+}
+.idea-entry {
+  margin-top: 24px;
+  padding: 22px;
+  width: 100%;
+  border: 0;
+  background: linear-gradient(
+    110deg,
+    var(--wash),
+    color-mix(in srgb, var(--line) 20%, transparent)
+  );
+  text-align: left;
+  display: grid;
+  gap: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.idea-entry .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.idea-entry strong {
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.7;
+}
+.idea-entry > span:last-child {
+  font:
+    12px/1.8 system-ui,
+    sans-serif;
+  color: var(--accent);
+}
+.diary-body {
+  white-space: pre-wrap;
+  line-height: 2;
+  overflow-wrap: anywhere;
+}
+.diary-page .toolbar > input {
+  width: auto;
+  flex: 1;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .journal-entry,
+  .next-arrangement,
+  .idea-entry {
+    animation: surface-arrive 0.35s ease both;
+  }
+}
+@keyframes surface-arrive {
+  from {
+    opacity: 0.6;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (max-width: 350px) {
+  .today-assignment {
+    gap: 8px;
+  }
+  .today-assignment .grow {
+    font-size: 14px;
+  }
+  .journal-entry .section-heading {
+    gap: 7px;
+  }
+}

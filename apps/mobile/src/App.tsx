@@ -1,65 +1,55 @@
-import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from 'react'
 import {
-  BookOpen,
-  ChevronLeft,
-  Feather,
-  Flower2,
-  Home,
-  LayoutGrid,
-  MessageCircle,
-  RefreshCw,
-  Search,
-  Settings2,
-  X,
-} from 'lucide-react'
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
+import { BookOpen, ChevronLeft, Home, MessageCircle, Search, Settings2, X } from 'lucide-react'
 import { getSnapshot, initialize, subscribe, sync } from './repository'
 import { searchable, text } from './data'
 import { HomePage } from './pages/HomePage'
 import { PlannerPage } from './pages/PlannerPage'
-import { RecordsPage } from './pages/RecordsPage'
+import { JournalPage } from './pages/JournalPage'
+import { DiaryPage } from './pages/DiaryPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { Chat } from './Chat'
+import { mainPages, mobilePage, pageLabels, parentPage, sectionPage } from './navigation'
 import './native'
-const WritingPage = lazy(() => import('./pages/WritingPage'))
+import { VoiceCoordinator } from './companion/voice'
 const IdeasPage = lazy(() => import('./pages/IdeasPage'))
 const MoodPage = lazy(() => import('./pages/MoodPage'))
-const RitualPage = lazy(() => import('./pages/RitualPage'))
 const navigation = [
   { id: 'home', label: '今日', icon: Home },
-  { id: 'planner', label: '日常', icon: Flower2 },
-  { id: 'writing', label: '创作', icon: Feather },
+  { id: 'journal', label: '手记', icon: BookOpen },
   { id: 'chat', label: '小鱼', icon: MessageCircle },
-  { id: 'more', label: '书房', icon: LayoutGrid },
-]
-const rooms = [
-  { id: 'diary', label: '日记', detail: '把日子写在纸上' },
-  { id: 'moods', label: '每日心情', detail: '五点心情，气泡与色带' },
-  { id: 'ideas', label: '想法工坊', detail: '在墨间，慢慢想清楚' },
-  { id: 'experiences', label: '经历册', detail: '作品、足迹与偏爱' },
-  { id: 'calendar', label: '日历', detail: '月历与每日安排' },
-  { id: 'courses', label: '课表', detail: '随身带着这一周' },
-  { id: 'people', label: '人物', detail: '现实与创作中的相逢' },
-  { id: 'places', label: '地点', detail: '那些故事发生的地方' },
-  { id: 'events', label: '时间线', detail: '把事情连成来路' },
-  { id: 'ritual', label: '片刻仪式', detail: '一隅签、答案之书、真心话' },
-  { id: 'settings', label: '连接与设置', detail: '多端同行，伙伴与隐私' },
 ]
 export default function App() {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot)
-  const [page, setPage] = useState(() => sessionStorage.getItem('yiyu.mobile.page') || 'home'),
-    [ready, setReady] = useState(false),
+  const [page, setPage] = useState(() =>
+    mobilePage(sessionStorage.getItem('yiyu.mobile.page') || 'home'),
+  )
+  const [ready, setReady] = useState(false),
     [message, setMessage] = useState('')
   const [searching, setSearching] = useState(false),
     [query, setQuery] = useState(''),
     [target, setTarget] = useState<string>()
-  const go = (next: string, key?: string) => {
-    setPage(next)
-    setTarget(key)
-    setSearching(false)
-    window.scrollTo(0, 0)
-  }
+  const scroll = useRef(new Map<string, number>())
+  const go = useCallback(
+    (next: string, key?: string) => {
+      scroll.current.set(page, window.scrollY)
+      setPage(mobilePage(next))
+      setTarget(key)
+      setSearching(false)
+    },
+    [page],
+  )
   useEffect(() => {
     sessionStorage.setItem('yiyu.mobile.page', page)
+    const frame = requestAnimationFrame(() => window.scrollTo(0, scroll.current.get(page) ?? 0))
+    return () => cancelAnimationFrame(frame)
   }, [page])
   useEffect(() => {
     const back = (event: Event) => {
@@ -69,12 +59,12 @@ export default function App() {
         setSearching(false)
       } else if (page !== 'home') {
         event.preventDefault()
-        go('home')
+        go(parentPage(page))
       }
     }
     window.addEventListener('yiyu-back', back)
     return () => window.removeEventListener('yiyu-back', back)
-  }, [page, searching])
+  }, [page, searching, go])
   useEffect(() => {
     void initialize()
       .then(() => {
@@ -118,21 +108,19 @@ export default function App() {
         <p>{message || '正在拾起这一隅…'}</p>
       </main>
     )
-  const section = ['calendar', 'courses', 'diary', 'moods'].includes(page)
-    ? 'planner'
-    : ['people', 'places', 'events', 'ideas'].includes(page)
-      ? 'writing'
-      : rooms.some((room) => room.id === page)
-        ? 'more'
-        : page
-  const heading =
-    rooms.find((room) => room.id === page)?.label ?? navigation.find((item) => item.id === page)?.label
+  const secondary = !mainPages.includes(page as (typeof mainPages)[number])
+  const matches = searchable(snapshot.records, query)
   return (
     <div className="mobile-app">
+      <VoiceCoordinator />
       <header className="app-bar">
         <div className="brand">
-          {rooms.some((room) => room.id === page) ? (
-            <button aria-label="回到书房" className="icon-button" onClick={() => go('more')}>
+          {secondary ? (
+            <button
+              aria-label={'回到' + pageLabels[parentPage(page)]}
+              className="icon-button"
+              onClick={() => go(parentPage(page))}
+            >
               <ChevronLeft size={20} />
             </button>
           ) : (
@@ -140,20 +128,24 @@ export default function App() {
           )}
           <div>
             <small>一 隅 · 随 行</small>
-            <span>{heading === '今日' ? '有一隅，便有归处。' : heading}</span>
+            <span>{secondary ? pageLabels[page] : '有一隅，便有归处。'}</span>
           </div>
         </div>
         <div className="toolbar">
-          <button className="icon-button" aria-label="搜索本机资料" onClick={() => setSearching(!searching)}>
+          <button
+            className="icon-button"
+            aria-label="搜索手机记录"
+            onClick={() => setSearching(!searching)}
+          >
             <Search size={19} />
           </button>
           <button
             className="icon-button"
-            aria-label={snapshot.busy ? '同步中' : '同步'}
-            disabled={snapshot.busy}
-            onClick={() => void sync()}
+            aria-label="连接与设置"
+            aria-current={page === 'settings' ? 'page' : undefined}
+            onClick={() => go('settings')}
           >
-            <RefreshCw size={17} className={snapshot.busy ? 'spinning' : ''} />
+            <Settings2 size={19} />
           </button>
         </div>
       </header>
@@ -170,6 +162,7 @@ export default function App() {
       <main className="page-content">
         {searching ? (
           <section>
+            <p className="eyebrow">只在手机保留的记录里寻找</p>
             <h1>找回一笔</h1>
             <input
               aria-label="搜索关键词"
@@ -177,76 +170,49 @@ export default function App() {
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="标题、正文、人物、感想…"
+              placeholder="日记、待办、课程、想法…"
             />
             <div className="record-list">
-              {searchable(snapshot.records, query).map(([key, value]) => (
+              {matches.map(([key, value]) => (
                 <button
                   className="paper-card search-result"
                   key={key}
-                  onClick={() => {
-                    const collection = key.split('/')[0]
-                    go(
-                      ['works', 'chapters', 'volumes'].includes(collection)
-                        ? 'writing'
-                        : collection === 'assignments' || collection === 'todos'
-                          ? 'planner'
-                          : collection,
-                      key,
-                    )
-                  }}
+                  onClick={() => go(key.split('/')[0], key)}
                 >
-                  <small>{key.split('/')[0]}</small>
-                  <h3>{text(value.title) || text(value.name) || text(value.date) || '心情记录'}</h3>
-                  <p>{text(value.plainText) || text(value.note) || text(value.summary)}</p>
+                  <small>{pageLabels[key.split('/')[0]]}</small>
+                  <h3>
+                    {text(value.title) || text(value.subject) || text(value.date) || '心情记录'}
+                  </h3>
+                  <p>{text(value.note) || text(value.content) || text(value.draft)}</p>
                 </button>
               ))}
             </div>
-            {query && !searchable(snapshot.records, query).length && (
-              <p className="empty">本机资料里还没有找到。</p>
-            )}
+            {query && !matches.length && <p className="empty">本机手机记录里还没有找到。</p>}
           </section>
         ) : (
           <Suspense fallback={<div className="empty">正在展开这一页…</div>}>
             {page === 'home' ? (
               <HomePage records={snapshot.records} go={go} action={action} />
-            ) : page === 'planner' || page === 'calendar' || page === 'courses' ? (
-              <PlannerPage key={page} records={snapshot.records} initial={page} action={action} />
-            ) : page === 'writing' ? (
-              <WritingPage records={snapshot.records} target={target} action={action} />
+            ) : ['planner', 'todos', 'assignments', 'calendar', 'courses'].includes(page) ? (
+              <PlannerPage
+                key={page + (target ?? '')}
+                records={snapshot.records}
+                initial={page}
+                action={action}
+                target={target}
+              />
+            ) : page === 'journal' ? (
+              <JournalPage records={snapshot.records} go={go} />
+            ) : page === 'diary' ? (
+              <DiaryPage records={snapshot.records} target={target} action={action} />
             ) : page === 'ideas' ? (
               <IdeasPage records={snapshot.records} target={target} />
             ) : page === 'moods' ? (
-              <MoodPage records={snapshot.records} action={action} />
+              <MoodPage key={target} records={snapshot.records} action={action} target={target} />
             ) : page === 'chat' ? (
               <Chat />
-            ) : page === 'settings' ? (
-              <SettingsPage snapshot={snapshot} action={action} />
-            ) : page === 'ritual' ? (
-              <RitualPage />
-            ) : page === 'more' ? (
-              <section>
-                <p className="eyebrow">每一种生活，都有自己的位置</p>
-                <h1>随身书房</h1>
-                <div className="room-grid">
-                  {rooms.map((room, index) => (
-                    <button className="room-card" key={room.id} onClick={() => go(room.id)}>
-                      <span className="room-index">{String(index + 1).padStart(2, '0')}</span>
-                      {room.id === 'settings' ? <Settings2 size={18} /> : <BookOpen size={18} />}
-                      <h3>{room.label}</h3>
-                      <p>{room.detail}</p>
-                    </button>
-                  ))}
-                </div>
-              </section>
             ) : (
-              <RecordsPage
-                key={page}
-                collection={page}
-                records={snapshot.records}
-                target={target}
-                action={action}
-              />
+              <SettingsPage snapshot={snapshot} action={action} />
             )}
           </Suspense>
         )}
@@ -255,7 +221,7 @@ export default function App() {
         {navigation.map((item) => (
           <button
             key={item.id}
-            aria-current={section === item.id ? 'page' : undefined}
+            aria-current={sectionPage(page) === item.id ? 'page' : undefined}
             onClick={() => go(item.id)}
           >
             <item.icon size={20} strokeWidth={1.5} />

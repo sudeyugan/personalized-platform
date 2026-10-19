@@ -94,3 +94,11 @@ export async function disconnectDevice() {
   } finally { paused = false }
 }
 export function conflictKeys() { return client ? conflicts(client.state) : [] }
+export async function moveDeviceHub(url: string) {
+  if (!client || paused) throw new Error('请先连接原中枢。')
+  paused = true
+  useDeviceSync.setState({ busy: true, error: '' })
+  try { await inFlight; await client.moveEndpoint(url) }
+  finally { paused = false; useDeviceSync.setState({ busy: false }) }
+  await syncNow()
+}

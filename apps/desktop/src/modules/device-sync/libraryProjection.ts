@@ -2,6 +2,7 @@ import { put, record, validateRecords, type Collection, type Records } from '@yi
 import type { LibraryData } from '../../domain/models'
 import { normalizeLibrary } from '../../domain/seed'
 import { sessionAfterRemovingChapter } from '../../state/chapterNavigation'
+import { sharedConversations, mergeConversations } from './conversationProjection'
 
 const root = { works: 'works', volumes: 'volumes', people: 'people', places: 'places', events: 'events', relations: 'personRelations', links: 'entityLinks' } as const
 const planner = { todos: 'todos', assignments: 'assignments', diary: 'diaryEntries', moods: 'moodEntries', courses: 'courses', calendar: 'calendarEvents', questions: 'dailyQuestions' } as const
@@ -28,6 +29,7 @@ export function projectLibrary(data: LibraryData): Records {
   for (const [collection, field] of Object.entries(planner)) add(collection as Collection, data.planner[field as typeof planner[keyof typeof planner]] ?? [])
   add('experiences', data.experiences?.entries ?? [])
   add('ideas', data.ideas?.sessions ?? [])
+  add('chat', sharedConversations(data.companion.messages))
   return records
 }
 export function mergeLibrary(data: LibraryData, records: Records): LibraryData {
@@ -67,6 +69,7 @@ export function mergeLibrary(data: LibraryData, records: Records): LibraryData {
     planner: { ...data.planner, ...Object.fromEntries(Object.values(planner).map(field => [field, normalized.planner[field]])) },
     experiences: normalized.experiences,
     ideas: normalized.ideas,
+    companion: { ...data.companion, messages: mergeConversations(data.companion.messages, records) },
   }
   merged.session = sessionAfterRemovingChapter(merged, '')
   if (!merged.works.some(work => work.id === merged.session.activeWorkId && !work.deletedAt)) merged.session.activeWorkId = merged.works.find(work => !work.deletedAt)?.id ?? ''

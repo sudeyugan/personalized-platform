@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import type { Records } from '@yiyu/sync'
-import type { Assignment, AssignmentOccurrence } from '../../../desktop/src/domain/assignments/types'
+import type {
+  Assignment,
+  AssignmentOccurrence,
+} from '../../../desktop/src/domain/assignments/types'
 import type { CalendarEvent, Course, TodoItem } from '../../../desktop/src/domain/models'
 import {
   assignmentDeadlineLabel,
@@ -16,20 +19,30 @@ export function PlannerPage({
   records,
   initial,
   action,
+  target,
 }: {
   records: Records
   initial: string
   action: Action
+  target?: string
 }) {
   const [tab, setTab] = useState(initial === 'planner' ? 'todos' : initial)
-  const [editing, setEditing] = useState<{ collection: string; key?: string }>()
+  const [editing, setEditing] = useState<{ collection: string; key?: string } | undefined>(() =>
+    target &&
+    records[target] &&
+    ['todos', 'assignments', 'calendar', 'courses'].includes(target.split('/')[0])
+      ? { collection: target.split('/')[0], key: target }
+      : undefined,
+  )
   const [date, setDate] = useState(today()),
     [month, setMonth] = useState(() => new Date())
   const todos = rows<TodoItem>(records, 'todos').filter((todo) => todoVisible(todo, today()))
   const assignments = rows<Assignment>(records, 'assignments'),
     overview = assignmentOverview(assignments)
   const appointments = rows<CalendarEvent>(records, 'calendar')
-  const courses = rows<Course>(records, 'courses').sort((a, b) => a.day - b.day || a.period - b.period)
+  const courses = rows<Course>(records, 'courses').sort(
+    (a, b) => a.day - b.day || a.period - b.period,
+  )
   const remove = (key: string) => {
     if (confirm('移除这份记录？删除会同步到其他设备。')) void action(() => update(key, null))
   }
@@ -146,7 +159,12 @@ export function PlannerPage({
                 <h3>{item.subject || item.title}</h3>
                 <div className="toolbar">
                   <button
-                    onClick={() => setEditing({ collection: 'assignments', key: `assignments/${item.id}` })}
+                    onClick={() =>
+                      setEditing({
+                        collection: 'assignments',
+                        key: `assignments/${item.id}`,
+                      })
+                    }
                   >
                     编辑
                   </button>
@@ -206,7 +224,14 @@ export function PlannerPage({
                 <h3>{item.title}</h3>
                 <p>{item.note}</p>
                 <div className="toolbar">
-                  <button onClick={() => setEditing({ collection: 'calendar', key: `calendar/${item.id}` })}>
+                  <button
+                    onClick={() =>
+                      setEditing({
+                        collection: 'calendar',
+                        key: `calendar/${item.id}`,
+                      })
+                    }
+                  >
                     编辑
                   </button>
                   <button onClick={() => remove(`calendar/${item.id}`)}>移除</button>
@@ -229,7 +254,12 @@ export function PlannerPage({
                   <button
                     className="course-card"
                     key={course.id}
-                    onClick={() => setEditing({ collection: 'courses', key: `courses/${course.id}` })}
+                    onClick={() =>
+                      setEditing({
+                        collection: 'courses',
+                        key: `courses/${course.id}`,
+                      })
+                    }
                   >
                     <strong>{course.title}</strong>
                     <span>

@@ -1,0 +1,11 @@
+# Replace with your own DNS hostname; validate before installation.
+hub.example.com {
+    request_body {
+        max_size 3MB
+    }
+    reverse_proxy 127.0.0.1:17839
+    # No access log, Authorization header, or request-body logging.
+    log {
+        output discard
+    }
+}

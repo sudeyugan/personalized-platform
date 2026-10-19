@@ -1,0 +1,65 @@
+html,
+body,
+#root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent !important;
+  --accent: #78958b;
+}
+.mobile-overlay {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+.mobile-overlay .companion-stage {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+.mobile-overlay .voice-orbit {
+  width: 34%;
+  height: 5%;
+  bottom: 1%;
+}
+.mobile-overlay .companion-halo {
+  inset: 20% 0 0;
+}
+.ink-mark {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, #90afa2 5%, #6b8c7c 50%, transparent 75%);
+  box-shadow: 0 0 0 1px #ffffff60;
+}
+.ink-mark i {
+  position: absolute;
+  inset: -4px;
+  border: 1px solid #78958b80;
+  border-radius: 50%;
+  opacity: 0;
+}
+.phase-listening .ink-mark i,
+.phase-speaking .ink-mark i {
+  opacity: 0.5;
+  animation: voice-orbit 1.3s ease-in-out infinite alternate;
+}
+.phase-thinking .ink-mark {
+  animation: voice-dot 1.6s ease-in-out infinite alternate;
+}
+.phase-error .ink-mark {
+  background: #b48c74;
+}
+.still *,
+.still .ink-mark {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ink-mark,
+  .ink-mark i {
+    animation: none !important;
+  }
+}
