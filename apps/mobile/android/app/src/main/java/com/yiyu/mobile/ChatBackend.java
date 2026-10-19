@@ -30,7 +30,10 @@ final class ChatBackend {
     }
     static void saveKey(Context context, String key) throws Exception {
         if (key.length() > 500 || key.contains("\n") || key.contains("\r")) throw new Exception("invalid key");
-        if (key.isEmpty()) { context.getSharedPreferences(ALIAS, 0).edit().clear().commit(); return; }
+        if (key.isEmpty()) {
+            if (!context.getSharedPreferences(ALIAS, 0).edit().clear().commit()) throw new Exception("delete failed");
+            return;
+        }
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding"); cipher.init(Cipher.ENCRYPT_MODE, encryptionKey());
         String iv = Base64.encodeToString(cipher.getIV(), Base64.NO_WRAP);
         String body = Base64.encodeToString(cipher.doFinal(key.getBytes(StandardCharsets.UTF_8)), Base64.NO_WRAP);

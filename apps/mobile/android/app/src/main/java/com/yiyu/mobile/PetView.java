@@ -14,6 +14,7 @@ final class PetView extends View {
     interface Drag { void move(int x, int y, boolean dock); }
     private Bitmap bitmap;
     private final Paint paint = new Paint();
+    private final RectF bounds = new RectF();
     private final Runnable click, hide;
     private final Drag drag;
     private final ValueAnimator idle;
@@ -37,7 +38,8 @@ final class PetView extends View {
         super.onDraw(canvas);
         if (bitmap == null) return;
         float offset = getHeight() * .009f * breathe;
-        canvas.drawBitmap(bitmap, null, new RectF(0, offset, getWidth(), getHeight()), paint);
+        bounds.set(0, offset, getWidth(), getHeight());
+        canvas.drawBitmap(bitmap, null, bounds, paint);
     }
     @Override public boolean performClick() { super.performClick(); click.run(); return true; }
     @Override public boolean onTouchEvent(MotionEvent event) {

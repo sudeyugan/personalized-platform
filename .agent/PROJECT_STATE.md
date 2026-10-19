@@ -20,13 +20,16 @@
 
 用户已批准常开 Windows 私人同步中枢、多 Windows/Android 离线同步与手机悬浮小鱼。范围/验收见 [DEC106计划](DEC106_PLAN.md)。已在原整库本机修订之外建立独立记录级协议，不共享活跃SQLite文件。2026-10-19另获用户明确许可：先备份修复Git、下载Android工具链并处理本次标准SDK许可、推送origin/feature/multi-device；不合并main，不部署公网/防火墙/常驻服务。当前是分支预览而非正式新里程碑。
 
-用户随后要求先隔离大改动：从`c153648`新建`feature/multi-device`并批准在此继续；main没有新增提交。已实现共享记录同步/密文中枢、Windows设置与保存后接入、Android轻量React页与Java悬浮层/本机模型Key保护代码。未完成Android原生编译，不称首版全部交付。功能分支推送已批准，合并main未授权。残余边界见[R064](RISKS.md)与[预览说明](../docs/多端同步预览使用说明.md)。
+用户随后要求先隔离大改动：从`c153648`新建`feature/multi-device`并批准在此继续；main没有新增提交。已实现共享记录同步/密文中枢、Windows设置与保存后接入、Android轻量React页与Java悬浮层/本机模型Key保护；已形成Windows候选和Android调试APK，自动验证已收口，真机与实际网络部署待验，不称首版全部验收。功能分支推送已批准，合并main未授权。残余边界见[R064](RISKS.md)与[预览说明](../docs/多端同步预览使用说明.md)。
 
 - 证据：21项前端定向（含仓储）、4项中枢临时HTTP/持久化/重试恢复；一次Windows verify:full整体退出0，241文件1388前端、174 Rust通过/14忽略、类型/lint/Web通过。保留3条旧lint提示、3个既有Rust BOOL及分包警告。
 - 隔离真实Edge：两个独立context＋临时密文中枢、桌面→手机视口→桌面、邀请/重载、浅深截图通过。开发HMR夹具观察到LNA阻断和模块等待，临时origin许可未单独消除全部等待；未改日常浏览器，改用实际生产Web构建后打通，未扩大超时/放宽断言。真正发现并修复手机异步勾选反馈与写入/拉取保护，末尾手机Web和最终设置样式候选同流程复核通过，不重跑桌面full。
-- 最终Windows候选Release63s/NSIS成功，经运行状态双检`YIYU_DELIVERY_UPDATED`更新桌面；EXE与镜像/项目/桌面hash核对一致。Android APK没有产出；未安装SDK或调用真实手机模型。
+- 末尾Windows候选Release86s/NSIS成功，经运行状态双检`YIYU_DELIVERY_UPDATED`更新桌面；EXE与镜像/项目/桌面hash核对一致。本轮只追加手机原生检查/Windows候选构建，不重跑桌面full；没有调用真实手机模型。
 - Git修复：先在`/tmp/yiyu-git-repair.FopGGh`备份完整Git/源工作区/index，再在副本重建；28个有效tree的原哈希得到恢复，2个无引用空对象及唯一空工具检查点ref保留隔离。当前仓库fsck整体退出0，`5e67088`/根树`7a43e087`可完整读取，未改分支/index/历史。原始备份及项目`.inputs/git-object-quarantine-2026-10-19`可恢复，故障原因仍未知（R065）。
-- 当前：准备提交修复记录并正常推送已批准功能分支；远端检查main仍为c153648、目标分支原先不存在。Google SDK命令行工具、Gradle8.11.1、Temurin17已下载并通过各自官方SHA-256，尚待安装SDK组件与原生编译。实际跨设备HTTPS/真机验收仍未完成，不自动部署服务或合并main。
+- Android：工具链官方归档与wrapper JAR SHA-256核对通过；明确获许可后仅接受标准android-sdk-license，SDK35/BuildTools35安装完成。手机Web构建、原生assembleDebug/lintDebug（首轮103s、修补后8s）和固定校验wrapper重复构建通过；APK v2签名、最小26/目标35、权限/内嵌Web与备份排除清单复核通过。lint0错误9提示、SDK元数据/旧API提示未屏蔽；Keystore/悬浮/键盘/锁屏/耗电仍需真机。
+- 原生补正：Android35系统边距、密钥清除失败不误报、聊天异常/销毁释放忙状态、重用绘制Rect与原项目图标；显式排除云备份/换机克隆身份。APK为本机调试签名，不是商店发布包；私钥/SDK/缓存/安装包均未入Git。
+- 分支：实现5e67088及修复记录3e1fdd2已正常推送origin/feature/multi-device，ls-remote与本地一致；远端main仍为c153648。本次安卓补正与文档待末尾正常提交推送，不强推或合并main。
+- 下一步：集中在用户手机/另一Windows验收实际受信任HTTPS配对、离线往返与原生伙伴。尚未选定/部署常开中枢网络路径，不自行开公网、防火墙或系统服务；需要用户确认连接方案与实际设备操作。当前偏差为设备/网络验收缺口，不是协议范围变化；R064持续开放，正式M12状态不变。
 
 ## 最近已合并功能：想法工坊连续水墨长卷
 
@@ -42,9 +45,11 @@
 | 产物 | 位置/核对结果 |
 |---|---|
 | Windows EXE | 项目 `apps/desktop/src-tauri/target/release/yiyu.exe`、Windows镜像和桌面 `一隅_直接运行.exe` 三处一致 |
-| EXE SHA-256 | `29ccd338bfac97607751a373d2c1774212c4a9f50542c9df66c810fc19c6c88f` |
+| EXE SHA-256 | `3a155f9d0c0debf25aef4ec87436972a4ef6a2eabe7f6183f6138535dbf09130` |
 | NSIS | `apps/desktop/src-tauri/target/release/bundle/nsis/一隅_2.0.0_x64-setup.exe`，只在target，不放桌面 |
-| NSIS SHA-256 | `10b26eaa7d1e6eb5a2d2ca05557ddb907df9358d43262b66fe3f0f897e63d067` |
+| NSIS SHA-256 | `601e1716c106067e245c6ea6ec50c153307c756c91bd034fa1e1b921a82f96e1` |
+| Android 调试预览 | `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`，约5.4MiB，仅本机，不进Git |
+| APK SHA-256 | `69a1f5688e8e0a38007c6c4b75cdb053012411da3a675c69990051d82708131b` |
 
 这是最近本机候选，不是重新登记的正式发布。`project-status.json`中的安装包hash仍是正式里程碑历史记录；同一路径被候选打包覆盖后，不能把`docs:check`通过当作正式安装包hash核验通过。
 
@@ -57,10 +62,10 @@
 
 ## 下一步与协作约束
 
-- 文档整理已完成；当前执行已批准的 DEC106，先协议与可靠性/安全边界，再接入 Windows 和手机。缺失工具链或人工授权按事实交接。
+- 文档整理已完成；DEC106自动验证与两端候选已形成，下一步实际设备/受信任网络集中验收，不再把初始缺SDK当当前阻塞。
 - 普通修补用风险匹配的最小检查；不为构建自动追加full。具体规则见[质量门禁](QUALITY_GATES.md)及[AGENTS](../AGENTS.md)。
 - 每次代码更新完成构建Windows候选；编译后检查运行状态，替换前再检查。运行中或状态未知即停止替换，不杀进程、不自动等退出重试。纯文档不构建。
-- 完成更新及时提交并正常推送既定origin/main；先审查范围/秘密/远端，不强推。只有推送成功并核对远端才称已推送。
+- 完成更新及时提交推送；当前DEC106经用户明确批准改为origin/feature/multi-device，不自动合并main。其他任务既定main偏好不变；先审查范围/秘密/远端，不强推，核对一致才称已推送。
 - 用户已有修改属于用户。本次开始时已有四份未跟踪的整理前快照，已核对正文与原文件一致（仅相对链接调整）；原样保留纳入历史索引，不覆盖原文。
 
 ## 本次文档整理
