@@ -1,0 +1,134 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1260" height="1580" viewBox="0 0 1260 1580" role="img" aria-labelledby="title description">
+  <title id="title">一隅随行：M13手机页面与伙伴形态概念稿01</title>
+  <desc id="description">三个虚构手机页面为今日、手记、小鱼。下方是隐藏、轻量标记、极小手办与角色常驻四种形态，以及倾听、处理、说话状态分镜。没有交互、真实数据或最终角色美术。</desc>
+  <defs>
+    <linearGradient id="paper" x2="0" y2="1"><stop stop-color="#fffdf7"/><stop offset="1" stop-color="#f4eee3"/></linearGradient>
+    <linearGradient id="wash" x2="1" y2="1"><stop stop-color="#cedbd4" stop-opacity=".65"/><stop offset="1" stop-color="#e6dfca" stop-opacity=".1"/></linearGradient>
+    <linearGradient id="hair" x2="1" y2="1"><stop stop-color="#f8fcff"/><stop offset=".55" stop-color="#cadced"/><stop offset="1" stop-color="#7a9cbe"/></linearGradient>
+    <radialGradient id="halo"><stop stop-color="#b6cec7" stop-opacity=".48"/><stop offset="1" stop-color="#b6cec7" stop-opacity="0"/></radialGradient>
+    <filter id="shadow" x="-20%" y="-10%" width="140%" height="130%"><feDropShadow dy="10" stdDeviation="13" flood-color="#544a3c" flood-opacity=".09"/></filter>
+    <pattern id="grain" width="43" height="39" patternUnits="userSpaceOnUse"><path d="M4 9l5 1M25 28l8-1M39 5l-2 4" stroke="#776a52" stroke-opacity=".035"/><circle cx="13" cy="32" r=".5" fill="#8a7960" fill-opacity=".1"/></pattern>
+    <symbol id="mountains" viewBox="0 0 360 240"><path d="M-5 205Q18 140 61 159Q99 100 134 144Q164 56 203 119Q239 68 267 115Q310 77 365 155V245H-5Z" fill="#afb9ae" opacity=".15"/><path d="M-5 218Q35 167 77 205Q130 130 177 190Q216 139 250 179Q314 134 365 211V245H-5Z" fill="#7d9b91" opacity=".11"/><path d="M0 224Q115 201 190 226T360 220" fill="none" stroke="#789587" opacity=".1"/></symbol>
+    <symbol id="person" viewBox="0 0 120 190">
+      <ellipse cx="62" cy="180" rx="35" ry="5" fill="#665d57" opacity=".09"/>
+      <path d="M22 58Q14 99 18 136L32 157Q41 133 39 101L80 100Q81 133 94 156L107 139Q100 97 99 63Z" fill="url(#hair)" stroke="#a7becf" stroke-width="1.1"/>
+      <path d="M44 153L43 175Q48 182 54 177L58 154M67 153L67 176Q73 182 78 175L77 151" fill="#f3e6db" stroke="#9e9c9d"/>
+      <path d="M40 113Q34 135 28 155Q61 173 93 155L79 115" fill="#e9f0f4" stroke="#91a9bb"/>
+      <path d="M43 142L34 155M53 144L50 161M67 144L68 162M78 140L86 157" stroke="#b4c8d5" fill="none"/>
+      <path d="M38 88Q60 79 82 89L89 120Q63 133 32 119Z" fill="#f9f7f1" stroke="#93a8b4"/>
+      <path d="M36 95L23 119Q22 126 29 125L45 104M82 95L97 115Q101 122 94 123L77 105" fill="#f3e5da" stroke="#a2a8aa"/>
+      <path d="M48 87L61 102L75 86L74 110L48 108Z" fill="#9bb7c5"/>
+      <path d="M60 100L51 113L64 108L71 116L68 101" fill="#4e6c87"/>
+      <ellipse cx="61" cy="55" rx="32" ry="36" fill="#f9e9df" stroke="#c0b3ad"/>
+      <path d="M28 56Q18 17 48 14Q89-3 101 42L96 71L87 43Q70 50 57 25Q52 46 29 62Z" fill="url(#hair)" stroke="#9bb5cb"/>
+      <path d="M34 35Q38 8 67 15M70 20Q94 23 97 44M26 57Q20 91 27 127M94 64Q104 99 99 133" fill="none" stroke="#eaf5fc" stroke-width="3"/>
+      <path d="M38 56Q44 51 51 55M69 54Q77 50 83 55" stroke="#62778a" stroke-width="1.6" fill="none"/>
+      <ellipse cx="46" cy="59" rx="4" ry="6" fill="#6f9eba"/><ellipse cx="75" cy="58" rx="4" ry="6" fill="#6f9eba"/>
+      <circle cx="47" cy="57" r="1.6" fill="white"/><circle cx="76" cy="56" r="1.6" fill="white"/>
+      <path d="M57 74Q62 77 67 73" fill="none" stroke="#b69c94" stroke-width="1.1"/>
+      <ellipse cx="38" cy="69" rx="5" ry="2" fill="#edc2ba" opacity=".45"/><ellipse cx="83" cy="68" rx="5" ry="2" fill="#edc2ba" opacity=".45"/>
+      <path d="M85 25L96 17L96 34L109 31L101 43L88 37Z" fill="#40536b"/><circle cx="94" cy="32" r="4" fill="#e8f4fa"/>
+    </symbol>
+    <symbol id="mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M6 11v2a6 6 0 0012 0v-2M12 19v3M9 22h6" fill="none" stroke="currentColor" stroke-width="1.5"/></symbol>
+    <symbol id="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2" stroke="currentColor" stroke-width="1.4"/></symbol>
+    <symbol id="book" viewBox="0 0 24 24"><path d="M4 4q4-1 8 2q4-3 8-2v15q-4-1-8 2q-4-3-8-2ZM12 6v15" fill="none" stroke="currentColor" stroke-width="1.4"/></symbol>
+    <symbol id="bubble" viewBox="0 0 24 24"><path d="M5 4h14a2 2 0 012 2v10a2 2 0 01-2 2h-9l-6 3V6a2 2 0 012-2Z" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="9" cy="11" r="1" fill="currentColor"/><circle cx="14" cy="11" r="1" fill="currentColor"/></symbol>
+    <symbol id="nav" viewBox="0 0 360 72"><path d="M25 1H335" stroke="#dcd5c7"/><g fill="#8b8b80" font-size="11" text-anchor="middle"><use href="#sun" x="49" y="14" width="21" height="21" color="#8b8b80"/><text x="60" y="53">今日</text><use href="#book" x="169" y="14" width="21" height="21" color="#8b8b80"/><text x="180" y="53">手记</text><use href="#bubble" x="289" y="14" width="21" height="21" color="#8b8b80"/><text x="300" y="53">小鱼</text></g></symbol>
+    <symbol id="status" viewBox="0 0 360 36"><text x="26" y="24" font-size="12" fill="#535d57">9:41</text><path d="M286 22v-4M291 22v-7M296 22V12" stroke="#65716a" stroke-width="2"/><rect x="309" y="13" width="23" height="10" rx="3" fill="none" stroke="#65716a"/><rect x="311" y="15" width="16" height="6" rx="1" fill="#65716a"/></symbol>
+  </defs>
+  <style>
+    text{font-family:'WenQuanYi Zen Hei','Droid Sans Fallback',sans-serif;fill:#48534d} .serif{font-family:'AR PL KaitiM GB','AR PL UKai CN',serif} .muted{fill:#8a8e81} .small{font-size:11px} .caption{font-size:13px;fill:#7a8075} .rule{stroke:#dcd6c8;stroke-width:1} .ink{fill:#527667}
+  </style>
+  <rect width="1260" height="1580" fill="#e9e4da"/><rect width="1260" height="1580" fill="url(#grain)"/>
+  <text x="50" y="57" class="serif" font-size="35">一隅，随你同行。</text><text x="52" y="88" class="caption">M13 · 手机体验草案 01　／　页面结构与陪伴方式，不是运行版截图</text>
+  <text x="1208" y="54" text-anchor="end" class="small muted">2026 / 10 / 19</text><text x="1208" y="78" text-anchor="end" class="small muted">暖纸 · 细墨 · 青灰</text>
+
+  <g transform="translate(50 124)">
+    <rect width="360" height="780" rx="28" fill="url(#paper)" filter="url(#shadow)"/><rect width="360" height="780" rx="28" fill="url(#grain)"/>
+    <use href="#status" width="360" height="36"/>
+    <text x="28" y="69" class="small muted" letter-spacing="2">十月十九 · 周一</text><text x="329" y="70" text-anchor="end" font-size="19" class="muted">☰</text>
+    <text x="28" y="111" class="serif" font-size="29">今天，从容一点。</text><path d="M29 124q79 3 124-1" stroke="#9aab91" stroke-width="1.5" fill="none" opacity=".55"/>
+    <rect x="26" y="153" width="308" height="103" rx="12" fill="url(#wash)"/>
+    <text x="44" y="181" class="small ink">下一节　14:00 — 15:35</text><text x="44" y="213" class="serif" font-size="25">信息设计</text><text x="44" y="239" class="small muted">课程与教室均为示例</text><text x="310" y="214" font-size="22" text-anchor="end" class="ink">↗</text>
+    <text x="28" y="298" font-size="16">本周，还有两份作业</text><text x="332" y="299" text-anchor="end" class="small muted">查看全部 ›</text>
+    <circle cx="36" cy="332" r="4" fill="#a68b66"/><text x="52" y="338" font-size="15">设计史 · 周作业</text><text x="331" y="337" text-anchor="end" class="small muted">周三交</text>
+    <path d="M51 351H332" class="rule"/><circle cx="36" cy="376" r="4" fill="#759387"/><text x="52" y="382" font-size="15">课程报告</text><text x="331" y="381" text-anchor="end" class="small muted">10月23日</text>
+    <text x="28" y="446" font-size="16">留给今天的事</text><text x="331" y="446" text-anchor="end" font-size="22" class="ink">＋</text>
+    <rect x="29" y="472" width="16" height="16" rx="5" fill="none" stroke="#aeb8a7"/><text x="57" y="486" font-size="14">整理课堂笔记</text><path d="M57 504H332" class="rule"/>
+    <rect x="29" y="523" width="16" height="16" rx="5" fill="none" stroke="#aeb8a7"/><text x="57" y="537" font-size="14">给自己留半小时散步</text><path d="M57 555H332" class="rule"/>
+    <use href="#mountains" x="0" y="500" width="360" height="210"/>
+    <text x="28" y="621" class="small muted">课表 / 日历　›</text><text x="28" y="650" class="small muted">本机已保存 · 同步状态按需展开</text>
+    <use href="#person" x="287" y="594" width="49" height="78"/>
+    <use href="#nav" x="0" y="696" width="360" height="72"/><rect x="46" y="695" width="28" height="3" rx="2" fill="#688773"/>
+    <text x="0" y="812" font-size="16">01　今日</text><text x="0" y="836" class="caption">下一项安排 → 作业 → 待办；完整课表再展开</text>
+  </g>
+
+  <g transform="translate(450 124)">
+    <rect width="360" height="780" rx="28" fill="url(#paper)" filter="url(#shadow)"/><rect width="360" height="780" rx="28" fill="url(#grain)"/>
+    <use href="#status" width="360" height="36"/>
+    <text x="28" y="69" class="small muted" letter-spacing="2">手记 · 留下与回望</text><text x="331" y="70" text-anchor="end" class="muted" font-size="19">☰</text>
+    <text x="28" y="111" class="serif" font-size="29">把片刻，慢慢留下。</text>
+    <g class="small muted" text-anchor="middle"><text x="42" y="153">一</text><text x="88" y="153">二</text><text x="134" y="153">三</text><text x="180" y="153">四</text><text x="226" y="153">五</text><text x="272" y="153">六</text><text x="318" y="153">日</text></g>
+    <circle cx="42" cy="177" r="15" fill="#75907d"/><g font-size="12" text-anchor="middle"><text x="42" y="182" fill="#fffdf7" style="fill:#fffdf7">19</text><text x="88" y="182">20</text><text x="134" y="182">21</text><text x="180" y="182">22</text><text x="226" y="182">23</text><text x="272" y="182">24</text><text x="318" y="182">25</text></g>
+    <path d="M28 216H332" class="rule"/><text x="28" y="245" class="small muted">十月十九　／　日记</text><text x="28" y="278" class="serif" font-size="25">晚风里的一点空闲</text>
+    <text x="28" y="312" font-size="14" fill="#777e73">今天把那些没来得及想的事，</text><text x="28" y="338" font-size="14">留在了回去的路上。</text><text x="28" y="373" class="small ink">展开这一天　↗</text><text x="331" y="245" text-anchor="end" class="small ink">写日记 ＋</text>
+    <path d="M28 399H332" class="rule"/><text x="28" y="432" font-size="16">今天的心情</text><text x="331" y="432" text-anchor="end" class="small ink">记下五点 ＋</text>
+    <g fill="#9db6a1"><circle cx="34" cy="459" r="5"/><circle cx="49" cy="459" r="5"/><circle cx="64" cy="459" r="5"/></g><g fill="#b8b5c3"><circle cx="81" cy="459" r="5"/><circle cx="96" cy="459" r="5"/></g>
+    <text x="119" y="464" class="small muted">示例：一个时段，五点</text><text x="28" y="493" class="small ink">回望这一周 / 这个月　›</text>
+    <path d="M28 522H332" class="rule"/><rect x="26" y="545" width="308" height="112" rx="8" fill="#e8e4d5" opacity=".48"/>
+    <path d="M249 624Q258 585 277 596Q287 572 301 600Q317 576 333 624" fill="#b1baaa" opacity=".24"/>
+    <text x="44" y="574" class="small muted">想法工坊</text><text x="44" y="605" class="serif" font-size="22">从一个模糊念头开始。</text><text x="44" y="637" class="small ink">展开一卷新的推敲　↗</text>
+    <use href="#nav" x="0" y="696" width="360" height="72"/><rect x="166" y="695" width="28" height="3" rx="2" fill="#688773"/>
+    <text x="0" y="812" font-size="16">02　手记</text><text x="0" y="836" class="caption">日记与心情相邻呈现，分别记录；想法独立成卷</text>
+  </g>
+
+  <g transform="translate(850 124)">
+    <rect width="360" height="780" rx="28" fill="url(#paper)" filter="url(#shadow)"/><rect width="360" height="780" rx="28" fill="url(#grain)"/>
+    <use href="#status" width="360" height="36"/>
+    <text x="28" y="69" class="small muted" letter-spacing="2">小鱼 · 在这里陪着你</text><text x="331" y="70" text-anchor="end" class="muted" font-size="19">☰</text>
+    <text x="28" y="111" class="serif" font-size="29">慢慢说，我在听。</text><text x="28" y="139" class="small muted">语音会话示意 · 未实际采集音频</text>
+    <ellipse cx="183" cy="312" rx="143" ry="161" fill="url(#halo)"/><use href="#mountains" x="0" y="254" width="360" height="240"/>
+    <use href="#person" x="114" y="190" width="137" height="217"/>
+    <ellipse cx="182" cy="414" rx="38" ry="10" fill="none" stroke="#9cbcaf" stroke-width="1.2" opacity=".6"/><ellipse cx="182" cy="414" rx="49" ry="14" fill="none" stroke="#9cbcaf" opacity=".22"/>
+    <text x="180" y="450" text-anchor="middle" class="small muted">人物仅作布局占位，非最终美术</text>
+    <path d="M28 480H332" class="rule"/>
+    <circle cx="38" cy="510" r="4" fill="#8ca68c"/><text x="53" y="514" font-size="13">家中电脑 · 任务示例</text><text x="330" y="514" text-anchor="end" class="small ink">详情 ›</text>
+    <text x="28" y="542" class="small muted">结果 / 文件交接按需查看，不弹执行日志</text>
+    <circle cx="181" cy="604" r="29" fill="#6a8676"/><use href="#mic" x="169" y="589" width="24" height="26" color="#fffdf7"/>
+    <text x="181" y="654" text-anchor="middle" class="small">结束语音</text><text x="59" y="607" text-anchor="middle" class="small muted">静音</text><text x="301" y="607" text-anchor="middle" class="small muted">文字</text>
+    <use href="#nav" x="0" y="696" width="360" height="72"/><rect x="286" y="695" width="28" height="3" rx="2" fill="#688773"/>
+    <text x="0" y="812" font-size="16">03　小鱼</text><text x="0" y="836" class="caption">完整陪伴；语音优先，文字与任务详情按需</text>
+  </g>
+
+  <text x="50" y="1020" class="serif" font-size="27">在别的页面，也不必打断你。</text><text x="50" y="1048" class="caption">四种可见形态，与是否正在语音对话分开控制；不因交流自动展开文字面板。</text>
+  <g transform="translate(50 1075)">
+    <rect width="270" height="229" rx="15" fill="#f7f3eb"/><path d="M23 37H170M23 50H218M23 63H199M23 94H172M23 107H209M23 120H190" stroke="#d2d4ca" stroke-width="5" stroke-linecap="round" opacity=".5"/>
+    <circle cx="232" cy="127" r="15" fill="none" stroke="#b7bdb0"/><path d="M222 137l20-20" stroke="#b7bdb0"/>
+    <text x="22" y="180" font-size="16">不显示</text><text x="22" y="206" class="small muted">不画角色；隐藏与停麦须明确区分</text>
+  </g>
+  <g transform="translate(347 1075)">
+    <rect width="270" height="229" rx="15" fill="#f7f3eb"/><path d="M23 37H170M23 50H218M23 63H199M23 94H172M23 107H209M23 120H190" stroke="#d2d4ca" stroke-width="5" stroke-linecap="round" opacity=".5"/>
+    <path d="M259 73Q245 76 247 93Q248 105 259 108Z" fill="#8ca393"/><circle cx="254" cy="90" r="2.3" fill="#f6f4e9"/>
+    <text x="22" y="180" font-size="16">轻量标记</text><text x="22" y="206" class="small muted">贴边、少遮挡，不是聊天气泡</text>
+  </g>
+  <g transform="translate(644 1075)">
+    <rect width="270" height="229" rx="15" fill="#f7f3eb"/><path d="M23 37H170M23 50H218M23 63H199M23 94H172M23 107H209M23 120H190" stroke="#d2d4ca" stroke-width="5" stroke-linecap="round" opacity=".5"/>
+    <use href="#person" x="225" y="78" width="31" height="49"/><ellipse cx="241" cy="129" rx="14" ry="4" fill="none" stroke="#9ab6a3" opacity=".6"/>
+    <text x="22" y="180" font-size="16">极小手办</text><text x="22" y="206" class="small muted">独立小尺寸轮廓，低频小动作</text>
+  </g>
+  <g transform="translate(941 1075)">
+    <rect width="270" height="229" rx="15" fill="#f7f3eb"/><path d="M23 37H124M23 50H150M23 63H138M23 94H116M23 107H142M23 120H130" stroke="#d2d4ca" stroke-width="5" stroke-linecap="round" opacity=".5"/>
+    <use href="#person" x="170" y="26" width="74" height="117"/>
+    <text x="22" y="180" font-size="16">角色常驻</text><text x="22" y="206" class="small muted">可以展开，不默认附带文字面板</text>
+  </g>
+  <text x="50" y="1360" class="serif" font-size="25">只用一点变化，告诉你她在回应。</text>
+  <g transform="translate(50 1380)">
+    <rect width="1160" height="105" rx="15" fill="#f7f3eb"/>
+    <circle cx="42" cy="39" r="6" fill="#9eac9a"/><text x="66" y="44" font-size="14">未开会话</text><text x="26" y="80" class="small muted">轻待机，不显示倾听反馈</text>
+    <circle cx="335" cy="39" r="7" fill="#8ba99b"/><circle cx="335" cy="39" r="15" stroke="#a4bcb0" fill="none"/><circle cx="335" cy="39" r="21" stroke="#cfdbd0" fill="none"/><text x="365" y="44" font-size="14">倾听</text><text x="310" y="80" class="small muted">细环呼吸，确实采集才出现</text>
+    <circle cx="633" cy="35" r="4" fill="#87988c"/><circle cx="645" cy="43" r="3" fill="#bcc4ae"/><text x="672" y="44" font-size="14">处理</text><text x="608" y="80" class="small muted">双墨点流动，不误报已完成</text>
+    <path d="M925 35v9M932 29v21M939 33v13M946 23v29M953 35v9" stroke="#89a28f" stroke-width="3" stroke-linecap="round"/><text x="971" y="44" font-size="14">说话</text><text x="904" y="80" class="small muted">随实际播放轻脉冲，可停止</text>
+  </g>
+  <text x="50" y="1523" class="caption">此图是静态体验提案：没有可用语音、远端任务或实时动画。角色为原型占位，不代表最终造型。</text>
+  <text x="50" y="1548" class="small muted">待确认：三入口结构与视觉方向 / 语音启动和停止 / 聊天是否跨端连续。跨设备只做代理和文件，不做远程桌面。</text>
+</svg>
