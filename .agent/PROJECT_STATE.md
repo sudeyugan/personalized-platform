@@ -18,14 +18,15 @@
 
 ## 正在实施：多端首版（DEC106）
 
-用户已批准常开 Windows 私人同步中枢、多 Windows/Android 离线同步与手机悬浮小鱼。范围/验收见 [DEC106计划](DEC106_PLAN.md)。已在原整库本机修订之外建立独立记录级协议，不共享活跃SQLite文件。Android SDK/ADB尚未找到；不擅自部署服务、开防火墙/公网或下载大型SDK/接受许可。当前是分支预览而非正式新里程碑。
+用户已批准常开 Windows 私人同步中枢、多 Windows/Android 离线同步与手机悬浮小鱼。范围/验收见 [DEC106计划](DEC106_PLAN.md)。已在原整库本机修订之外建立独立记录级协议，不共享活跃SQLite文件。2026-10-19另获用户明确许可：先备份修复Git、下载Android工具链并处理本次标准SDK许可、推送origin/feature/multi-device；不合并main，不部署公网/防火墙/常驻服务。当前是分支预览而非正式新里程碑。
 
-用户随后要求先隔离大改动：从`c153648`新建`feature/multi-device`并批准在此继续；main没有新增提交。已实现共享记录同步/密文中枢、Windows设置与保存后接入、Android轻量React页与Java悬浮层/本机模型Key保护代码。未完成Android原生编译，不称首版全部交付。新分支推送与合并main仍需用户确认。残余边界见[R064](RISKS.md)与[预览说明](../docs/多端同步预览使用说明.md)。
+用户随后要求先隔离大改动：从`c153648`新建`feature/multi-device`并批准在此继续；main没有新增提交。已实现共享记录同步/密文中枢、Windows设置与保存后接入、Android轻量React页与Java悬浮层/本机模型Key保护代码。未完成Android原生编译，不称首版全部交付。功能分支推送已批准，合并main未授权。残余边界见[R064](RISKS.md)与[预览说明](../docs/多端同步预览使用说明.md)。
 
 - 证据：21项前端定向（含仓储）、4项中枢临时HTTP/持久化/重试恢复；一次Windows verify:full整体退出0，241文件1388前端、174 Rust通过/14忽略、类型/lint/Web通过。保留3条旧lint提示、3个既有Rust BOOL及分包警告。
 - 隔离真实Edge：两个独立context＋临时密文中枢、桌面→手机视口→桌面、邀请/重载、浅深截图通过。开发HMR夹具观察到LNA阻断和模块等待，临时origin许可未单独消除全部等待；未改日常浏览器，改用实际生产Web构建后打通，未扩大超时/放宽断言。真正发现并修复手机异步勾选反馈与写入/拉取保护，末尾手机Web和最终设置样式候选同流程复核通过，不重跑桌面full。
 - 最终Windows候选Release63s/NSIS成功，经运行状态双检`YIYU_DELIVERY_UPDATED`更新桌面；EXE与镜像/项目/桌面hash核对一致。Android APK没有产出；未安装SDK或调用真实手机模型。
-- 交接：代码保留本地功能分支，未推送、未合并main；以Git HEAD核对本地提交。下一步需用户确认新远端分支推送，以及Android工具链下载/许可流程，再做原生编译、实际跨设备HTTPS连接及集中真机验收。不自动部署服务。
+- Git修复：先在`/tmp/yiyu-git-repair.FopGGh`备份完整Git/源工作区/index，再在副本重建；28个有效tree的原哈希得到恢复，2个无引用空对象及唯一空工具检查点ref保留隔离。当前仓库fsck整体退出0，`5e67088`/根树`7a43e087`可完整读取，未改分支/index/历史。原始备份及项目`.inputs/git-object-quarantine-2026-10-19`可恢复，故障原因仍未知（R065）。
+- 当前：准备提交修复记录并正常推送已批准功能分支；远端检查main仍为c153648、目标分支原先不存在。Google SDK命令行工具、Gradle8.11.1、Temurin17已下载并通过各自官方SHA-256，尚待安装SDK组件与原生编译。实际跨设备HTTPS/真机验收仍未完成，不自动部署服务或合并main。
 
 ## 最近已合并功能：想法工坊连续水墨长卷
 
