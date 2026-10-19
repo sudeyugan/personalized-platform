@@ -1,4 +1,5 @@
 mod commands;
+mod device_sync;
 mod heart_rate;
 mod music_companion;
 mod lyrics_lookup;
@@ -122,6 +123,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            device_sync::device_sync_request,
             managed_browser::managed_browser_configure,
             managed_browser::managed_browser_status,
             managed_browser::managed_browser_cancel,

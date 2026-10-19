@@ -10,3 +10,10 @@ dist/
 target/
 apps/desktop/src-tauri/gen/
 apps/desktop/src-tauri/browser-runtime/
+.yiyu-hub/
+hub.sqlite*
+apps/mobile/android/.gradle/
+apps/mobile/android/local.properties
+apps/mobile/android/**/build/
+*.jks
+*.keystore

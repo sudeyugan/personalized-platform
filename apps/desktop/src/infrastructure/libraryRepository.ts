@@ -38,6 +38,13 @@ export interface LibraryRepository {
 export class AppLibraryRepository implements LibraryRepository {
   private revision = 0
   private saveQueue: Promise<void> = Promise.resolve()
+  private listeners = new Set<(data: LibraryData) => void>()
+  committedData: LibraryData | null = null
+
+  onCommitted(listener: (data: LibraryData) => void) {
+    this.listeners.add(listener)
+    return () => { this.listeners.delete(listener) }
+  }
 
   async load(): Promise<LibraryData | null> {
     if (isTauriRuntime()) {
@@ -61,16 +68,20 @@ export class AppLibraryRepository implements LibraryRepository {
     }
   }
 
-  save(data: LibraryData): Promise<void> {
+  save(data: LibraryData, source: 'local' | 'sync' = 'local'): Promise<void> {
     const commit = async () => {
       const persistentData = await vaultRepository.sealForPersistence(data)
       if (isTauriRuntime()) {
         const receipt = await invoke<SaveReceipt>('save_library', { data: persistentData, expectedRevision: this.revision })
         this.revision = receipt.committedRevision
-        return
+      } else {
+        this.revision += 1
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ data: persistentData, revision: this.revision }))
       }
-      this.revision += 1
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ data: persistentData, revision: this.revision }))
+      this.committedData = persistentData
+      if (source === 'local') for (const listener of this.listeners) {
+        try { listener(persistentData) } catch { /* Sync failure must not invalidate a committed library save. */ }
+      }
     }
     this.saveQueue = this.saveQueue.then(commit, commit)
     return this.saveQueue

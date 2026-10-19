@@ -1,0 +1,19 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.yiyu.mobile'
+    compileSdk 35
+    buildFeatures { buildConfig true }
+    defaultConfig { applicationId 'com.yiyu.mobile'; minSdk 26; targetSdk 35; versionCode 1; versionName '0.1.0-preview' }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    sourceSets.main.assets.srcDir layout.buildDirectory.dir('generated/yiyuAssets')
+}
+dependencies { implementation 'androidx.webkit:webkit:1.12.1' }
+tasks.register('prepareYiyuAssets', Copy) {
+    doFirst {
+        if (!file('../../dist/index.html').exists()) throw new GradleException('请先在仓库根运行 pnpm mobile:build')
+    }
+    from('../../dist') { into 'web' }
+    from('../../../desktop/src/modules/companion/pixel-pet/art/assets/pixel-free-v1.png') { rename { 'pet.png' } }
+    into layout.buildDirectory.dir('generated/yiyuAssets')
+}
+tasks.named('preBuild').configure { dependsOn 'prepareYiyuAssets' }

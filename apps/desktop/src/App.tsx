@@ -5,6 +5,7 @@ import { WindowTitleBar } from './app/WindowTitleBar'
 import { useLibraryStore } from './state/useLibraryStore'
 import { startupRepository, type StorageStatus } from './infrastructure/startupRepository'
 import { OnboardingWizard, type OnboardingResult } from './modules/onboarding/OnboardingWizard'
+import { useDeviceSyncRuntime } from './modules/device-sync/DeviceSyncRuntime'
 import './styles/tokens.css'
 import './styles/layout.css'
 import './styles/components.css'
@@ -63,6 +64,8 @@ function MainApp() {
   }, [lockAllWorks, refreshVaultLocks])
 
   const completeOnboarding = async (result: OnboardingResult) => { const configured = await startupRepository.configure(result.libraryDirectory); await hydrate(); setTheme(result.theme); setBackupSettings({ directory: result.backupDirectory }); setStorage({ ...configured, libraryExists: true }) }
+
+  useDeviceSyncRuntime(ready)
 
   return <div className="app-window"><WindowTitleBar /><ErrorBoundary><div className="app-background">{startupError ? <main className="launch-screen"><div className="brand-mark">隅</div><p>{startupError}</p></main> : storage && !storage.libraryExists ? <OnboardingWizard defaultDirectory={storage.directory} onComplete={completeOnboarding} /> : ready ? <><Suspense fallback={null}><CompanionDesktopBridge /><AgentTaskRuntime /><HeartRateRuntime /><ListeningRuntime /></Suspense><AppShell /></> : <main className="launch-screen"><div className="brand-mark">隅</div><p>正在拾起你的这一隅天地…</p></main>}</div></ErrorBoundary></div>
 }

@@ -34,4 +34,24 @@ describe('AppLibraryRepository browser fallback', () => {
     const repository = new AppLibraryRepository()
     expect(await repository.load()).toEqual(data)
   })
+  it('notifies sync only after a local commit and never echoes a remote commit', async () => {
+    const repository = new AppLibraryRepository(), data = createSeedLibrary(), observed: string[] = []
+    const unsubscribe = repository.onCommitted(saved => {
+      observed.push(saved.works[0].title)
+      expect(JSON.parse(localStorage.getItem('yiyu.library.preview.v1') ?? '{}').data.works[0].title).toBe(saved.works[0].title)
+    })
+    await repository.save(data)
+    await repository.save(data, 'sync')
+    expect(observed).toEqual([data.works[0].title])
+    expect(repository.committedData).toEqual(data)
+    unsubscribe()
+    await repository.save(data)
+    expect(observed).toHaveLength(1)
+  })
+  it('does not turn a sync listener error into an ordinary save failure', async () => {
+    const repository = new AppLibraryRepository()
+    repository.onCommitted(() => { throw new Error('sync unavailable') })
+    await expect(repository.save(createSeedLibrary())).resolves.toBeUndefined()
+    expect(await repository.load()).not.toBeNull()
+  })
 })

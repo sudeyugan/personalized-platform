@@ -10,6 +10,7 @@ import { AppearanceSettings } from './AppearanceSettings'
 import { ModuleSettings } from './ModuleSettings'
 import { RetainedResources } from './RetainedResources'
 import { DesktopCompanionSettings } from './DesktopCompanionSettings'
+import { DeviceSyncSettings } from '../device-sync/DeviceSyncSettings'
 
 type SettingsTab = 'appearance' | 'desktop' | 'intelligence' | 'modules' | 'data' | 'privacy'
 const settingsTabs: { id: SettingsTab; title: string; description: string; icon: ReactNode }[] = [
@@ -61,7 +62,7 @@ export function SettingsView() {
           {activeTab === 'desktop' && <DesktopCompanionSettings />}
           {activeTab === 'modules' && <ModuleSettings />}
       {activeTab === 'intelligence' && <IntelligenceSettingsHub />}
-      {activeTab === 'data' && <><RetainedResources /><BackupSettingsSection /><TransferSettingsSection /></>}
+      {activeTab === 'data' && <><DeviceSyncSettings /><RetainedResources /><BackupSettingsSection /><TransferSettingsSection /></>}
       {activeTab === 'privacy' && <><TrustSettingsSection /><EncryptionSettingsSection /><section className="settings-section"><div className="settings-title"><Database /><div><h2>本地数据保护</h2><p>资料库、备份与作品加密继续保持彼此独立的恢复边界。</p></div></div><div className="safety-grid"><div><Database /><strong>SQLite 本地资料库</strong><span>事务写入与修订冲突保护</span></div><div><LockKeyhole /><strong>作品级加密</strong><span>Argon2id + XChaCha20-Poly1305，加密后不保留正文索引</span></div><div><Database /><strong>开放备份</strong><span>完整备份不包含 API Key；加密作品仍保持密文</span></div></div></section></>}
           </div>
         </section>

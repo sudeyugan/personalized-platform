@@ -5,6 +5,10 @@
   "packageManager": "pnpm@11.20.0",
   "scripts": {
     "dev": "pnpm --filter @yiyu/desktop dev",
+    "mobile:dev": "pnpm --filter @yiyu/mobile dev",
+    "mobile:build": "pnpm --filter @yiyu/mobile build",
+    "hub:start": "pnpm --filter @yiyu/sync-hub start",
+    "hub:test": "pnpm --filter @yiyu/sync-hub test",
     "tauri:dev": "pnpm --filter @yiyu/desktop tauri:dev",
     "test": "pnpm --filter @yiyu/desktop test",
     "verify:quick": "node scripts/project-gates.mjs quick",

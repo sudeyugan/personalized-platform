@@ -30,3 +30,5 @@ jobs:
       - run: pnpm test
       - run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
       - run: pnpm build
+      - run: pnpm hub:test
+      - run: pnpm mobile:build

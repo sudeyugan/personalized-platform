@@ -16,6 +16,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@yiyu/sync": "workspace:*",
     "@elevenlabs/client": "^1.25.0",
     "@mediapipe/tasks-vision": "1.1.0",
     "@tauri-apps/api": "^2.11.1",

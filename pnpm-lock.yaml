@@ -49,6 +49,9 @@ importers:
       '@tiptap/starter-kit':
         specifier: 3.29.2
         version: 3.29.2
+      '@yiyu/sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
       docx:
         specifier: ^9.7.1
         version: 9.7.1
@@ -113,6 +116,38 @@ importers:
       vitest:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@24.13.3)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.13.3))
+
+  apps/mobile:
+    dependencies:
+      '@yiyu/sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.17
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.4(@types/react@19.2.18)
+      '@vitejs/plugin-react':
+        specifier: ^6.0.4
+        version: 6.0.5(vite@8.2.1(@types/node@25.9.5))
+      typescript:
+        specifier: ~6.0.2
+        version: 6.0.3
+      vite:
+        specifier: ^8.2.0
+        version: 8.2.1(@types/node@25.9.5)
+
+  apps/sync-hub: {}
+
+  packages/sync: {}
 
 packages:
 
@@ -2022,6 +2057,11 @@ snapshots:
       '@rolldown/pluginutils': 1.0.1
       vite: 8.2.1(@types/node@24.13.3)
 
+  '@vitejs/plugin-react@6.0.5(vite@8.2.1(@types/node@25.9.5))':
+    dependencies:
+      '@rolldown/pluginutils': 1.0.1
+      vite: 8.2.1(@types/node@25.9.5)
+
   '@vitest/expect@4.1.10':
     dependencies:
       '@standard-schema/spec': 1.1.0
@@ -2619,6 +2659,17 @@ snapshots:
       tinyglobby: 0.2.17
     optionalDependencies:
       '@types/node': 24.13.3
+      fsevents: 2.3.3
+
+  vite@8.2.1(@types/node@25.9.5):
+    dependencies:
+      lightningcss: 1.33.0
+      picomatch: 4.0.5
+      postcss: 8.5.26
+      rolldown: 1.2.3
+      tinyglobby: 0.2.17
+    optionalDependencies:
+      '@types/node': 25.9.5
       fsevents: 2.3.3
 
   vitest@4.1.10(@types/node@24.13.3)(jsdom@30.0.1)(vite@8.2.1(@types/node@24.13.3)):
