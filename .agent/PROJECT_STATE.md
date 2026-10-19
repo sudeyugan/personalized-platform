@@ -28,7 +28,7 @@
 - Git修复：先在`/tmp/yiyu-git-repair.FopGGh`备份完整Git/源工作区/index，再在副本重建；28个有效tree的原哈希得到恢复，2个无引用空对象及唯一空工具检查点ref保留隔离。当前仓库fsck整体退出0，`5e67088`/根树`7a43e087`可完整读取，未改分支/index/历史。原始备份及项目`.inputs/git-object-quarantine-2026-10-19`可恢复，故障原因仍未知（R065）。
 - Android：工具链官方归档与wrapper JAR SHA-256核对通过；明确获许可后仅接受标准android-sdk-license，SDK35/BuildTools35安装完成。手机Web构建、原生assembleDebug/lintDebug（首轮103s、修补后8s）和固定校验wrapper重复构建通过；APK v2签名、最小26/目标35、权限/内嵌Web与备份排除清单复核通过。lint0错误9提示、SDK元数据/旧API提示未屏蔽；Keystore/悬浮/键盘/锁屏/耗电仍需真机。
 - 原生补正：Android35系统边距、密钥清除失败不误报、聊天异常/销毁释放忙状态、重用绘制Rect与原项目图标；显式排除云备份/换机克隆身份。APK为本机调试签名，不是商店发布包；私钥/SDK/缓存/安装包均未入Git。
-- 分支：实现5e67088及修复记录3e1fdd2已正常推送origin/feature/multi-device，ls-remote与本地一致；远端main仍为c153648。本次安卓补正与文档待末尾正常提交推送，不强推或合并main。
+- 分支：实现5e67088、修复记录3e1fdd2和安卓收口ba7e186已正常推送origin/feature/multi-device，ls-remote与本地一致，末尾fsck退出0；远端main仍为c153648。17份末尾文件秘密/产物扫描无命中，仅允许经官方SHA核验的wrapper JAR；当前记录随功能分支同步，不强推或合并main。
 - 下一步：集中在用户手机/另一Windows验收实际受信任HTTPS配对、离线往返与原生伙伴。尚未选定/部署常开中枢网络路径，不自行开公网、防火墙或系统服务；需要用户确认连接方案与实际设备操作。当前偏差为设备/网络验收缺口，不是协议范围变化；R064持续开放，正式M12状态不变。
 
 ## 最近已合并功能：想法工坊连续水墨长卷
