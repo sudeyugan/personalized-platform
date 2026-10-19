@@ -1,17 +1,29 @@
 package com.yiyu.mobile;
 
+import android.animation.ValueAnimator;
+import android.app.AlertDialog;
+import android.app.KeyguardManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.pm.ServiceInfo;
+import android.content.res.Configuration;
 import android.graphics.PixelFormat;
+import android.graphics.Rect;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.provider.Settings;
 import android.view.Gravity;
+import android.view.View;
+import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.widget.Toast;
 
@@ -20,6 +32,19 @@ public class PetService extends Service {
     private PetView pet;
     private PetChatPanel chat;
     private WindowManager.LayoutParams position;
+    private PetGeometry.Area area;
+    private SharedPreferences preferences;
+    private String pose = "right-edge";
+    private boolean resting, shown = true, dragging, observing;
+    private int dragX, dragY;
+    private ValueAnimator docking;
+    private AlertDialog menu;
+    private final SharedPreferences.OnSharedPreferenceChangeListener changed = (prefs, key) -> {
+        if (pet != null && ("style".equals(key) || "scale".equals(key) || "motion".equals(key))) { closeChat(); layout(); }
+    };
+    private final BroadcastReceiver screen = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) { refreshVisibility(); }
+    };
     int dp(float value) { return Math.round(value * getResources().getDisplayMetrics().density); }
     @Override public int onStartCommand(Intent intent, int flags, int id) {
         if (intent != null && "stop".equals(intent.getAction())) { stopSelf(); return START_NOT_STICKY; }
@@ -29,45 +54,102 @@ public class PetService extends Service {
         manager.createNotificationChannel(new NotificationChannel("yiyu-pet", "桌面伙伴", NotificationManager.IMPORTANCE_LOW));
         PendingIntent stop = PendingIntent.getService(this, 1, new Intent(this, PetService.class).setAction("stop"), PendingIntent.FLAG_IMMUTABLE);
         PendingIntent open = PendingIntent.getActivity(this, 2, new Intent(this, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
-        Notification notification = new Notification.Builder(this, "yiyu-pet").setContentTitle("小鱼陪着你").setContentText("点击打开一隅，或随时收起桌面伙伴")
+        Notification notification = new Notification.Builder(this, "yiyu-pet").setContentTitle("小鱼陪着你").setContentText("轻点聊天，拖动贴边，长按调整；锁屏时休息")
             .setSmallIcon(android.R.drawable.ic_menu_info_details).setContentIntent(open).addAction(new Notification.Action.Builder(null, "收起小鱼", stop).build()).setOngoing(true).build();
         if (Build.VERSION.SDK_INT >= 34) startForeground(18, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
         else startForeground(18, notification);
-        windows = getSystemService(WindowManager.class);
-        position = new WindowManager.LayoutParams(dp(94), dp(142), WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL, PixelFormat.TRANSLUCENT);
+        windows = getSystemService(WindowManager.class); preferences = PetPreferences.get(this);
+        pose = preferences.getString("pose", "right-edge"); resting = preferences.getBoolean("resting", false);
+        position = new WindowManager.LayoutParams(dp(108), dp(135), WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN, PixelFormat.TRANSLUCENT);
         position.gravity = Gravity.TOP | Gravity.LEFT;
-        position.x = Math.max(0, getResources().getDisplayMetrics().widthPixels - dp(96));
-        position.y = dp(220);
-        pet = new PetView(this, this::toggleChat, this::stopSelf, (x, y, dock) -> {
-            int width = getResources().getDisplayMetrics().widthPixels, height = getResources().getDisplayMetrics().heightPixels;
-            position.x = Math.max(0, Math.min(width - position.width, x));
-            position.y = Math.max(dp(30), Math.min(height - position.height - dp(30), y));
-            if (dock) position.x = position.x + position.width / 2 < width / 2 ? 0 : width - position.width;
-            try { windows.updateViewLayout(pet, position); } catch (IllegalArgumentException ignored) { }
-        });
+        pet = new PetView(this, this::toggleChat, this::openMenu, this::drag);
+        layout();
         try { windows.addView(pet, position); }
-        catch (RuntimeException error) { Toast.makeText(this, "无法显示小鱼，请检查悬浮权限", Toast.LENGTH_LONG).show(); stopSelf(); }
-        return START_NOT_STICKY; // No boot/autorestart or secret background resurrection.
+        catch (RuntimeException error) { Toast.makeText(this, "无法显示小鱼，请检查悬浮权限", Toast.LENGTH_LONG).show(); stopSelf(); return START_NOT_STICKY; }
+        preferences.registerOnSharedPreferenceChangeListener(changed);
+        IntentFilter filter = new IntentFilter(); filter.addAction(Intent.ACTION_SCREEN_OFF); filter.addAction(Intent.ACTION_SCREEN_ON); filter.addAction(Intent.ACTION_USER_PRESENT);
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(screen, filter, Context.RECEIVER_NOT_EXPORTED); else registerReceiver(screen, filter);
+        observing = true; refreshVisibility();
+        return START_NOT_STICKY;
+    }
+    private PetGeometry.Area safeArea() {
+        if (Build.VERSION.SDK_INT >= 30) {
+            android.view.WindowMetrics metrics = windows.getCurrentWindowMetrics(); Rect bounds = metrics.getBounds();
+            android.graphics.Insets insets = metrics.getWindowInsets().getInsetsIgnoringVisibility(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+            return new PetGeometry.Area(insets.left, insets.top, bounds.width() - insets.right, bounds.height() - insets.bottom);
+        }
+        android.util.DisplayMetrics metrics = new android.util.DisplayMetrics(); windows.getDefaultDisplay().getRealMetrics(metrics);
+        WindowInsets legacy = pet == null ? null : pet.getRootWindowInsets();
+        if (legacy != null) return new PetGeometry.Area(legacy.getStableInsetLeft(), legacy.getStableInsetTop(), metrics.widthPixels - legacy.getStableInsetRight(), metrics.heightPixels - legacy.getStableInsetBottom());
+        return new PetGeometry.Area(dp(8), dp(28), metrics.widthPixels - dp(8), metrics.heightPixels - dp(48));
+    }
+    private void layout() {
+        if (docking != null) docking.cancel();
+        area = safeArea();
+        int width = Math.max(1, Math.min(dp(108 * preferences.getFloat("scale", 1)), Math.min(area.width(), Math.round(area.height() * .32f * .8f))));
+        position.width = width; position.height = Math.max(1, Math.min(area.height(), Math.round(width * 1.25f)));
+        PetGeometry.Placement restored = PetGeometry.restore(area, position.width, position.height, preferences.getFloat("nx", 1), preferences.getFloat("ny", .4f), pose);
+        position.x = restored.x; position.y = restored.y; dragging = false; updateWindow(); render();
+    }
+    private void render() { if (pet != null) pet.render(preferences.getString("style", "pixel"), pose, preferences.getBoolean("motion", true), resting, shown); }
+    private void updateWindow() { if (pet != null && pet.isAttachedToWindow()) { try { windows.updateViewLayout(pet, position); } catch (IllegalArgumentException ignored) { } } }
+    private void persistPosition() { PetPreferences.position(this, area, position.width, position.height, position.x, position.y, pose); }
+    private void drag(int dx, int dy, boolean finish) {
+        if (!dragging) { if (docking != null) docking.cancel(); dragX = position.x; dragY = position.y; dragging = true; closeChat(); }
+        PetGeometry.Placement next = PetGeometry.place(area, position.width, position.height, dragX + dx, dragY + dy, finish, dp(30));
+        if (!finish) { position.x = next.x; position.y = next.y; updateWindow(); return; }
+        dragging = false; pose = next.pose; render();
+        final int fromX = position.x, fromY = position.y;
+        if (!preferences.getBoolean("motion", true)) { position.x = next.x; position.y = next.y; updateWindow(); persistPosition(); return; }
+        docking = ValueAnimator.ofFloat(0, 1); docking.setDuration(230); docking.setInterpolator(new android.view.animation.DecelerateInterpolator());
+        docking.addUpdateListener(animation -> { float progress = (float) animation.getAnimatedValue(); position.x = fromX + Math.round((next.x - fromX) * progress); position.y = fromY + Math.round((next.y - fromY) * progress); updateWindow(); });
+        docking.addListener(new android.animation.AnimatorListenerAdapter() { @Override public void onAnimationEnd(android.animation.Animator animation) { persistPosition(); } }); docking.start();
+    }
+    private void setPose(String next) {
+        if (docking != null) docking.cancel();
+        pose = next;
+        if ("left-edge".equals(next)) position.x = area.left;
+        if ("right-edge".equals(next)) position.x = area.right - position.width;
+        if ("bottom-edge".equals(next)) position.y = area.bottom - position.height;
+        persistPosition(); updateWindow(); render();
+    }
+    private void refreshVisibility() {
+        shown = getSystemService(PowerManager.class).isInteractive() && !getSystemService(KeyguardManager.class).isKeyguardLocked();
+        if (!shown) { closeChat(); if (menu != null) menu.dismiss(); }
+        if (pet != null) { pet.setVisibility(shown ? View.VISIBLE : View.GONE); render(); }
+    }
+    private void openMenu() {
+        if (!shown || pet == null) return;
+        String[] actions = { "和小鱼说话", "自由放置", "靠左边", "靠右边", "趴在底部", resting ? "醒一醒" : "歇一会儿", "打开一隅", "收起小鱼" };
+        menu = new AlertDialog.Builder(new android.view.ContextThemeWrapper(this, android.R.style.Theme_Material_Light_Dialog_Alert)).setTitle("小鱼 · 留在你喜欢的位置").setItems(actions, (dialog, which) -> {
+            if (which == 0) toggleChat();
+            else if (which <= 4) setPose(new String[]{"", "float", "left-edge", "right-edge", "bottom-edge"}[which]);
+            else if (which == 5) { resting = !resting; preferences.edit().putBoolean("resting", resting).apply(); render(); }
+            else if (which == 6) startActivity(new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            else stopSelf();
+        }).create();
+        if (menu.getWindow() != null) menu.getWindow().setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY);
+        try { menu.show(); } catch (RuntimeException ignored) { menu = null; }
     }
     private void toggleChat() {
+        if (!shown) return;
         if (chat != null) { closeChat(); return; }
         chat = new PetChatPanel(this, this::closeChat);
-        WindowManager.LayoutParams panel = new WindowManager.LayoutParams(Math.min(dp(320), getResources().getDisplayMetrics().widthPixels - dp(24)), dp(360), WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL, PixelFormat.TRANSLUCENT);
-        panel.gravity = Gravity.CENTER;
+        int width = Math.min(dp(360), Math.max(1, area.width() - dp(24))), height = Math.min(dp(420), Math.max(1, area.height() - dp(32)));
+        WindowManager.LayoutParams panel = new WindowManager.LayoutParams(width, height, WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL, PixelFormat.TRANSLUCENT);
+        panel.gravity = Gravity.TOP | Gravity.LEFT; panel.x = area.left + (area.width() - width) / 2; panel.y = PetGeometry.clamp(position.y - height, area.top + dp(12), area.bottom - height);
         panel.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE;
         try { windows.addView(chat, panel); } catch (RuntimeException error) { chat.dispose(); chat = null; }
     }
-    private void closeChat() {
-        if (chat == null) return;
-        chat.dispose();
-        try { windows.removeView(chat); } catch (IllegalArgumentException ignored) { }
-        chat = null;
-    }
+    private void closeChat() { if (chat != null) { chat.dispose(); try { windows.removeView(chat); } catch (IllegalArgumentException ignored) { } chat = null; } }
+    @Override public void onConfigurationChanged(Configuration config) { super.onConfigurationChanged(config); closeChat(); if (menu != null) menu.dismiss(); if (pet != null) layout(); }
     @Override public void onDestroy() {
-        closeChat();
+        if (observing) unregisterReceiver(screen);
+        if (preferences != null) preferences.unregisterOnSharedPreferenceChangeListener(changed);
+        if (docking != null) docking.cancel(); if (menu != null) menu.dismiss(); closeChat();
         if (pet != null) { pet.dispose(); try { windows.removeView(pet); } catch (IllegalArgumentException ignored) { } pet = null; }
-        stopForeground(STOP_FOREGROUND_REMOVE);
-        super.onDestroy();
+        stopForeground(STOP_FOREGROUND_REMOVE); super.onDestroy();
     }
     @Override public IBinder onBind(Intent intent) { return null; }
 }

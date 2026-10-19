@@ -120,6 +120,18 @@ describe('durable clients', () => {
 })
 
 describe('library boundary', () => {
+  it('clears omitted syncable optional fields without dropping device-local metadata', () => {
+    const data = createSeedLibrary()
+    data.planner.todos = [{ id: 'task', title: '待办', note: '', dueDate: '2026-10-19', priority: 'medium', completed: false, createdAt: '2026-10-19' }]
+    const chapter = Object.values(data.chapters)[0]
+    chapter.impressionAssetId = 'asset-local'
+    const records = projectLibrary(data)
+    delete records['todos/task'].dueDate
+    const merged = mergeLibrary(data, records)
+    expect(merged.planner.todos[0].dueDate).toBeUndefined()
+    expect(merged.chapters[chapter.id].impressionAssetId).toBe('asset-local')
+    expect(merged.chapters[chapter.id].versions).toEqual(chapter.versions)
+  })
   it('excludes all device settings, conversations, browser permissions and encrypted works', () => {
     const data = createSeedLibrary()
     data.companion.messages = [{ id: 'secret', role: 'user', content: 'private-chat' }] as never

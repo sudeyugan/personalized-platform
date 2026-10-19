@@ -1,4 +1,4 @@
-import { put, validateRecords, type Collection, type Records } from '@yiyu/sync'
+import { put, record, validateRecords, type Collection, type Records } from '@yiyu/sync'
 import type { LibraryData } from '../../domain/models'
 import { normalizeLibrary } from '../../domain/seed'
 import { sessionAfterRemovingChapter } from '../../state/chapterNavigation'
@@ -40,7 +40,14 @@ export function mergeLibrary(data: LibraryData, records: Records): LibraryData {
     }))
     const incoming = Object.entries(records).filter(([key]) => key.startsWith(`${collection}/`)).map(([, value]) => value)
     const kept = [...existing.values()].filter(value => !eligible(value, blocked))
-    return [...kept, ...incoming.filter(value => eligible(value, blocked)).map(value => ({ ...existing.get(String(collection === 'diary' ? value.date : value.id)), ...value }))]
+    return [...kept, ...incoming.filter(value => eligible(value, blocked)).map(value => {
+      const previous = existing.get(String(collection === 'diary' ? value.date : value.id)) ?? {}
+      // Incoming records replace their syncable projection, including omitted
+      // optional fields. Only device-local fields (assets, versions, etc.) survive.
+      const syncable = record(collection, previous)
+      const local = Object.fromEntries(Object.entries(previous).filter(([field]) => !Object.hasOwn(syncable, field)))
+      return { ...local, ...value }
+    })]
   }
   const result = structuredClone(data)
   const writable = result as unknown as Record<string, unknown>

@@ -119,9 +119,33 @@ importers:
 
   apps/mobile:
     dependencies:
+      '@tiptap/core':
+        specifier: 3.29.2
+        version: 3.29.2(@tiptap/pm@3.29.2)
+      '@tiptap/extension-highlight':
+        specifier: 3.29.2
+        version: 3.29.2(@tiptap/core@3.29.2(@tiptap/pm@3.29.2))
+      '@tiptap/extension-task-item':
+        specifier: 3.29.2
+        version: 3.29.2(@tiptap/extension-list@3.29.2(@tiptap/core@3.29.2(@tiptap/pm@3.29.2))(@tiptap/pm@3.29.2))
+      '@tiptap/extension-task-list':
+        specifier: 3.29.2
+        version: 3.29.2(@tiptap/extension-list@3.29.2(@tiptap/core@3.29.2(@tiptap/pm@3.29.2))(@tiptap/pm@3.29.2))
+      '@tiptap/extension-text-align':
+        specifier: 3.29.2
+        version: 3.29.2(@tiptap/core@3.29.2(@tiptap/pm@3.29.2))
+      '@tiptap/react':
+        specifier: 3.29.2
+        version: 3.29.2(@floating-ui/dom@1.8.0)(@tiptap/core@3.29.2(@tiptap/pm@3.29.2))(@tiptap/pm@3.29.2)(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@tiptap/starter-kit':
+        specifier: 3.29.2
+        version: 3.29.2
       '@yiyu/sync':
         specifier: workspace:*
         version: link:../../packages/sync
+      lucide-react:
+        specifier: ^1.29.0
+        version: 1.29.0(react@19.2.8)
       react:
         specifier: ^19.2.8
         version: 19.2.8

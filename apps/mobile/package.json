@@ -1,6 +1,11 @@
 {
-  "name": "@yiyu/mobile", "version": "0.1.0", "private": true, "type": "module",
+  "name": "@yiyu/mobile", "version": "0.2.0", "private": true, "type": "module",
   "scripts": { "dev": "vite --port 1421", "build": "tsc --noEmit && vite build" },
-  "dependencies": { "@yiyu/sync": "workspace:*", "react": "^19.2.8", "react-dom": "^19.2.8" },
+  "dependencies": {
+    "@yiyu/sync": "workspace:*",
+    "@tiptap/core": "3.29.2", "@tiptap/react": "3.29.2", "@tiptap/starter-kit": "3.29.2",
+    "@tiptap/extension-highlight": "3.29.2", "@tiptap/extension-task-item": "3.29.2", "@tiptap/extension-task-list": "3.29.2", "@tiptap/extension-text-align": "3.29.2",
+    "lucide-react": "^1.29.0", "react": "^19.2.8", "react-dom": "^19.2.8"
+  },
   "devDependencies": { "@types/react": "^19.2.17", "@types/react-dom": "^19.2.3", "@vitejs/plugin-react": "^6.0.4", "typescript": "~6.0.2", "vite": "^8.2.0" }
 }

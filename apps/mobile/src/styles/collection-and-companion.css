@@ -1,0 +1,156 @@
+.pet-settings-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.pet-settings-heading img {
+  width: 84px;
+  height: 115px;
+  object-fit: contain;
+}
+.connection > .paper-card {
+  margin-bottom: 22px;
+}
+.rank-board {
+  display: grid;
+  gap: 10px;
+  margin-top: 24px;
+}
+.rank-lane {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  min-height: 90px;
+  overflow: hidden;
+}
+.rank-lane > h3 {
+  font-size: 12px;
+  writing-mode: vertical-rl;
+  text-align: center;
+  margin: 0;
+  padding: 12px 17px;
+  color: var(--accent);
+  background: var(--wash);
+}
+.rank-lane > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: start;
+  padding: 10px;
+}
+.rank-item {
+  max-width: 100%;
+}
+.rank-handle {
+  display: block;
+  background: var(--surface);
+  touch-action: none;
+  user-select: none;
+  font-size: 13px;
+  max-width: 100%;
+}
+.rank-handle.dragging {
+  box-shadow: 0 8px 24px #0002;
+  transform: scale(1.04);
+}
+.rank-item select {
+  font-size: 10px;
+  margin-top: 5px;
+  padding: 5px;
+  border: 0;
+  background: transparent;
+}
+.mobile-ritual .fortune-view {
+  min-height: 0;
+  padding: 20px 0;
+  background: transparent;
+  overflow: visible;
+}
+.mobile-ritual .fortune-paper {
+  width: 100%;
+}
+.mobile-cylinder {
+  height: 260px;
+  display: grid;
+  place-items: center;
+}
+.mobile-ritual .fortune-cylinder {
+  transform: scale(0.65);
+  transform-origin: center;
+}
+.answer-paper,
+.truth-paper {
+  min-height: 370px;
+  margin-top: 28px;
+  text-align: center;
+  padding-top: 32px;
+}
+.answer-paper blockquote,
+.truth-paper blockquote {
+  margin: 32px 8px;
+  font-size: 24px;
+  line-height: 1.9;
+}
+.phone-chat .chat-thread {
+  min-height: 25dvh;
+}
+.chat-message {
+  max-width: 94%;
+  padding: 16px 20px;
+  margin: 16px 0;
+  background: var(--surface);
+  border-radius: 22px 22px 22px 5px;
+  font:
+    15px/1.9 system-ui,
+    sans-serif;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.chat-message.user {
+  margin-left: auto;
+  background: var(--accent);
+  color: var(--paper);
+  border-radius: 22px 22px 5px 22px;
+}
+.chat-compose {
+  position: sticky;
+  bottom: 76px;
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.chat-compose textarea {
+  min-height: 90px;
+}
+.phone-chat .toolbar {
+  justify-content: space-between;
+}
+.mini-chat {
+  padding: 0 4px 12px;
+  min-height: 0;
+}
+.mini-chat .phone-chat h1 {
+  display: none;
+}
+.mini-chat .phone-chat > .eyebrow {
+  display: none;
+}
+.mini-chat .chat-thread {
+  min-height: 90px;
+}
+.mini-chat .chat-compose {
+  bottom: 0;
+}
+.mini-chat .chat-message {
+  font-size: 14px;
+  padding: 12px;
+}
+.mini-chat .phone-chat > .toolbar {
+  align-items: center;
+}
+.mini-chat .check-label {
+  font-size: 12px;
+  margin: 8px 0;
+}

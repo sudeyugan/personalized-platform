@@ -1,0 +1,86 @@
+.mood-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 7px 3px;
+}
+.mood-grid button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  gap: 5px;
+  padding: 7px 0;
+  font-size: 11px;
+}
+.mood-grid button i {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--mood-color);
+  box-shadow: 0 0 15px color-mix(in srgb, var(--mood-color) 20%, transparent);
+}
+.mood-grid small {
+  font-size: 8px;
+  letter-spacing: 0;
+}
+.mood-entry {
+  padding: 16px 12px;
+}
+.mood-entry .section-heading {
+  margin: 0 0 16px;
+  padding-inline: 6px;
+}
+.mood-entry .section-heading span {
+  font-size: 13px;
+  color: var(--muted);
+}
+.mood-page .mood-viz-chart {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.mood-page .mood-bubble-matrix {
+  min-width: 0;
+}
+.mood-ribbons {
+  display: grid;
+  gap: 6px;
+}
+.mood-ribbons button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px;
+  border: 0;
+  min-height: 38px;
+}
+.mood-ribbons time {
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.mood-blend-bar {
+  display: block;
+  width: 100%;
+  height: 10px;
+  border-radius: 12px;
+  background: var(--mood-gradient, var(--line));
+}
+.mood-ribbons .mood-blend-bar,
+.missing-mood {
+  flex: 1;
+  height: 9px;
+  min-width: 0;
+}
+.missing-mood {
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+}
+.mood-detail {
+  padding: 12px 0;
+}
+.mood-detail > span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.mood-detail p {
+  font-size: 13px;
+}

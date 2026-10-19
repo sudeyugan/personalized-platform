@@ -47,6 +47,10 @@ public class MainActivity extends Activity {
             }
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 // The privileged native bridge must never be exposed to a remote page.
+                if (request.isForMainFrame() && request.hasGesture() && "https".equals(request.getUrl().getScheme()) && !"appassets.androidplatform.net".equals(request.getUrl().getHost()) && request.getUrl().getUserInfo() == null) {
+                    try { startActivity(new Intent(Intent.ACTION_VIEW, request.getUrl())); } catch (android.content.ActivityNotFoundException ignored) { }
+                    return true;
+                }
                 return !"https".equals(request.getUrl().getScheme()) || !"appassets.androidplatform.net".equals(request.getUrl().getHost()) || !"/assets/web/index.html".equals(request.getUrl().getPath());
             }
         });
@@ -54,7 +58,13 @@ public class MainActivity extends Activity {
         web.addJavascriptInterface(bridge, "YiyuMobile");
         setContentView(web);
         web.loadUrl("https://appassets.androidplatform.net/assets/web/index.html");
+        if (Build.VERSION.SDK_INT >= 33) getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::handleBack);
     }
+    private void handleBack() {
+        if (web == null) { finish(); return; }
+        web.evaluateJavascript("!window.dispatchEvent(new Event('yiyu-back',{cancelable:true}))", handled -> { if (!"true".equals(handled)) finish(); });
+    }
+    @Override public void onBackPressed() { handleBack(); }
     void requestPet() {
         if (!Settings.canDrawOverlays(this)) {
             awaitingOverlay = true;

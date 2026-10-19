@@ -46,15 +46,18 @@ final class ChatBackend {
         return new String(cipher.doFinal(Base64.decode(prefs.getString("body", ""), Base64.NO_WRAP)), StandardCharsets.UTF_8);
     }
     static String reply(Context context, String prompt) throws Exception {
-        if (prompt.trim().isEmpty() || prompt.length() > 3000) throw new Exception("invalid prompt");
+        return reply(context, prompt, false);
+    }
+    static String reply(Context context, String prompt, boolean idea) throws Exception {
+        if (prompt.trim().isEmpty() || prompt.length() > (idea ? 20000 : 3000)) throw new Exception("invalid prompt");
         HttpsURLConnection connection = (HttpsURLConnection) new URL("https://api.deepseek.com/chat/completions").openConnection();
         connection.setConnectTimeout(15000); connection.setReadTimeout(30000); connection.setInstanceFollowRedirects(false);
         connection.setRequestMethod("POST"); connection.setDoOutput(true);
         connection.setRequestProperty("Authorization", "Bearer " + key(context));
         connection.setRequestProperty("Content-Type", "application/json");
-        JSONArray messages = new JSONArray().put(new JSONObject().put("role", "system").put("content", "你是一隅的手机伙伴小鱼。温和简洁地回应本次文字。你没有访问电脑、浏览器或手机资料的工具；不要编造已经执行的操作。"))
+        JSONArray messages = new JSONArray().put(new JSONObject().put("role", "system").put("content", idea ? "你是一隅想法工坊的思考伙伴。只处理用户本份想法，遵循给出的JSON结构；没有任何工具，不读取其他资料，不声称执行操作。" : "你是一隅的手机伙伴小鱼。温和简洁地回应本次文字。你没有访问电脑、浏览器或手机资料的工具；不要编造已经执行的操作。"))
             .put(new JSONObject().put("role", "user").put("content", prompt));
-        byte[] request = new JSONObject().put("model", "deepseek-chat").put("stream", false).put("max_tokens", 600).put("messages", messages).toString().getBytes(StandardCharsets.UTF_8);
+        byte[] request = new JSONObject().put("model", "deepseek-chat").put("stream", false).put("max_tokens", idea ? 2400 : 1000).put("messages", messages).toString().getBytes(StandardCharsets.UTF_8);
         try {
             try (java.io.OutputStream out = connection.getOutputStream()) { out.write(request); }
             if (connection.getResponseCode() != 200) throw new Exception("provider unavailable");

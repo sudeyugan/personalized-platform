@@ -1,0 +1,54 @@
+.mobile-ideas {
+  margin: -24px calc(-1 * clamp(18px, 5vw, 36px)) 0;
+  padding: 28px 18px 0;
+  min-height: 75dvh;
+  overflow: visible;
+  height: auto;
+}
+.mobile-ideas .idea-scroll-stage {
+  padding: 0 0 20px;
+}
+.mobile-ideas .idea-page-heading {
+  gap: 10px;
+}
+.mobile-ideas .idea-first-page h2 {
+  font-size: 34px;
+}
+.mobile-ideas .idea-scroll-chapter {
+  padding-inline: 0;
+}
+.mobile-ideas .idea-round-heading {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.mobile-ideas .idea-options button {
+  min-height: 54px;
+}
+.mobile-ideas .idea-mobile-compose {
+  position: relative;
+  margin-top: 30px;
+}
+.mobile-ideas .idea-atmosphere {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.mobile-ideas .notebook-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  margin-top: 8px;
+}
+.mobile-ideas .idea-page-colophon {
+  flex-wrap: wrap;
+}
+.mobile-ideas .idea-option-copy {
+  min-width: 0;
+}
+.mobile-ideas .idea-ink-run {
+  max-width: 100%;
+}
