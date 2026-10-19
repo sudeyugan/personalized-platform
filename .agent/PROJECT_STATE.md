@@ -29,8 +29,10 @@
 - Android：工具链官方归档与wrapper JAR SHA-256核对通过；明确获许可后仅接受标准android-sdk-license，SDK35/BuildTools35安装完成。手机Web构建、原生assembleDebug/lintDebug（首轮103s、修补后8s）和固定校验wrapper重复构建通过；APK v2签名、最小26/目标35、权限/内嵌Web与备份排除清单复核通过。lint0错误9提示、SDK元数据/旧API提示未屏蔽；Keystore/悬浮/键盘/锁屏/耗电仍需真机。
 - 原生补正：Android35系统边距、密钥清除失败不误报、聊天异常/销毁释放忙状态、重用绘制Rect与原项目图标；显式排除云备份/换机克隆身份。APK为本机调试签名，不是商店发布包；私钥/SDK/缓存/安装包均未入Git。
 - 分支：实现5e67088、修复记录3e1fdd2和安卓收口ba7e186已正常推送origin/feature/multi-device，ls-remote与本地一致，末尾fsck退出0；远端main仍为c153648。17份末尾文件秘密/产物扫描无命中，仅允许经官方SHA核验的wrapper JAR；当前记录随功能分支同步，不强推或合并main。
-- 下一步：集中在用户手机/另一Windows验收实际受信任HTTPS配对、离线往返与原生伙伴。尚未选定/部署常开中枢网络路径，不自行开公网、防火墙或系统服务；需要用户确认连接方案与实际设备操作。当前偏差为设备/网络验收缺口，不是协议范围变化；R064持续开放，正式M12状态不变。
+- 下一步：集中在用户手机/另一Windows验收实际受信任HTTPS配对、离线往返与原生伙伴。用户后续明确要求跨网，选择此前说明的Tailscale私人网络＋Serve HTTPS，允许安装其网络组件；不做局域网专用CA包，不开放Funnel公网、出口节点/子网路由或中枢自启动。账号/UAC/手机VPN仍由用户确认，真实跨网未通过；R064持续开放，正式M12状态不变。
 - 本机连接试用：用户确认当前不是未来常开电脑，但同意先测试。已打开可见Windows临时终端，在独立镜像`.inputs/local-hub-test`初始化空中枢；三份执行源码与仓库SHA一致，实际仅监听127.0.0.1:17839，未带凭证探测返回401。管理凭证只显示在本机终端，未记入聊天/Git；未连接现有资料库、未代用户配对或上传。终端标题`Yiyu - Temporary Local Sync Hub`，Ctrl+C可停，无自启动/服务/防火墙/公网变更；当时Node PID7368仅供追溯，不作为后续杀进程依据。数据在`D:\coding\personalized-platform-windows-build\.inputs\local-hub-test`，启动辅助在项目忽略目录`.inputs/local-hub-test.ps1`；重启前应先检查当前监听/进程，不重新初始化或删除此测试库。下一步由用户在设置填本机地址及终端管理凭证验证首次连接；localhost邀请不可用于手机，跨端HTTPS尚未配置，不能把本机监听就绪称为真实多端同步通过。
+- 跨网配置交接：官方Tailscale1.104.1安装器已下载到忽略目录，Authenticode=Valid、发布者Tailscale Inc.，SHA256=bca8ce0c845cede64b6f61f636c013c6501ce9e6c3f5c42e013d8f703d672e86。Windows安装完成，用户确认登录/Connect，工具复核BackendState=Running、设备名yiyu-hub-test、无出口节点；启动前Serve为空。仅设置非个人名称/不接受子网路由/不提供出口或SSH，没有代处理服务条款/密码。手机是否已连接尚无证据。
+- HTTPS等待首次确认：自有可见前台`Yiyu - Private HTTPS Sync Test`已启动（当时控制台PID26276仅追溯），辅助在忽略目录`.inputs/tailscale-serve-test.ps1`。启动前核对中枢确为本次源码/仅127.0.0.1:17839，已有Serve配置则拒绝覆盖，不用--bg/Funnel/reset。当前自有Serve进程在等待HTTPS启用，代理计数0、Funnel计数0；已在本人浏览器打开官方`https://console.tailscale.com/admin/dns`，需用户确认MagicDNS/HTTPS及证书公开名称。未声称HTTPS/手机配对已通过。暂不动一隅连接、队列或原密钥，后续按具体按钮/页面状态引导迁移，用户不必提供任何凭证。正式常开电脑仍未部署；本轮仅系统网络配置/说明，不改应用代码，不重复构建或full。
 
 ## 最近已合并功能：想法工坊连续水墨长卷
 
