@@ -28,7 +28,12 @@ final class SecretStore {
         save(context, alias, value, null);
     }
     static void save(Context context, String alias, String value, String voice) throws Exception {
-        if (value == null || value.length() > 500 || value.contains("\n") || value.contains("\r")) throw new Exception("invalid key");
+        saveRaw(context, alias, value, voice);
+        ConfigHandoff.localOverride(context, alias);
+    }
+    static void saveRaw(Context context, String alias, String value, String voice) throws Exception {
+        int limit = ConfigGrants.ALIAS.equals(alias) ? 256000 : ConfigHandoff.IMPORT.equals(alias) || ConfigHandoff.IDENTITY.equals(alias) ? 8000 : 500;
+        if (value == null || value.length() > limit || value.contains("\n") || value.contains("\r")) throw new Exception("invalid key");
         android.content.SharedPreferences preferences = context.getSharedPreferences(alias, 0);
         if (value.isEmpty()) { if (!preferences.edit().clear().commit()) throw new Exception("delete failed"); return; }
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding"); cipher.init(Cipher.ENCRYPT_MODE, key(alias));
@@ -38,10 +43,15 @@ final class SecretStore {
         if (!editor.commit()) throw new Exception("save failed");
     }
     static String read(Context context, String alias) throws Exception {
+        String imported = ConfigHandoff.importedKey(context, alias);
+        return imported == null ? readRaw(context, alias) : imported;
+    }
+    static String readRaw(Context context, String alias) throws Exception {
         android.content.SharedPreferences preferences = context.getSharedPreferences(alias, 0);
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.DECRYPT_MODE, key(alias), new GCMParameterSpec(128, Base64.decode(preferences.getString("iv", ""), Base64.NO_WRAP)));
         return new String(cipher.doFinal(Base64.decode(preferences.getString("body", ""), Base64.NO_WRAP)), StandardCharsets.UTF_8);
     }
-    static boolean exists(Context context, String alias) { return context.getSharedPreferences(alias, 0).contains("body"); }
+    static boolean exists(Context context, String alias) { try { return ConfigHandoff.importedKey(context, alias) != null || existsRaw(context, alias); } catch (Exception error) { return false; } }
+    static boolean existsRaw(Context context, String alias) { return context.getSharedPreferences(alias, 0).contains("body"); }
 }

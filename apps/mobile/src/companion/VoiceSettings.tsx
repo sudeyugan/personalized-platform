@@ -1,9 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 export function VoiceSettings() {
   const [key, setKey] = useState(''),
     [voice, setVoice] = useState(() => localStorage.getItem('yiyu.mobile.voice-id') ?? ''),
     [message, setMessage] = useState('')
   const [ready, setReady] = useState(() => window.YiyuMobile?.voiceConfigured?.() ?? false)
+  useEffect(() => {
+    const refresh = () => { setReady(window.YiyuMobile?.voiceConfigured?.() ?? false); setVoice(localStorage.getItem('yiyu.mobile.voice-id') ?? '') }
+    window.addEventListener('yiyu-config-updated', refresh)
+    return () => window.removeEventListener('yiyu-config-updated', refresh)
+  }, [])
   return (
     <section className="paper-card">
       <p className="eyebrow">有声的陪伴，明确的边界</p>
@@ -75,7 +80,7 @@ export function VoiceSettings() {
       <p className="footnote">
         明确开启后才录音：音频送 ElevenLabs 识别，识别文字与本会话最近几轮送 DeepSeek，回复文字送
         ElevenLabs
-        朗读。原始音频只在内存处理，不写入手机资料库或中枢；服务商处理规则仍适用。密钥不从电脑同步。
+        朗读。原始音频只在内存处理，不写入手机资料库或中枢；服务商处理规则仍适用。可在配置交接中申请沿用兼容语音，不继承麦克风权限。
       </p>
       <p className="footnote">
         说话时暂停采集；锁屏、结束、异常或十分钟上限会停止，一分钟无话自动结束。首次需系统麦克风授权，启动可能短暂回到一隅；不承诺无通知或任意后台唤醒。

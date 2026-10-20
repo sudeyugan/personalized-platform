@@ -19,6 +19,11 @@ impl SecretRepository {
         })
     }
     pub fn store(&self, id: &str, secret: &str) -> Result<(), String> {
+        if id.starts_with("device-config-") { return Err("配置交接内部存储不接受普通密钥写入".into()); }
+        self.raw_store(id, secret)?;
+        crate::config_handoff::remove_scope(self, id)
+    }
+    pub(crate) fn raw_store(&self, id: &str, secret: &str) -> Result<(), String> {
         validate_id(id)?;
         if secret.is_empty() {
             return Err("SECRET_EMPTY:密钥不能为空".into());
@@ -31,6 +36,10 @@ impl SecretRepository {
         fs::rename(partial, path).map_err(io_error)
     }
     pub fn load(&self, id: &str) -> Result<Option<String>, String> {
+        if let Some(value) = crate::config_handoff::imported_key(self, id)? { return Ok(Some(value)); }
+        self.raw_load(id)
+    }
+    pub(crate) fn raw_load(&self, id: &str) -> Result<Option<String>, String> {
         validate_id(id)?;
         let path = self.root.join(format!("{id}.bin"));
         if !path.exists() {
@@ -43,10 +52,13 @@ impl SecretRepository {
     }
     pub fn has(&self, id: &str) -> Result<bool, String> {
         validate_id(id)?;
+        if crate::config_handoff::imported_key(self, id)?.is_some() { return Ok(true); }
         Ok(self.root.join(format!("{id}.bin")).exists())
     }
     pub fn delete(&self, id: &str) -> Result<(), String> {
+        if id.starts_with("device-config-") { return Err("配置交接内部存储不接受普通密钥删除".into()); }
         validate_id(id)?;
+        crate::config_handoff::remove_scope(self, id)?;
         let path = self.root.join(format!("{id}.bin"));
         if path.exists() {
             fs::remove_file(path).map_err(io_error)?;

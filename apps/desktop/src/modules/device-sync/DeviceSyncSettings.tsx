@@ -4,14 +4,17 @@ import { conflicts, heads, recoveryBundle } from '@yiyu/sync'
 import { createDeviceInvite, disconnectDevice, joinDevice, resolveConflict, syncNow, transport, useDeviceSync } from './runtime'
 import './deviceSync.css'
 import { HubMigrationSettings } from './HubMigrationSettings'
+import { ConfigHandoffPanel } from './config/ConfigHandoffPanel'
+import { desktopConfigHandoff } from './config/nativeAdapter'
 
 interface Device { id: string; name: string; revoked: number }
 export function DeviceSyncSettings() {
-  const { state, busy, error, lastSync } = useDeviceSync()
+  const { state, busy, error, configError, lastSync } = useDeviceSync()
   const [name, setName] = useState('我的电脑')
   const [raw, setRaw] = useState('')
   const [url, setUrl] = useState('http://127.0.0.1:17839')
   const [first, setFirst] = useState(false)
+  const [inherit, setInherit] = useState(true)
   const [invitation, setInvitation] = useState('')
   const [recovery, setRecovery] = useState('')
   const [message, setMessage] = useState('')
@@ -29,11 +32,13 @@ export function DeviceSyncSettings() {
   }
   return <section className="settings-section device-sync">
     <div className="settings-title"><MonitorSmartphone /><div><h2>让一隅，随你同行</h2><p>每台设备独立保存，连上私人中枢后交换修改。</p></div><span className="sync-badge">多端预览</span></div>
-    <div className="sync-intro"><Cloud size={24} /><div><strong>{state ? state.config.name : '你的常开电脑，可以成为中枢'}</strong><p>{state ? state.config.url : '无需 NAS。不共享数据库文件，也不复制浏览器、电脑权限或 API 密钥。'}</p></div></div>
+    <div className="sync-intro"><Cloud size={24} /><div><strong>{state ? state.config.name : '你的常开电脑，可以成为中枢'}</strong><p>{state ? state.config.url : '无需 NAS。资料加密同步；兼容 API 配置由已有设备另行批准。浏览器与电脑权限仍各自保留。'}</p></div></div>
     {state ? <>
       <div className="sync-status"><span>{busy ? '正在交换修改…' : error ? '连接暂不可用 · 本机仍可使用' : lastSync ? `最近同步 ${new Date(lastSync).toLocaleTimeString('zh-CN')}` : '已连接 · 等待同步'}</span><small>{state.pending.length} 项待发送 · {conflicts(state).length} 项待核对</small></div>
       <div className="sync-actions"><button disabled={working || busy} onClick={() => void syncNow()}><RefreshCw size={15} />现在同步</button><button disabled={working} onClick={() => void action(async () => setInvitation(await createDeviceInvite()))}><Link2 size={15} />邀请另一台设备</button><button disabled={working} onClick={() => void action(loadDevices)}>设备列表</button></div>
       <HubMigrationSettings current={state.config.url} disabled={working || busy}/>
+      <ConfigHandoffPanel client={desktopConfigHandoff(state.config)}/>
+      {configError && <p role="status">{configError}</p>}
       {invitation && <div className="sync-secret"><strong>十分钟有效，仅能使用一次</strong><p>含同步密钥，请私下传给自己的设备，不要发到聊天、网盘公共链接或截图分享。</p><textarea readOnly value={invitation} aria-label="设备邀请" /><button onClick={() => setInvitation('')}>收起邀请</button></div>}
       {devices.map(device => <div className="sync-device" key={device.id}><span>{device.name}{device.id === state.config.device ? ' · 此设备' : ''}{device.revoked ? ' · 已撤销' : ''}</span>{device.id !== state.config.device && !device.revoked && <button disabled={working} onClick={() => {
         if (!window.confirm('撤销后此设备无法再同步；它已获得的资料和密钥不会远程消失。确定撤销？')) return
@@ -47,7 +52,8 @@ export function DeviceSyncSettings() {
       {first && <label>中枢地址<input value={url} onChange={e => setUrl(e.target.value)} autoComplete="off" spellCheck={false} /></label>}
       <label>{first ? '中枢初始化时显示的管理凭证' : '另一台设备生成的邀请，或离线保存的恢复包'}<textarea value={raw} onChange={e => setRaw(e.target.value)} autoComplete="off" spellCheck={false} aria-label="连接凭证" /></label>
       <p className="sync-note">连接将合并此机可同步的现有文本资料。相同记录的不同修改会要求核对，不会自动认定哪台较新。</p>
-      <button className="primary-button" disabled={working || !raw.trim()} onClick={() => void action(async () => { await joinDevice(raw, name, first ? url : undefined); setRaw('') })}>{working ? '正在连接…' : '连接私人中枢'}</button>
+      {!first && <label className="sync-toggle"><input type="checkbox" checked={inherit} onChange={event => setInherit(event.target.checked)}/>连接后申请沿用对话模型配置（需已有设备批准）</label>}
+      <button className="primary-button" disabled={working || !raw.trim()} onClick={() => void action(async () => { await joinDevice(raw, name, first ? url : undefined); setRaw(''); const connected = useDeviceSync.getState().state; if (!first && inherit && connected) await desktopConfigHandoff(connected.config)?.request(['model'], true) })}>{working ? '正在连接…' : '连接私人中枢'}</button>
       <details><summary>如何准备常开电脑上的中枢？</summary><p>预览版中枢是独立的 Node24 进程，需要先在选定电脑的项目目录显式初始化并启动。本机测试默认只接受此电脑连接；跨设备还需要你配置受信任的 HTTPS 地址，不会自动开放公网。</p><pre>node apps/sync-hub/src/main.mjs --init --data D:\YiyuHub<br/>node apps/sync-hub/src/main.mjs --data D:\YiyuHub</pre><p>具体配对、网络及恢复限制见项目文档「多端同步预览使用说明」。</p></details>
     </>}
     {(message || error) && <p role="status" className="sync-error">{message || error}</p>}

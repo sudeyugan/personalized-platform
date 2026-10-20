@@ -10,10 +10,12 @@ import {
   type Records,
   type SyncState,
 } from '@yiyu/sync'
+import { mobileConfigHandoff } from './configHandoff'
 
 let records: Records = {}
 let client: SyncClient | null = null
 let error = ''
+let configError = ''
 let busy = false
 let lastSync = ''
 let editHolds = 0
@@ -23,6 +25,7 @@ let writes: Promise<unknown> = Promise.resolve()
 const listeners = new Set<() => void>()
 let snapshot = {
   records,
+  configError,
   state: null as SyncState | null,
   error,
   busy,
@@ -32,6 +35,7 @@ let snapshot = {
 function emit() {
   snapshot = {
     records,
+    configError,
     state: client?.state ?? null,
     error,
     busy,
@@ -189,6 +193,8 @@ export async function sync() {
     await writes
     await client.sync()
     lastSync = new Date().toISOString()
+    try { await mobileConfigHandoff(client.state.config)?.tick(); configError = '' }
+    catch { configError = '资料已同步；配置交接暂未完成，请检查交接状态，并确认中枢已更新。' }
   } catch (cause) {
     error = cause instanceof Error ? cause.message : '连接暂不可用；本机资料保留。'
   } finally {

@@ -4,10 +4,12 @@ import { connect, conflicts, fetchTransport, invite, loadState, readPairing, rec
 import { libraryRepository } from '../../infrastructure/libraryRepository'
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { mergeLibrary, projectLibrary } from './libraryProjection'
+import { desktopConfigHandoff, stopDesktopConfigHandoff } from './config/nativeAdapter'
+import type { SyncConfig } from '@yiyu/sync'
 
 export const transport: Transport = (url, path, token, body) => '__TAURI_INTERNALS__' in window
   ? invoke('device_sync_request', { url, path, token, body }) : fetchTransport(url, path, token, body)
-interface DeviceSyncView { state: SyncState | null; busy: boolean; error: string; lastSync?: string }
+interface DeviceSyncView { state: SyncState | null; busy: boolean; error: string; configError?: string; lastSync?: string }
 export const useDeviceSync = create<DeviceSyncView>(() => ({ state: null, busy: false, error: '' }))
 let client: SyncClient | null = null
 let started: Promise<void> | undefined
@@ -16,6 +18,9 @@ let paused = false
 let captureTimer: ReturnType<typeof setTimeout> | undefined
 const fail = (error: unknown) => { useDeviceSync.setState({ error: error instanceof Error ? error.message : '同步暂不可用；本机资料保留。' }) }
 const libraryScope = () => useLibraryStore.getState().health?.libraryPath ?? 'browser-preview'
+export function isDeviceSyncActive(config: SyncConfig) {
+  return !!client && !paused && client.state.config.device === config.device && client.state.config.space === config.space && client.state.config.url === config.url && config.libraryScope === libraryScope()
+}
 function install(state: SyncState) {
   client = new SyncClient(state, {
     read: () => projectLibrary(libraryRepository.committedData ?? useLibraryStore.getState().data),
@@ -57,7 +62,13 @@ export function startDeviceSync() {
 export async function syncNow() {
   if (inFlight || !client || paused) return inFlight
   useDeviceSync.setState({ busy: true, error: '' })
-  inFlight = client.sync().then(() => useDeviceSync.setState({ lastSync: new Date().toISOString() })).catch(fail).finally(() => { inFlight = undefined; useDeviceSync.setState({ busy: false }) })
+  inFlight = client.sync().then(async () => {
+    useDeviceSync.setState({ lastSync: new Date().toISOString() })
+    if (client) {
+      try { await desktopConfigHandoff(client.state.config)?.tick(); useDeviceSync.setState({ configError: '' }) }
+      catch { useDeviceSync.setState({ configError: '资料已同步；配置交接暂未完成，请在配置交接中检查，并确认中枢已更新。' }) }
+    }
+  }).catch(fail).finally(() => { inFlight = undefined; useDeviceSync.setState({ busy: false }) })
   return inFlight
 }
 export async function joinDevice(raw: string, name: string, url?: string) {
@@ -86,6 +97,7 @@ export async function disconnectDevice() {
   paused = true
   clearTimeout(captureTimer)
   try {
+    await stopDesktopConfigHandoff()
     await inFlight
     await client?.idle()
     await saveState(null)

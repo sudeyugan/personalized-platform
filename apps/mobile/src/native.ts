@@ -2,6 +2,7 @@ export interface MobileNative {
   showPet(): void
   hidePet(): void
   saveApiKey(value: string): boolean
+  configHandoff?(operation: string, input: string): string
   chat(id: string, prompt: string): void
   chatWithContext?(id: string, material: string): void
   voiceReady?(): void

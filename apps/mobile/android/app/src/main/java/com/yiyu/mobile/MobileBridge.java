@@ -29,6 +29,7 @@ public class MobileBridge extends ModelBridge {
     @JavascriptInterface public boolean saveApiKey(String key) {
         try { ChatBackend.saveKey(activity, key); return true; } catch (Exception error) { return false; }
     }
+    @JavascriptInterface public String configHandoff(String operation, String input) { return ConfigHandoff.run(activity, operation, input); }
     @JavascriptInterface public boolean configurePet(String style, double scale, boolean motion) {
         return PetPreferences.configure(activity, style, scale, motion);
     }

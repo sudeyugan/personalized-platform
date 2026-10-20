@@ -3,7 +3,7 @@ use std::time::Duration;
 use tauri::WebviewWindow;
 
 fn endpoint(url: &str, path: &str) -> Result<reqwest::Url, String> {
-    if !["/v1/enroll", "/v1/recover", "/v1/invites", "/v1/devices", "/v1/revoke", "/v1/exchange"].contains(&path) {
+    if !["/v1/enroll", "/v1/recover", "/v1/invites", "/v1/devices", "/v1/revoke", "/v1/exchange", "/v1/config"].contains(&path) {
         return Err("不支持的同步操作".into());
     }
     let base = reqwest::Url::parse(url).map_err(|_| "中枢地址无效")?;

@@ -1,8 +1,10 @@
 import http from 'node:http'
 import https from 'node:https'
+import { ConfigRelay } from './config-relay.mjs'
 
 const origins = new Set(['http://tauri.localhost', 'https://tauri.localhost', 'tauri://localhost', 'http://localhost:1420', 'http://localhost:1421', 'http://127.0.0.1:1420', 'http://127.0.0.1:1421', 'https://appassets.androidplatform.net'])
 export function createHubServer(store, tls) {
+  const configRelay = new ConfigRelay(store)
   const handler = async (request, response) => {
     response.setHeader('Cache-Control', 'no-store')
     response.setHeader('X-Content-Type-Options', 'nosniff')
@@ -37,6 +39,7 @@ export function createHubServer(store, tls) {
       else if (request.url === '/v1/devices') reply(200, { devices: store.devices(device) })
       else if (request.url === '/v1/revoke') { store.revoke(device, body.id); reply(200, { success: true }) }
       else if (request.url === '/v1/exchange') reply(200, store.exchange(device, body.after, body.envelopes))
+      else if (request.url === '/v1/config') reply(200, configRelay.run(device, body))
       else reply(404, { error: 'path' })
     } catch (error) { reply(error.status ?? 400, { error: error.status ? error.message : '请求无效；未返回内部信息' }) }
   }

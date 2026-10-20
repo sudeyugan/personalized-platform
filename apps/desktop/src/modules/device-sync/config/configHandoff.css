@@ -1,0 +1,88 @@
+.config-handoff {
+  margin-block: 22px;
+  padding: clamp(16px, 3vw, 24px);
+  border: 1px solid var(--line, #d8cebf);
+  border-radius: 18px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent, #947b60) 7%, transparent),
+    transparent 70%
+  );
+  color: var(--ink, inherit);
+}
+.config-handoff h3 {
+  margin: 4px 0 10px;
+  font: 500 19px/1.5 var(--serif, serif);
+}
+.config-handoff p {
+  font-size: 13px;
+  line-height: 1.8;
+}
+.config-handoff .config-kicker {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: var(--ink-soft, inherit);
+}
+.config-handoff .config-options {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0;
+}
+.config-handoff label {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 0;
+  font-size: 13px;
+}
+.config-handoff label input[type='checkbox'] {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  accent-color: var(--accent, #947b60);
+}
+.config-handoff .config-receipt {
+  display: grid;
+  gap: 10px;
+  margin-block: 16px;
+  padding: 16px;
+  border-inline-start: 3px solid var(--accent, #947b60);
+  background: color-mix(in srgb, var(--surface, var(--paper, transparent)) 70%, transparent);
+  border-radius: 3px 12px 12px 3px;
+}
+.config-receipt small,
+.config-note {
+  color: var(--ink-soft, inherit);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.config-receipt code {
+  font-size: clamp(18px, 4vw, 25px);
+  letter-spacing: 0.08em;
+  padding: 8px 0;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.config-receipt label {
+  display: grid;
+  align-items: start;
+}
+.config-receipt label input {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.config-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.config-handoff button {
+  max-width: 100%;
+  white-space: normal;
+}
+.config-handoff details {
+  margin-top: 18px;
+  font-size: 12px;
+}

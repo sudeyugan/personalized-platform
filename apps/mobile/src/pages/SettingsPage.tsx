@@ -6,6 +6,8 @@ import { CompanionSettings } from '../companion/CompanionSettings'
 import { VoiceSettings } from '../companion/VoiceSettings'
 import { HubMigration } from '../components/HubMigration'
 import '../native'
+import { ConfigHandoffPanel } from '../../../desktop/src/modules/device-sync/config/ConfigHandoffPanel'
+import { mobileConfigHandoff } from '../configHandoff'
 export function SettingsPage({
   snapshot,
   action,
@@ -17,6 +19,7 @@ export function SettingsPage({
   const [invitation, setInvitation] = useState(''),
     [apiKey, setApiKey] = useState(''),
     [message, setMessage] = useState('')
+  const [inherit, setInherit] = useState(true)
   return (
     <section className="connection">
       <p className="eyebrow">在这里安顿，也随你同行</p>
@@ -33,6 +36,8 @@ export function SettingsPage({
             <p>已连接 · {state.config.name}</p>
             <button disabled={snapshot.busy} onClick={() => void action(sync)}>{snapshot.busy ? '正在同步…' : '现在同步'}</button>
             <HubMigration current={state.config.url} />
+            <ConfigHandoffPanel client={mobileConfigHandoff(state.config)}/>
+            {snapshot.configError && <p className="footnote" role="status">{snapshot.configError}</p>}
             <p className="footnote">
               {lastSync ? `最近同步 ${new Date(lastSync).toLocaleTimeString()}` : '等待同步'} ·{' '}
               {state.pending.length} 项待发送
@@ -80,6 +85,7 @@ export function SettingsPage({
                 spellCheck={false}
               />
             </label>
+            <label><input type="checkbox" checked={inherit} onChange={event => setInherit(event.target.checked)}/>连接后申请沿用对话模型配置（需已有设备批准）</label>
             <button
               className="primary"
               disabled={!invitation.trim()}
@@ -87,6 +93,8 @@ export function SettingsPage({
                 void action(async () => {
                   await join(invitation, '我的手机')
                   setInvitation('')
+                  const connected = getSnapshot().state
+                  if (inherit && connected) await mobileConfigHandoff(connected.config)?.request(['model'], true)
                 })
               }
             >
@@ -124,7 +132,7 @@ export function SettingsPage({
         </button>
         <p className="footnote">
           仅存 Android Keystore
-          保护的本机密文；不从电脑同步。保存空值删除手机密钥。聊天和想法工坊复用它，不自动发送其他资料。
+          保护的本机密文；也可在上方申请加密交接。手动保存会改为本机配置，阻止原交接覆盖。保存空值删除手机密钥。聊天和想法工坊复用它，不自动发送其他资料。
         </p>
       </section>
       <details className="paper-card">
