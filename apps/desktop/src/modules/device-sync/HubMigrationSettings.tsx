@@ -12,20 +12,20 @@ export function HubMigrationSettings({
     [message, setMessage] = useState('')
   return (
     <details>
-      <summary>迁移到云中枢地址</summary>
+      <summary>迁移或更换云端地址</summary>
       <p>
         当前：{current}
         。先完整备份并恢复同一中枢，不能新建空库。核验成功只改变地址，保留设备身份、密钥和待发送修改。
       </p>
       <label>
-        新中枢 HTTPS 地址
+        新服务 HTTPS 地址
         <input
           type="url"
           autoComplete="off"
           spellCheck={false}
           value={url}
           onChange={(event) => setUrl(event.target.value)}
-          placeholder="https://你的中枢域名"
+          placeholder="https://你的一隅服务地址"
         />
       </label>
       <button

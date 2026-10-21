@@ -34,7 +34,11 @@
 .sync-credential > span { padding-top: 5px; }
 .device-sync .sync-toggle { display: flex; align-items: flex-start; gap: 10px; margin: 0; padding: 15px 0; cursor: pointer; }
 .device-sync .sync-toggle input[type=checkbox] { flex: 0 0 15px; width: 15px; height: 15px; margin: 3px 0 0; accent-color: var(--accent); }
-.device-sync .sync-first-device { border-bottom: 1px solid var(--line); }
+.sync-connect-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 0 2px; }
+.device-sync .sync-connect-tabs button { min-height: 32px; border-color: transparent; }
+.device-sync .sync-connect-tabs button[aria-pressed=true] { color: var(--accent-strong); border-color: var(--line); background: var(--surface-soft); }
+.device-sync .sync-advanced > details { padding-left: 12px; border-left: 1px solid var(--line); }
+.device-sync .sync-advanced > p { margin-top: 8px; }
 .sync-connect-footer { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding-top: 16px; }
 .device-sync .sync-connect-footer .sync-note { margin: 0; max-width: 320px; }
 
