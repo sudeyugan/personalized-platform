@@ -1,23 +1,99 @@
-.device-sync { --sync-line: var(--line); --text-muted: var(--ink-soft); color: var(--ink); }
-.device-sync button:not(.primary-button) { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 35px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink-soft); font: 500 11px/1.4 var(--serif); }
-.device-sync button:not(.primary-button):hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); color: var(--accent-strong); background: color-mix(in srgb, var(--accent-soft) 25%, var(--surface)); }
-.device-sync button:disabled { opacity: .5; cursor: default; }
-.device-sync button:focus-visible,.device-sync textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+/* Match the settings page's paper surfaces, type scale and quiet row layout. */
+.device-sync { color: var(--ink); min-width: 0; container-type: inline-size; }
 .device-sync .settings-title { flex-wrap: wrap; }
-.sync-badge { margin-left: auto; padding: 5px 10px; border-radius: 20px; border: 1px solid var(--sync-line); font-size: 11px; color: var(--text-muted); }
-.sync-intro { display: flex; gap: 16px; padding: 24px; background: color-mix(in srgb, var(--accent, #8a7158) 7%, transparent); border: 1px solid var(--sync-line); border-radius: 16px; margin: 16px 0; }
-.sync-intro svg { flex-shrink: 0; margin-top: 4px; color: var(--accent); }
-.device-sync p { line-height: 1.75; margin: 6px 0 12px; color: var(--text-muted); }
-.device-sync label { display: grid; gap: 8px; margin: 16px 0; font-size: 13px; }
-.device-sync input:not([type=checkbox]), .device-sync textarea { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid var(--sync-line); border-radius: 10px; background: transparent; color: inherit; font: inherit; }
-.device-sync textarea { min-height: 90px; resize: vertical; overflow-wrap: anywhere; }
-.device-sync .sync-toggle { display: flex; align-items: center; }
-.sync-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0; }
-.sync-actions button { display: inline-flex; gap: 7px; align-items: center; }
-.sync-status { display: grid; gap: 7px; font-size: 13px; }.sync-status small { color: var(--text-muted); }
-.device-sync details { border-top: 1px solid var(--sync-line); padding: 15px 0; margin-top: 14px; }.device-sync summary { cursor: pointer; }
-.sync-secret { padding: 16px; border: 1px solid var(--sync-line); border-radius: 12px; }
-.sync-conflict pre { max-height: 220px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; padding: 12px; background: color-mix(in srgb, var(--accent) 5%, transparent); }
-.sync-device { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--sync-line); }
-.sync-boundary { display: flex; gap: 10px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--sync-line); }.sync-boundary svg { flex-shrink: 0; margin-top: 5px; }.sync-boundary p,.sync-note { font-size: 12px; }
-.device-sync .sync-error { color: var(--danger, #a65045); font-size: 13px; }
+.device-sync .settings-title > div { flex: 1; min-width: 160px; }
+.sync-badge { align-self: flex-start; padding: 4px 8px; border-radius: 7px; background: var(--surface-soft); color: var(--ink-soft); font-size: 10px; line-height: 1.6; }
+.device-sync p { margin: 6px 0 12px; color: var(--ink-soft); font-size: 11px; line-height: 1.8; overflow-wrap: anywhere; }
+.device-sync h3 { margin: 0 0 12px; font: 500 13px/1.6 var(--serif); }
+.device-sync button:not(.primary-button) { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 34px; max-width: 100%; padding: 7px 11px; border: 1px solid var(--line); border-radius: 9px; background: transparent; color: var(--ink-soft); font: 500 11px/1.6 var(--serif); white-space: normal; }
+.device-sync button:not(.primary-button):hover:not(:disabled) { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); color: var(--accent-strong); background: var(--surface-soft); }
+.device-sync button:disabled { opacity: .5; cursor: default; transform: none; box-shadow: none; }
+.device-sync button svg { flex-shrink: 0; }
+.device-sync :is(button, textarea, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.device-sync .primary-button { min-height: 36px; font-size: 11px; flex-shrink: 0; box-shadow: none; }
+
+.sync-intro { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; padding: 15px; border: 1px solid var(--line); border-radius: 11px; background: color-mix(in srgb, var(--surface-soft) 45%, transparent); }
+.sync-intro-icon { display: grid; place-items: center; flex: 0 0 36px; height: 36px; color: var(--accent); border-radius: 10px; background: var(--accent-soft); }
+.sync-intro > div { flex: 1; min-width: 0; }
+.sync-intro strong { font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+.sync-intro p { margin: 4px 0 0; font-size: 11px; }
+.sync-connection { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; color: var(--ink-soft); font-size: 10px; }
+.sync-connection i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.sync-connection.is-connected { color: var(--sage); }
+.sync-connection.is-error { color: var(--accent-strong); }
+
+.device-sync label { min-width: 0; font-size: 12px; }
+.device-sync .sync-field { display: grid; grid-template-columns: minmax(130px, .85fr) minmax(0, 1fr); align-items: center; gap: 16px; margin: 0; padding: 15px 0; border-bottom: 1px solid var(--line); }
+.sync-field > span, .sync-toggle > span { min-width: 0; }
+.sync-field strong, .sync-toggle strong { display: block; font-size: 13px; font-weight: 500; line-height: 1.6; }
+.sync-field small, .sync-toggle small { display: block; margin-top: 4px; color: var(--ink-soft); font-size: 11px; line-height: 1.7; }
+.device-sync input:not([type=checkbox]), .device-sync textarea { width: 100%; min-width: 0; box-sizing: border-box; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); color: var(--ink); font: 400 12px/1.7 var(--serif); }
+.device-sync input::placeholder, .device-sync textarea::placeholder { color: var(--ink-soft); opacity: .8; }
+.device-sync textarea { min-height: 96px; resize: vertical; overflow-wrap: anywhere; }
+.device-sync .sync-credential { align-items: start; }
+.sync-credential > span { padding-top: 5px; }
+.device-sync .sync-toggle { display: flex; align-items: flex-start; gap: 10px; margin: 0; padding: 15px 0; cursor: pointer; }
+.device-sync .sync-toggle input[type=checkbox] { flex: 0 0 15px; width: 15px; height: 15px; margin: 3px 0 0; accent-color: var(--accent); }
+.device-sync .sync-first-device { border-bottom: 1px solid var(--line); }
+.sync-connect-footer { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding-top: 16px; }
+.device-sync .sync-connect-footer .sync-note { margin: 0; max-width: 320px; }
+
+.sync-status { display: grid; grid-template-columns: minmax(0, 1.8fr) repeat(2, minmax(0, 1fr)); gap: 12px; padding: 14px 0; }
+.sync-status > div { min-width: 0; padding-left: 15px; border-left: 1px solid var(--line); }
+.sync-status > div:first-child { padding-left: 0; border-left: 0; }
+.sync-status small { display: block; margin-bottom: 6px; color: var(--ink-soft); font-size: 10px; }
+.sync-status strong { display: block; font-size: 13px; font-weight: 500; line-height: 1.6; overflow-wrap: anywhere; }
+.sync-status strong span { margin-left: 5px; color: var(--ink-soft); font-size: 10px; font-weight: 400; }
+.sync-actions { display: flex; gap: 8px; flex-wrap: wrap; padding: 2px 0 16px; }
+.sync-secret { margin: 8px 0 16px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--surface-soft) 40%, transparent); }
+.sync-secret > strong { font-size: 12px; font-weight: 500; }
+.sync-secret textarea { display: block; margin: 10px 0; }
+.sync-device-list { margin: 4px 0 18px; }
+.sync-device { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 12px; }
+.sync-device > svg { flex-shrink: 0; color: var(--ink-soft); }
+.sync-device > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.device-sync .sync-danger { color: var(--danger, #a65045); }
+
+.device-sync details { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 11px; }
+.device-sync summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 30px; color: var(--ink-soft); font-size: 12px; line-height: 1.7; list-style: none; cursor: pointer; }
+.device-sync summary::-webkit-details-marker { display: none; }
+.device-sync summary::after { content: '+'; flex-shrink: 0; color: var(--ink-soft); font: 400 17px/1 var(--serif); }
+.device-sync details[open] > summary { margin-bottom: 10px; color: var(--ink); }
+.device-sync details[open] > summary::after { content: '−'; }
+.device-sync pre { max-height: 220px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; border-radius: 8px; background: var(--surface-soft); color: var(--ink-soft); font-size: 11px; line-height: 1.8; }
+.sync-management label { display: grid; gap: 8px; margin: 12px 0; }
+.sync-management button + button { margin-left: 8px; }
+.sync-boundary { display: flex; align-items: flex-start; gap: 9px; margin-top: 18px; padding-top: 15px; border-top: 1px solid var(--line); }
+.sync-boundary > svg { flex-shrink: 0; margin-top: 4px; color: var(--sage); }
+.sync-boundary > div { min-width: 0; flex: 1; }
+.device-sync .sync-boundary p { margin: 0; font-size: 10px; }
+.device-sync .sync-boundary details { margin-top: 4px; padding: 0; border: 0; }
+.device-sync .sync-boundary summary { font-size: 10px; }
+.device-sync .sync-error { margin-top: 12px; padding: 10px 12px; border-radius: 8px; background: var(--surface-soft); color: var(--danger, #a65045); font-size: 12px; }
+
+/* Shared handoff UI keeps its mobile styles; these refinements are desktop-only. */
+.device-sync .config-handoff { margin: 4px 0 0; padding: 18px 0 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; }
+.device-sync .config-handoff .config-kicker { margin: 0 0 4px; font-size: 10px; letter-spacing: .04em; }
+.device-sync .config-handoff h3 { margin: 0 0 5px; font-size: 13px; line-height: 1.6; }
+.device-sync .config-handoff p { font-size: 11px; line-height: 1.8; }
+.device-sync .config-handoff .config-options { gap: 10px; margin: 14px 0; }
+.device-sync .config-handoff label { gap: 8px; font-size: 12px; }
+.device-sync .config-handoff input[type=checkbox] { width: 15px; height: 15px; }
+.device-sync .config-receipt { gap: 8px; margin: 12px 0; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-soft); }
+.device-sync .config-receipt strong { font-size: 12px; font-weight: 500; }
+.device-sync .config-receipt small, .device-sync .config-note { font-size: 11px; }
+.device-sync .config-receipt code { font-size: 20px; }
+.sync-spinning { animation: sync-spin 1.5s linear infinite; }
+@keyframes sync-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .sync-spinning { animation: none; } }
+@container (max-width: 480px) {
+  .sync-intro { flex-wrap: wrap; }
+  .sync-intro > div { flex-basis: calc(100% - 48px); }
+  .sync-connection { margin-left: 48px; }
+  .device-sync .sync-field { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .sync-connect-footer { flex-direction: column; align-items: stretch; gap: 12px; }
+  .device-sync .sync-connect-footer .sync-note { max-width: none; }
+  .sync-status { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sync-status > div:first-child { grid-column: 1 / -1; }
+  .sync-status > div:nth-child(2) { padding-left: 0; border-left: 0; }
+}
