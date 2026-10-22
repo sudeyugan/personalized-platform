@@ -69,7 +69,7 @@ export function termWeek(date: string, term: PlannerData['term']) {
   return week >= 1 && week <= term.totalWeeks ? week : undefined
 }
 
-function courseIncludesWeek(course: Course, week: number) {
+export function courseIncludesWeek(course: Course, week: number) {
   const value = course.weeks.trim()
   if (!value || value.includes('全周')) return true
   if (value.includes('单周') && week % 2 === 0) return false

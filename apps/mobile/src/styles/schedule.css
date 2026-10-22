@@ -1,0 +1,39 @@
+.course-schedule { margin-top: 18px; }
+.planner-page-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+:root .mobile-app .planner-page-heading h1 { font-size: 25px; margin: 8px 0 0; }
+.planner-page-heading .eyebrow { margin: 0; }
+.planner-page-heading > button { flex-shrink: 0; }
+.schedule-help { margin: 12px 0; font-size: 11px; color: var(--muted); }
+.schedule-help > summary { padding: 6px 0; }
+.schedule-controls { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.schedule-controls > label { display: flex; align-items: center; gap: 10px; font-size: 12px; margin: 0; }
+.schedule-controls select { width: auto; min-width: 120px; }
+.schedule-day-picker { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); margin: 18px 0; gap: 3px; }
+.schedule-day-picker button { font-size: 12px; padding: 8px 0; border: 0; }
+.schedule-day-picker button[aria-pressed='true'] { background: var(--accent); color: var(--paper); }
+.schedule-scroll { width: 100%; overflow: auto; max-height: 76dvh; border-block: 1px solid var(--line); overscroll-behavior: contain; }
+.schedule-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.schedule-table { width: 100%; min-width: 340px; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 12px; }
+.schedule-table th { font-weight: 400; color: var(--muted); }
+.schedule-table thead th { position: sticky; top: 0; z-index: 2; height: 54px; background: var(--paper); border-bottom: 1px solid var(--line); }
+.schedule-table th:first-child { width: 32px; position: sticky; left: 0; background: var(--paper); z-index: 1; }
+.schedule-table thead th:first-child { z-index: 3; }
+.schedule-table tbody th { border-bottom: 1px solid var(--line); }
+.schedule-table tbody th > span { font: italic 21px Georgia, serif; color: var(--accent); }
+.schedule-table small { display: block; font-size: 9px; line-height: 1.6; }
+.schedule-table td { height: 110px; vertical-align: top; padding: 2px; border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.schedule-table [data-today] { background: color-mix(in srgb, var(--accent) 5%, var(--paper)); }
+.schedule-table thead [data-today] { color: var(--accent); box-shadow: inset 0 -2px var(--accent); }
+.schedule-course { width: 100%; display: grid; gap: 8px; text-align: left; border: 0; border-radius: 2px 9px 2px 2px; padding: 10px 4px; margin-bottom: 4px; background: color-mix(in srgb, var(--accent) 10%, var(--paper)); min-height: 98px; overflow-wrap: anywhere; }
+.schedule-course strong { font-size: 11px; font-weight: 500; line-height: 1.65; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.schedule-course > span { font-size: 10px; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.schedule-course > small { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.schedule-blank { display: block; text-align: center; padding-top: 35px; color: var(--line); }
+.schedule-scroll.compact .schedule-table { min-width: 0; }
+.schedule-scroll.compact .schedule-course strong { font-size: 14px; }
+.day-agenda { border-left: 1px solid var(--line); margin-left: 8px; padding-left: 24px; }
+.day-agenda > article { position: relative; background: transparent !important; border: 0; border-bottom: 1px solid var(--line); padding-inline: 0; border-radius: 0; }
+.day-agenda > article::before { content: ''; position: absolute; left: -29px; top: 28px; width: 8px; height: 8px; background: var(--accent); border-radius: 50%; border: 2px solid var(--paper); }
+.day-agenda article > small { color: var(--accent); font-variant-numeric: tabular-nums; }
+.day-agenda article > p { white-space: pre-wrap; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

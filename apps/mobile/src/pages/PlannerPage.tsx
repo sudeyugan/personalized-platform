@@ -15,6 +15,8 @@ import { modify, update } from '../repository'
 import { TodoCheck } from '../TodoCheck'
 import { RecordForm } from '../components/RecordForm'
 import type { Action } from './HomePage'
+import { CourseSchedule } from '../planning/CourseSchedule'
+import { isTodoCompletedOn } from '../../../desktop/src/modules/planner/plannerDates'
 export function PlannerPage({
   records,
   initial,
@@ -26,7 +28,7 @@ export function PlannerPage({
   action: Action
   target?: string
 }) {
-  const [tab, setTab] = useState(initial === 'planner' ? 'todos' : initial)
+  const tab = initial === 'planner' ? 'todos' : initial
   const [editing, setEditing] = useState<{ collection: string; key?: string } | undefined>(() =>
     target &&
     records[target] &&
@@ -36,6 +38,7 @@ export function PlannerPage({
   )
   const [date, setDate] = useState(today()),
     [month, setMonth] = useState(() => new Date())
+  const [todoFilter, setTodoFilter] = useState<'pending' | 'done' | 'all'>('pending')
   const todos = rows<TodoItem>(records, 'todos').filter((todo) => todoVisible(todo, today()))
   const assignments = rows<Assignment>(records, 'assignments'),
     overview = assignmentOverview(assignments)
@@ -77,23 +80,9 @@ export function PlannerPage({
     </article>
   )
   return (
-    <section>
-      <p className="eyebrow">让要紧的事，各归其位</p>
-      <h1>日常，有条不紊。</h1>
-      <div className="segments" role="group" aria-label="日常页面">
-        {[
-          ['todos', '待办'],
-          ['assignments', '作业'],
-          ['calendar', '日历'],
-          ['courses', '课表'],
-        ].map(([id, label]) => (
-          <button aria-pressed={tab === id} key={id} onClick={() => setTab(id)}>
-            {label}
-          </button>
-        ))}
-      </div>
-      <header className="section-heading">
-        <h2>
+    <section className={'planner-page planner-' + tab}>
+      <header className="planner-page-heading">
+        <div><p className="eyebrow">{tab === 'courses' ? '一周，尽收眼底' : '让要紧的事，各归其位'}</p><h1>
           {tab === 'todos'
             ? '留给今天'
             : tab === 'assignments'
@@ -101,15 +90,16 @@ export function PlannerPage({
               : tab === 'calendar'
                 ? '日历安排'
                 : '这一周的课'}
-        </h2>
+        </h1></div>
         <button className="primary" onClick={() => setEditing({ collection: tab })}>
-          ＋ {tab === 'assignments' ? '记作业' : '留一笔'}
+          ＋ {tab === 'assignments' ? '记作业' : tab === 'courses' ? '添加课程' : tab === 'calendar' ? '记日程' : '记待办'}
         </button>
       </header>
       {tab === 'todos' && (
         <div className="paper-card">
+          <div className="segments" aria-label="待办筛选">{([['pending', '待完成'], ['done', '已完成'], ['all', '全部']] as const).map(([id, label]) => <button key={id} aria-pressed={todoFilter === id} onClick={() => setTodoFilter(id)}>{label}</button>)}</div>
           {!todos.length && <p className="empty">先留下一件想做的小事。</p>}
-          {todos.map((todo) => (
+          {todos.filter(todo => todoFilter === 'all' || isTodoCompletedOn(todo, today()) === (todoFilter === 'done')).map((todo) => (
             <article className="todo-row" key={todo.id}>
               <TodoCheck
                 recordKey={`todos/${todo.id}`}
@@ -214,7 +204,8 @@ export function PlannerPage({
               )
             })}
           </div>
-          <h3>{date}</h3>
+          <header className="section-heading"><h3>{date}</h3><button className="text-button" onClick={() => { setDate(today()); setMonth(new Date()) }}>回到今天</button></header>
+          <div className="day-agenda">
           {appointments
             .filter((item) => item.date === date)
             .sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''))
@@ -238,42 +229,12 @@ export function PlannerPage({
                 </div>
               </article>
             ))}
+          {!appointments.some(item => item.date === date) && <p className="empty small-empty">这一天没有日程，留一段自由的时间。</p>}
+          </div>
         </>
       )}
       {tab === 'courses' && (
-        <>
-          <p className="footnote">
-            周次按每门课程原样保留；这里按星期阅读完整课表，不将未配置的学期日期猜成当前周。
-          </p>
-          {Array.from({ length: 7 }, (_, i) => i + 1).map((day) => (
-            <section className="course-day" key={day}>
-              <h3>周{'一二三四五六日'[day - 1]}</h3>
-              {courses
-                .filter((course) => course.day === day)
-                .map((course) => (
-                  <button
-                    className="course-card"
-                    key={course.id}
-                    onClick={() =>
-                      setEditing({
-                        collection: 'courses',
-                        key: `courses/${course.id}`,
-                      })
-                    }
-                  >
-                    <strong>{course.title}</strong>
-                    <span>
-                      第 {course.period} 节 · {course.location || '教室待定'}
-                    </span>
-                    <small>
-                      {course.teacher} · {course.weeks}
-                    </small>
-                  </button>
-                ))}
-              {!courses.some((course) => course.day === day) && <p className="muted">留白</p>}
-            </section>
-          ))}
-        </>
+        <CourseSchedule courses={courses} edit={course => setEditing({ collection: 'courses', key: `courses/${course.id}` })}/>
       )}
       {editing && (
         <RecordForm

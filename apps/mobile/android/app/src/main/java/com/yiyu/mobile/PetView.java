@@ -55,6 +55,9 @@ final class PetView extends FrameLayout {
         publish();
         if (!visible) web.onPause();
     }
+    void greet() {
+        if (loaded && !disposed) web.evaluateJavascript("if(typeof window.yiyuPetGreeting==='function')window.yiyuPetGreeting()", null);
+    }
     private void publish() {
         if (!loaded || state == null || disposed) return;
         web.evaluateJavascript("typeof window.yiyuPetState==='function'?(window.yiyuPetState(" + state.toString() + "),true):false", ready -> {

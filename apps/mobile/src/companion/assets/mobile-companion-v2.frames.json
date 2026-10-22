@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "width": 1536,
+  "height": 1024,
+  "referenceHeight": 519,
+  "frames": [
+    { "x": 56, "y": 0, "width": 332, "height": 519 },
+    { "x": 442, "y": 0, "width": 332, "height": 519 },
+    { "x": 795, "y": 0, "width": 332, "height": 519 },
+    { "x": 1178, "y": 0, "width": 332, "height": 519 },
+    { "x": 55, "y": 519, "width": 346, "height": 505 },
+    { "x": 439, "y": 540, "width": 342, "height": 464 },
+    { "x": 794, "y": 540, "width": 342, "height": 464 },
+    { "x": 1178, "y": 540, "width": 342, "height": 464 }
+  ]
+}

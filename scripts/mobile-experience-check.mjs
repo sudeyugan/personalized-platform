@@ -125,6 +125,8 @@ try {
   await page.goto(origin)
   await page.getByRole('heading', { name: '今天，从容一点。' }).waitFor()
   const records = {
+    'courses/c1': { id: 'c1', title: '数据结构', day: 1, period: 1, teacher: '虚构老师', location: '东楼101', weeks: '1-16 单周', note: '' },
+    'courses/c2': { id: 'c2', title: '算法讨论', day: 1, period: 1, teacher: '虚构老师', location: '东楼102', weeks: '1-16 双周', note: '' },
     'people/p1': {
       id: 'p1',
       name: '不应在手机出现的人物',
@@ -182,33 +184,45 @@ try {
     records,
   )
   await page.reload()
-  await page.getByRole('navigation', { name: '页面' }).waitFor()
-  assert.equal(await page.getByRole('navigation', { name: '页面' }).getByRole('button').count(), 3)
+  await page.getByRole('button', { name: '展开功能索引' }).waitFor()
+  assert.equal(await page.locator('.bottom-navigation').count(), 0)
+  const open = async (label) => {
+    await page.getByRole('button', { name: '展开功能索引' }).click()
+    await page.getByRole('dialog', { name: '功能索引' }).getByRole('button', { name: new RegExp(label) }).click()
+  }
+  await page.screenshot({ path: resolve(output, 'folio-home.png'), fullPage: true })
+  await open('课表')
+  assert.equal(await page.getByRole('table').getByRole('row').count(), 7)
+  assert.equal(await page.getByRole('button', { name: /周一第1节/ }).count(), 2)
+  await page.getByRole('combobox', { name: '课表教学周' }).selectOption('2')
+  assert.equal(await page.getByRole('button', { name: /周一第1节 数据结构/ }).count(), 0)
+  await page.getByRole('combobox', { name: '课表教学周' }).selectOption('')
+  await page.screenshot({ path: resolve(output, 'folio-courses.png'), fullPage: true })
+  await open('回到日常画布')
+  const scrollPosition = await page.locator('main.page-content').evaluate(element => { element.scrollTop = Math.min(200, element.scrollHeight - element.clientHeight); return element.scrollTop })
+  await open('课表')
+  await open('回到日常画布')
+  await page.waitForFunction(value => document.querySelector('main.page-content')?.scrollTop === value, scrollPosition)
   await page.getByRole('button', { name: '搜索手机记录' }).click()
   await page.getByLabel('搜索关键词').fill('隐藏关键词')
   await page.getByText('本机手机记录里还没有找到。').waitFor()
   await page.getByRole('button', { name: '搜索手机记录' }).click()
   await page.getByRole('button', { name: '管理待办' }).click()
-  await page.getByRole('button', { name: '＋ 留一笔' }).click()
   await page.getByLabel('想做什么').fill('手机里的日常待办')
   await page.getByLabel('重复', { exact: true }).selectOption('daily')
   await page.getByRole('button', { name: '保存', exact: true }).click()
-  await page.getByRole('heading', { name: '手机里的日常待办' }).waitFor()
-  await page.getByRole('checkbox', { name: '完成待办' }).check()
-  const journal = () =>
-    page
-      .getByRole('navigation', { name: '页面' })
-      .getByRole('button', { name: '手记', exact: true })
-      .click()
-  await journal()
-  await page.getByRole('button', { name: /展开日记册/ }).click()
+  await page.getByText('手机里的日常待办', { exact: true }).waitFor()
+  // Completing a home-canvas todo intentionally removes it from the pending view.
+  await page.getByRole('checkbox', { name: '完成待办' }).click()
+  await page.getByText('手机里的日常待办', { exact: true }).waitFor({ state: 'hidden' })
+  await open('日记')
+  await page.getByRole('button', { name: /读书的一天/ }).click()
   await page.getByRole('heading', { name: '读书的一天' }).waitFor()
   await page.getByRole('button', { name: '接着写', exact: true }).click()
   await page.getByLabel('这一天').fill('窗外是远山。手机续写，不改变旧资料。')
   await page.getByRole('button', { name: '保存', exact: true }).click()
   await page.getByText('窗外是远山。手机续写，不改变旧资料。', { exact: true }).waitFor()
-  await journal()
-  await page.getByRole('button', { name: '记下五点 ＋', exact: true }).click()
+  await open('心情与回望')
   for (let i = 0; i < 5; i++)
     await page.getByRole('button', { name: '开心 ' + i + '点', exact: true }).click()
   await page.getByRole('button', { name: '记下五点', exact: true }).click()
@@ -218,8 +232,7 @@ try {
     path: resolve(output, 'moods-light.png'),
     fullPage: true,
   })
-  await journal()
-  await page.getByRole('button', { name: /从一个模糊念头开始/ }).click()
+  await open('想法工坊')
   await page.getByLabel('写下最初的念头').fill('想把时间留给重要的事')
   await page.getByRole('button', { name: /从这一念开始/ }).click()
   await page.getByRole('button', { name: '方向1：先留下半小时' }).click()
@@ -229,10 +242,8 @@ try {
     path: resolve(output, 'ideas-light.png'),
     fullPage: true,
   })
-  await page
-    .getByRole('navigation', { name: '页面' })
-    .getByRole('button', { name: '小鱼', exact: true })
-    .click()
+  await open('和小鱼说话')
+  assert.equal(await page.locator('.companion-stage').count(), 0, 'character must not be embedded in the app page')
   await page.getByRole('button', { name: '也可以写下来' }).click()
   await page.getByLabel('给小鱼的话').fill('这是普通会话的测试问候')
   await page.getByRole('button', { name: '发送给小鱼', exact: true }).click()
@@ -248,7 +259,7 @@ try {
   await page.reload()
   await page.getByText('这句只留在手机', { exact: true }).waitFor()
   await page.getByRole('button', { name: '和小鱼说话', exact: true }).click()
-  await page.locator('.phase-listening').waitFor()
+  await page.getByRole('button', { name: '结束语音', exact: true }).waitFor()
   await page.getByRole('button', { name: '结束语音', exact: true }).click()
   await page.getByText('已结束', { exact: true }).waitFor()
   await page.screenshot({
@@ -259,20 +270,24 @@ try {
     [320, 740, 'dark'],
     [844, 390, 'light'],
     [390, 844, 'light'],
+    [400, 869, 'light'], // 1200×2608 physical pixels at DPR≈3; actual phone density remains device-controlled.
+    [1200, 2608, 'light'],
   ]) {
     await page.setViewportSize({ width, height })
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' })
-    for (const tab of ['今日', '手记', '小鱼']) {
-      await page
-        .getByRole('navigation', { name: '页面' })
-        .getByRole('button', { name: tab, exact: true })
-        .click()
+    for (const tab of ['回到日常画布', '日记', '和小鱼说话', '课表', '日程', '待办', '作业', '心情与回望']) {
+      await open(tab)
       assert.ok(
         (await page.evaluate(
           () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
         )) <= 1,
         tab + ' layout overflow',
       )
+      const frame = await page.locator('.mobile-app').boundingBox()
+      assert.ok(Math.abs(frame.width - width) <= 1, tab + ' must use the full viewport width')
+      assert.ok(Math.abs(frame.height - height) <= 1, tab + ' must use the full viewport height')
+      const body = await page.locator('main.page-content').boundingBox(), foot = await page.locator('.folio-foot').boundingBox()
+      assert.ok(foot.y >= body.y + body.height - 1, 'bookmark footer must not obscure page content')
     }
     await page.getByRole('button', { name: '连接与设置', exact: true }).click()
     assert.ok(
@@ -327,6 +342,9 @@ try {
       omitBackground: true,
     })
   }
+  await pet.evaluate(() => window.yiyuPetState({ style: 'figurine', pose: 'perch', motion: false, resting: false, visible: true, phase: 'idle' }))
+  await pet.waitForFunction(() => document.querySelector('canvas')?.dataset.frame === '5')
+  await pet.screenshot({ path: resolve(output, 'pet-seated.png'), omitBackground: true })
   await pet.evaluate(() =>
     window.yiyuPetState({
       style: 'mark',
@@ -349,7 +367,7 @@ try {
   await pet.locator('.mobile-overlay').waitFor({ state: 'hidden' })
   assert.deepEqual(errors, [])
   console.log(
-    'YIYU_MOBILE_EXPERIENCE_OK: seven-module routes, no hidden PC search, diary/todo/moods/ideas, private/shared chat isolation/reload, voice state fixture, transparent figurine/mark/hidden and 320/390/844 layouts. No real account, microphone or model used.',
+    'YIYU_MOBILE_EXPERIENCE_OK: folio index, no embedded character, seven-module routes/no hidden PC search, date-based diary/todo/moods/ideas, private/shared chat reload, voice fixture, transparent companion/mark/hidden, full-width 320/390/400/844/1200 layouts. No real account, microphone or model used.',
   )
 } finally {
   await browser?.close()

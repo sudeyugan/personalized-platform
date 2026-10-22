@@ -7,25 +7,20 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { BookOpen, ChevronLeft, Home, MessageCircle, Search, Settings2, X } from 'lucide-react'
+import { Bookmark, ChevronLeft, Search, Settings2, X } from 'lucide-react'
 import { getSnapshot, initialize, subscribe, sync } from './repository'
 import { searchable, text } from './data'
 import { HomePage } from './pages/HomePage'
 import { PlannerPage } from './pages/PlannerPage'
-import { JournalPage } from './pages/JournalPage'
 import { DiaryPage } from './pages/DiaryPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { Chat } from './Chat'
-import { mainPages, mobilePage, pageLabels, parentPage, sectionPage } from './navigation'
+import { mobilePage, pageLabels, parentPage } from './navigation'
+import { PageIndex } from './components/PageIndex'
 import './native'
 import { VoiceCoordinator } from './companion/voice'
 const IdeasPage = lazy(() => import('./pages/IdeasPage'))
 const MoodPage = lazy(() => import('./pages/MoodPage'))
-const navigation = [
-  { id: 'home', label: '今日', icon: Home },
-  { id: 'journal', label: '手记', icon: BookOpen },
-  { id: 'chat', label: '小鱼', icon: MessageCircle },
-]
 export default function App() {
   const snapshot = useSyncExternalStore(subscribe, getSnapshot)
   const [page, setPage] = useState(() =>
@@ -33,22 +28,26 @@ export default function App() {
   )
   const [ready, setReady] = useState(false),
     [message, setMessage] = useState('')
+  const [indexOpen, setIndexOpen] = useState(false)
+  const closeIndex = useCallback(() => setIndexOpen(false), [])
   const [searching, setSearching] = useState(false),
     [query, setQuery] = useState(''),
     [target, setTarget] = useState<string>()
   const scroll = useRef(new Map<string, number>())
+  const content = useRef<HTMLElement>(null)
   const go = useCallback(
     (next: string, key?: string) => {
-      scroll.current.set(page, window.scrollY)
+      scroll.current.set(page, content.current?.scrollTop ?? 0)
       setPage(mobilePage(next))
       setTarget(key)
       setSearching(false)
+      setIndexOpen(false)
     },
     [page],
   )
   useEffect(() => {
     sessionStorage.setItem('yiyu.mobile.page', page)
-    const frame = requestAnimationFrame(() => window.scrollTo(0, scroll.current.get(page) ?? 0))
+    const frame = requestAnimationFrame(() => content.current?.scrollTo(0, scroll.current.get(page) ?? 0))
     return () => cancelAnimationFrame(frame)
   }, [page])
   useEffect(() => {
@@ -108,7 +107,7 @@ export default function App() {
         <p>{message || '正在拾起这一隅…'}</p>
       </main>
     )
-  const secondary = !mainPages.includes(page as (typeof mainPages)[number])
+  const secondary = page !== 'home'
   const matches = searchable(snapshot.records, query)
   return (
     <div className="mobile-app">
@@ -159,7 +158,7 @@ export default function App() {
           )}
         </div>
       )}
-      <main className="page-content">
+      <main key={page} ref={content} className="page-content">
         {searching ? (
           <section>
             <p className="eyebrow">只在手机保留的记录里寻找</p>
@@ -201,8 +200,6 @@ export default function App() {
                 action={action}
                 target={target}
               />
-            ) : page === 'journal' ? (
-              <JournalPage records={snapshot.records} go={go} />
             ) : page === 'diary' ? (
               <DiaryPage records={snapshot.records} target={target} action={action} />
             ) : page === 'ideas' ? (
@@ -217,18 +214,8 @@ export default function App() {
           </Suspense>
         )}
       </main>
-      <nav className="bottom-navigation" aria-label="页面">
-        {navigation.map((item) => (
-          <button
-            key={item.id}
-            aria-current={sectionPage(page) === item.id ? 'page' : undefined}
-            onClick={() => go(item.id)}
-          >
-            <item.icon size={20} strokeWidth={1.5} />
-            <span>{item.label}</span>
-          </button>
-        ))}
-      </nav>
+      <footer className="folio-foot"><span>各有一页，同在一隅。</span><button className="folio-bookmark" aria-label="展开功能索引" aria-expanded={indexOpen} aria-controls="folio-index" onClick={() => setIndexOpen(true)}><Bookmark size={19} strokeWidth={1.5}/><span>卷目</span></button></footer>
+      {indexOpen && <PageIndex current={page} go={go} close={closeIndex}/>}
     </div>
   )
 }

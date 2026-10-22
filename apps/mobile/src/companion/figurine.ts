@@ -1,9 +1,12 @@
-import sprite from './assets/mobile-figurine-v1.png'
+import sprite from './assets/mobile-companion-v2.png'
+import registrationJson from './assets/mobile-companion-v2.frames.json?raw'
+interface FrameRect { x: number; y: number; width: number; height: number }
+const registration = JSON.parse(registrationJson) as { width: number; height: number; referenceHeight: number; frames: FrameRect[] }
 export type VoicePhase = 'idle' | 'listening' | 'thinking' | 'speaking' | 'error'
 interface Atlas {
   image: HTMLImageElement
-  width: number
-  height: number
+  frames: FrameRect[]
+  referenceHeight: number
   anchors: { x: number; y: number }[]
 }
 let pending: Promise<Atlas> | undefined
@@ -13,20 +16,20 @@ export function loadFigurine() {
     const image = new Image()
     image.onload = () => {
       try {
-        const width = image.naturalWidth / 4,
-          height = image.naturalHeight / 2
-        if (!Number.isInteger(width) || !Number.isInteger(height) || width > 1024 || height > 1024)
+        if (image.naturalWidth !== registration.width || image.naturalHeight !== registration.height || registration.frames.length !== 8 || !Number.isFinite(registration.referenceHeight) || registration.referenceHeight <= 0)
           throw Error('手办图集格式不符')
         const canvas = document.createElement('canvas')
-        canvas.width = width
-        canvas.height = height
         const context = canvas.getContext('2d', { willReadFrequently: true })!
-        const anchors = Array.from({ length: 8 }, (_, frame) => {
+        const anchors = registration.frames.map(rect => {
+          const { x, y, width, height } = rect
+          if (![x, y, width, height].every(Number.isInteger) || x < 0 || y < 0 || width < 1 || height < 1 || x + width > image.naturalWidth || y + height > image.naturalHeight) throw Error('手办帧范围不符')
+          canvas.width = width
+          canvas.height = height
           context.clearRect(0, 0, width, height)
           context.drawImage(
             image,
-            (frame % 4) * width,
-            Math.floor(frame / 4) * height,
+            x,
+            y,
             width,
             height,
             0,
@@ -50,7 +53,7 @@ export function loadFigurine() {
             }
           return { x: weight ? sum / weight : width / 2, y: bottom }
         })
-        resolve({ image, width, height, anchors })
+        resolve({ image, frames: registration.frames, referenceHeight: registration.referenceHeight, anchors })
       } catch (error) {
         pending = undefined
         reject(error)
@@ -75,7 +78,8 @@ export function drawFigurine(
   const width = 192,
     height = 256,
     anchor = atlas.anchors[frame],
-    scale = 238 / atlas.height
+    rect = atlas.frames[frame],
+    scale = 238 / atlas.referenceHeight
   const breathe = motion ? Math.sin(time / 1350) * 0.7 : 0
   context.clearRect(0, 0, width, height)
   context.save()
@@ -83,20 +87,25 @@ export function drawFigurine(
   if (motion && phase === 'thinking') context.rotate(Math.sin(time / 1700) * 0.012)
   context.drawImage(
     atlas.image,
-    (frame % 4) * atlas.width,
-    Math.floor(frame / 4) * atlas.height,
-    atlas.width,
-    atlas.height,
+    rect.x,
+    rect.y,
+    rect.width,
+    rect.height,
     -anchor.x * scale,
     -anchor.y * scale + breathe,
-    atlas.width * scale,
-    atlas.height * scale,
+    rect.width * scale,
+    rect.height * scale,
   )
   context.restore()
 }
-export function frameFor(phase: VoicePhase, time: number, motion: boolean, greetingAt = 0) {
+export function frameFor(phase: VoicePhase, time: number, motion: boolean, greetingAt = 0, seated = false, resting = false) {
+  if (resting) return seated ? 6 : 1
+  if (seated) {
+    if (phase === 'speaking') return motion && Math.floor(time / 240) % 2 ? 7 : 5
+    return motion && time % 5600 > 5440 ? 6 : 5
+  }
   if (motion && greetingAt && time - greetingAt < 1100)
-    return [4, 5, 6, 5, 6, 7][Math.min(5, Math.floor((time - greetingAt) / 180))]
+    return 4
   if (phase === 'listening') return 2
   if (phase === 'speaking') return motion && Math.floor(time / 190) % 2 ? 3 : 0
   if (motion && time % 5600 > 5440) return 1

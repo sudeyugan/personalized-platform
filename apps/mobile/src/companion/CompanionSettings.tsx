@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { Figurine } from './Figurine'
 import './chat.css'
 export function CompanionSettings() {
   const [mode, setMode] = useState(
@@ -32,13 +31,10 @@ export function CompanionSettings() {
   return (
     <section className="paper-card companion-settings">
       <div className="pet-settings-heading">
-        <div style={{ width: 58, flexShrink: 0 }}>
-          <Figurine motion={motion} />
-        </div>
         <div>
           <p className="eyebrow">轻轻留在屏幕一角</p>
           <h2>随身小鱼</h2>
-          <p className="footnote">手机自己的形态，不再照搬电脑姿态。</p>
+          <p className="footnote">独立于软件页面，正常比例的小鱼。</p>
         </div>
       </div>
       <div className="segments" aria-label="伙伴形态">
@@ -80,7 +76,7 @@ export function CompanionSettings() {
             window.YiyuMobile?.showPet()
           }}
         >
-          显示在其他应用上
+          显示独立小鱼
         </button>
         <button
           disabled={!window.YiyuMobile}
@@ -98,7 +94,7 @@ export function CompanionSettings() {
         </p>
       )}
       <p className="footnote">
-        轻点开始/结束语音，拖动放置，长按调整。在一隅内由完整角色陪伴，悬浮形态暂隐；锁屏隐藏并停止语音。系统授权/常驻通知保留，不读取其他应用、摄像头或屏幕。
+        轻点开始/结束语音，拖动放置，长按调整。小鱼独立悬浮，不随软件页面切换；长按可选择坐姿停靠，手动放在桌面组件边缘。锁屏隐藏并停止语音；系统授权与通知保留，不读取其他应用、摄像头或屏幕。桌面长按空白处也可添加一隅的小组件。
       </p>
     </section>
   )

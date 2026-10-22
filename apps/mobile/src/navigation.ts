@@ -1,4 +1,4 @@
-export const mainPages = ['home', 'journal', 'chat'] as const
+export const mainPages = ['home'] as const
 export const secondaryPages = [
   'planner',
   'todos',
@@ -9,12 +9,14 @@ export const secondaryPages = [
   'moods',
   'ideas',
   'settings',
+  'chat',
 ] as const
 export function mobilePage(value: string): string {
+  if (value === 'journal') return 'diary'
   return [...mainPages, ...secondaryPages].some((page) => page === value) ? value : 'home'
 }
-export function parentPage(page: string) {
-  return ['diary', 'moods', 'ideas'].includes(page) ? 'journal' : 'home'
+export function parentPage(_page: string) {
+  return 'home'
 }
 export function sectionPage(page: string) {
   return mainPages.some((item) => item === page) ? page : parentPage(page)

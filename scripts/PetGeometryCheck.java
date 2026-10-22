@@ -21,6 +21,11 @@ public final class PetGeometryCheck {
         check(invalid.x == 288 && invalid.y >= 45 && invalid.y <= 695, "invalid preference clamps");
         PetGeometry.Area tiny = new PetGeometry.Area(0, 0, 40, 50);
         check(PetGeometry.place(tiny, 100, 125, 999, -99, true, 30).x == 0, "tiny screen clamps");
-        System.out.println("YIYU_PET_GEOMETRY_OK: 8 geometry checks passed");
+        PetGeometry.Placement perched = PetGeometry.restore(portrait, 100, 125, .5f, .5f, "perch");
+        check(perched.pose.equals("perch") && perched.x == 150, "manual perch retains its own placement");
+        PetGeometry.Area highDensity = new PetGeometry.Area(0, 80, 1200, 2528);
+        PetGeometry.Placement phone = PetGeometry.place(highDensity, 216, 288, 9999, 9999, true, 90);
+        check(phone.x + 216 <= 1200 && phone.y + 288 <= 2528, "1200 by 2608 phone respects physical safe area");
+        System.out.println("YIYU_PET_GEOMETRY_OK: 10 geometry checks passed");
     }
 }

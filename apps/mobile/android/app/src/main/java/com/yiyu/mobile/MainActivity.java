@@ -13,29 +13,40 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 import androidx.webkit.WebViewAssetLoader;
 
 public class MainActivity extends Activity {
     static final String START_VOICE = "com.yiyu.mobile.START_VOICE";
     private static final VoiceLaunchGate voiceLaunch = new VoiceLaunchGate();
-    static Intent voiceIntent(android.content.Context context) { return new Intent(context, MainActivity.class).setAction(START_VOICE).putExtra("voiceConsent", voiceLaunch.issue(android.os.SystemClock.elapsedRealtime())); }
+    static Intent voiceIntent(android.content.Context context) { return new Intent(context, MainActivity.class).setAction(START_VOICE).putExtra("voiceConsent", voiceLaunch.issue(android.os.SystemClock.elapsedRealtime())).putExtra("voiceReturn", !foreground); }
     private boolean consumeVoiceIntent(Intent intent) {
         if (!START_VOICE.equals(intent.getAction())) return false;
         intent.setAction(null);
-        return voiceLaunch.consume(intent.getStringExtra("voiceConsent"), android.os.SystemClock.elapsedRealtime());
+        boolean accepted = voiceLaunch.consume(intent.getStringExtra("voiceConsent"), android.os.SystemClock.elapsedRealtime());
+        // Only an authenticated, explicit gesture may set this navigation hint.
+        if (accepted) voiceReturn = intent.getBooleanExtra("voiceReturn", true);
+        return accepted;
     }
     private boolean voiceClientReady, pendingVoice, voiceReturn, resumed, startWhenResumed;
     static volatile boolean foreground;
     private WebView web;
+    private FrameLayout surface;
     private MobileBridge bridge;
     private boolean awaitingOverlay = false;
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         web = new WebView(this);
-        web.setOnApplyWindowInsetsListener((view, insets) -> {
+        surface = new FrameLayout(this);
+        surface.addView(web, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        if (Build.VERSION.SDK_INT >= 30) getWindow().setDecorFitsSystemWindows(false);
+        surface.setOnApplyWindowInsetsListener((view, insets) -> {
             if (Build.VERSION.SDK_INT >= 30) {
                 android.graphics.Insets bars = insets.getInsets(android.view.WindowInsets.Type.systemBars() | android.view.WindowInsets.Type.displayCutout());
-                view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+                android.graphics.Insets keyboard = insets.getInsets(android.view.WindowInsets.Type.ime());
+                // Resize the WebView's actual viewport, not padding inside its web page.
+                view.setPadding(bars.left, bars.top, bars.right, Math.max(bars.bottom, keyboard.bottom));
+                return android.view.WindowInsets.CONSUMED;
             } else {
                 view.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(), insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
             }
@@ -66,9 +77,30 @@ public class MainActivity extends Activity {
         });
         bridge = new MobileBridge(this, web);
         web.addJavascriptInterface(bridge, "YiyuMobile");
-        setContentView(web);
+        setContentView(surface);
+        applyAppearance();
+        surface.requestApplyInsets();
         web.loadUrl("https://appassets.androidplatform.net/assets/web/index.html");
         if (Build.VERSION.SDK_INT >= 33) getOnBackInvokedDispatcher().registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::handleBack);
+    }
+    private void applyAppearance() {
+        boolean dark = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        int paper = android.graphics.Color.parseColor(dark ? "#242923" : "#f5f1e8");
+        if (surface != null) surface.setBackgroundColor(paper);
+        if (web != null) web.setBackgroundColor(paper);
+        if (Build.VERSION.SDK_INT >= 30 && getWindow().getInsetsController() != null) {
+            int light = android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+            getWindow().getInsetsController().setSystemBarsAppearance(dark ? 0 : light, light);
+        }
+        if (Build.VERSION.SDK_INT < 35) {
+            getWindow().setStatusBarColor(paper);
+            getWindow().setNavigationBarColor(paper);
+        }
+    }
+    @Override public void onConfigurationChanged(android.content.res.Configuration config) {
+        super.onConfigurationChanged(config);
+        applyAppearance();
+        if (surface != null) surface.requestApplyInsets();
     }
     private void handleBack() {
         if (web == null) { finish(); return; }
@@ -76,7 +108,7 @@ public class MainActivity extends Activity {
     }
     void voiceReady() {
         voiceClientReady = true;
-        if (consumeVoiceIntent(getIntent())) { voiceReturn = true; requestVoice(); }
+        if (consumeVoiceIntent(getIntent())) requestVoice();
     }
     void requestVoice() {
         if (!voiceClientReady || isFinishing()) return;
@@ -93,7 +125,7 @@ public class MainActivity extends Activity {
     }
     @Override protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent); setIntent(intent);
-        if (voiceClientReady && consumeVoiceIntent(intent)) { voiceReturn = true; web.post(this::requestVoice); }
+        if (voiceClientReady && consumeVoiceIntent(intent)) web.post(this::requestVoice);
     }
     @Override public void onBackPressed() { handleBack(); }
     void requestPet() {

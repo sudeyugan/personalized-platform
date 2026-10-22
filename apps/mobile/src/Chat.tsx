@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { getSnapshot, subscribe } from './repository'
-import { Figurine } from './companion/Figurine'
 import {
   clearConversation,
   conversationMessages,
@@ -19,8 +18,7 @@ export function Chat() {
   const voice = useVoice()
   const [input, setInput] = useState(''),
     [error, setError] = useState(''),
-    [writing, setWriting] = useState(false),
-    [greeting, setGreeting] = useState(0)
+    [writing, setWriting] = useState(false)
   const end = useRef<HTMLDivElement>(null)
   const messages = conversationMessages(library.records)
   useEffect(() => {
@@ -59,16 +57,6 @@ export function Chat() {
           {conversation.private ? '仅本机' : '普通会话'}
         </button>
       </div>
-      <button
-        className="figurine-greet"
-        aria-label="和小鱼打招呼"
-        onClick={() => setGreeting((value) => value + 1)}
-      >
-        <Figurine
-          phase={voice.phase === 'idle' && conversation.busy ? 'thinking' : voice.phase}
-          greeting={greeting}
-        />
-      </button>
       <VoiceControl />
       <p className="footnote conversation-scope">
         {conversation.private

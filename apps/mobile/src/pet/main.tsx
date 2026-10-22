@@ -9,6 +9,7 @@ interface PetState {
   resting: boolean
   visible: boolean
   phase: VoicePhase
+  pose?: string
 }
 const initial: PetState = {
   style: 'figurine',
@@ -20,11 +21,14 @@ const initial: PetState = {
 declare global {
   interface Window {
     yiyuPetState?: (state: unknown) => void
+    yiyuPetGreeting?: () => void
   }
 }
 export function PetStage() {
   const [state, setState] = useState(initial)
+  const [greeting, setGreeting] = useState(0)
   useEffect(() => {
+    window.yiyuPetGreeting = () => setGreeting(value => value + 1)
     window.yiyuPetState = (value) => {
       if (!value || typeof value !== 'object') return
       const next = value as PetState
@@ -38,10 +42,12 @@ export function PetStage() {
       setState({
         ...next,
         style: ['mark', 'figurine', 'expanded'].includes(next.style) ? next.style : 'figurine',
+        pose: next.pose === 'perch' ? 'perch' : 'standing',
       })
     }
     return () => {
       delete window.yiyuPetState
+      delete window.yiyuPetGreeting
     }
   }, [])
   if (!state.visible) return null
@@ -58,7 +64,7 @@ export function PetStage() {
           <i />
         </div>
       ) : (
-        <Figurine phase={state.phase} motion={state.motion && !state.resting} />
+        <Figurine phase={state.phase} motion={state.motion && !state.resting} seated={state.pose === 'perch'} resting={state.resting} greeting={greeting}/>
       )}
     </div>
   )

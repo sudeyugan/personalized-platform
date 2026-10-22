@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_companion_name">小鱼 · 随身手办</string>
+    <string name="widget_desk_name">一隅 · 桌边时光</string>
+    <string name="widget_companion_description">正常比例的小鱼，轻点打开一隅；不启动录音。</string>
+    <string name="widget_desk_description">坐姿小鱼与本机时间，不展示私人资料，轻点打开一隅。</string>
+    <string name="widget_desk_title">一 隅 · 桌 边</string>
+    <color name="widget_paper">#F5F1E8</color><color name="widget_ink">#443F37</color>
+    <color name="widget_muted">#837D6E</color><color name="widget_line">#D8CFC0</color>
+</resources>

@@ -5,10 +5,14 @@ export function Figurine({
   phase = 'idle',
   greeting = 0,
   motion = true,
+  seated = false,
+  resting = false,
 }: {
   phase?: VoicePhase
   greeting?: number
   motion?: boolean
+  seated?: boolean
+  resting?: boolean
 }) {
   const canvas = useRef<HTMLCanvasElement>(null),
     [error, setError] = useState('')
@@ -19,6 +23,7 @@ export function Figurine({
     let disposed = false,
       frame = 0,
       last = -Infinity
+    let observer: ResizeObserver | undefined
     const reduced = matchMedia('(prefers-reduced-motion: reduce)')
     const active = motion && !reduced.matches
     const greetingAt = greetingClock.current.at
@@ -26,26 +31,36 @@ export function Figurine({
       .then((atlas) => {
         const element = canvas.current
         if (!element || disposed) return
-        const ratio = Math.min(devicePixelRatio || 1, 2)
-        element.width = 192 * ratio
-        element.height = 256 * ratio
+        let ratio = 1
         const context = element.getContext('2d')!
+        const resize = () => {
+          ratio = Math.max(.25, Math.min(3, (element.clientWidth || 192) / 192 * Math.min(devicePixelRatio || 1, 3)))
+          element.width = Math.round(192 * ratio)
+          element.height = Math.round(256 * ratio)
+          last = -Infinity
+          if (!active) draw(performance.now())
+        }
         const draw = (time: number) => {
           if (disposed) return
           if (!document.hidden && time - last > 45) {
             last = time
             context.setTransform(ratio, 0, 0, ratio, 0, 0)
+            const poseFrame = frameFor(phase, time, active, greetingAt, seated, resting)
             drawFigurine(
               context,
               atlas,
-              frameFor(phase, time, active, greetingAt),
+              poseFrame,
               phase,
               time,
               active,
             )
+            element.dataset.frame = String(poseFrame)
           }
           if (active) frame = requestAnimationFrame(draw)
         }
+        observer = new ResizeObserver(resize)
+        observer.observe(element)
+        resize()
         draw(performance.now())
       })
       .catch(() => {
@@ -54,8 +69,9 @@ export function Figurine({
     return () => {
       disposed = true
       cancelAnimationFrame(frame)
+      observer?.disconnect()
     }
-  }, [phase, greeting, motion])
+  }, [phase, greeting, motion, seated, resting])
   return (
     <div className={'companion-stage phase-' + phase} role="img" aria-label={error || '小鱼'}>
       <div className="companion-halo" aria-hidden="true" />

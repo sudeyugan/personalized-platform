@@ -1,0 +1,63 @@
+/* The screen is the page; readable margins are not a fixed-width phone frame. */
+:root .mobile-app { width: 100%; max-width: none; height: 100vh; height: 100dvh; min-height: 0; display: flex; flex-direction: column; overflow: hidden; --folio-gutter: clamp(20px, 5.5vw, 54px); }
+:root .mobile-app::before { opacity: .07; }
+:root .mobile-app .app-bar { padding: 12px var(--folio-gutter); background: color-mix(in srgb, var(--paper) 96%, transparent); border: 0; }
+:root .mobile-app .page-content { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; width: 100%; padding: 16px var(--folio-gutter) 38px; animation: folio-arrive .24s ease-out both; }
+:root .mobile-app .page-content > section { min-width: 0; animation: none; }
+:root .mobile-app h1 { font-size: clamp(27px, 7vw, 42px); line-height: 1.4; letter-spacing: -.035em; font-weight: 400; margin: 12px 0 30px; }
+:root .mobile-app h2 { font-weight: 500; }
+:root .mobile-app .paper-card { box-shadow: none; background: color-mix(in srgb, var(--surface) 65%, transparent); border-radius: 3px 16px 3px 3px; }
+:root .mobile-app .section-heading { gap: 12px; flex-wrap: wrap; }
+.folio-foot { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 9px var(--folio-gutter) 12px; border-top: 1px solid var(--line); background: var(--paper); }
+.folio-foot > span { color: var(--muted); font-size: 10px; letter-spacing: .16em; }
+.folio-bookmark { display: flex; align-items: center; gap: 9px; min-height: 44px; padding: 9px 18px; background: var(--accent); color: var(--paper); border: 1px solid color-mix(in srgb, var(--paper) 15%, transparent); border-radius: 3px 3px 15px 3px; font-size: 14px; letter-spacing: .16em; }
+.folio-index-backdrop { position: fixed; inset: 0; z-index: 30; background: #252b264d; backdrop-filter: blur(7px); display: flex; justify-content: flex-end; }
+.folio-index { width: min(100%, 470px); height: 100%; background: var(--paper); padding: 26px clamp(22px, 6vw, 42px); overflow: auto; overscroll-behavior: contain; animation: folio-unfold .28s ease-out both; }
+.folio-index > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 22px; }
+.folio-index h2 { font-size: 25px; font-weight: 400; line-height: 1.6; margin: 8px 0 0; }
+.folio-index .index-home { display: flex; justify-content: space-between; align-items: center; width: 100%; border: 0; border-bottom: 1px solid var(--line); padding: 13px 0 19px; color: var(--accent); border-radius: 0; }
+.folio-index nav section { margin-top: 25px; }
+.folio-index h3 { display: flex; gap: 14px; color: var(--muted); font-size: 12px; font-weight: 400; letter-spacing: .14em; margin: 0 0 8px; }
+.folio-index h3 > span { color: var(--seal); font-variant-numeric: tabular-nums; }
+.folio-index nav section button { display: flex; justify-content: space-between; align-items: center; width: 100%; text-align: left; padding: 13px 0 13px 28px; border: 0; border-radius: 0; font-size: 18px; }
+.folio-index nav section button small { display: block; font-size: 11px; margin-top: 4px; color: var(--muted); }
+.folio-index nav section button[aria-current='page'] { color: var(--accent); background: var(--wash); box-shadow: inset 2px 0 var(--accent); }
+.folio-index > footer { color: var(--muted); font-size: 11px; padding-top: 30px; letter-spacing: .2em; }
+.canvas-opening { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 18px 0 30px; border-bottom: 1px solid var(--line); margin-bottom: 28px; }
+:root .mobile-app .canvas-opening h1 { font-size: clamp(24px, 5.8vw, 38px); margin: 12px 0; }
+.canvas-date { font-size: 12px; color: var(--muted); margin-bottom: 0; }
+.canvas-day { font: italic clamp(56px, 16vw, 94px)/1 Georgia, serif; color: var(--accent); opacity: .85; text-align: center; flex-shrink: 0; }
+.canvas-day > small { display: block; font: 9px/2.5 system-ui, sans-serif; letter-spacing: .17em; color: var(--muted); }
+.canvas-flow { display: grid; gap: 38px; }
+:root .mobile-app .next-arrangement { margin-top: 0; border: 0; border-left: 2px solid var(--accent); border-radius: 0; background: linear-gradient(110deg, var(--wash), transparent); padding: 20px 18px; animation: none; }
+.canvas-courses { margin: 24px 0; }
+.canvas-courses > header, .canvas-keepsake > header, .canvas-keepsake > footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.canvas-courses > header { color: var(--muted); font-size: 12px; }
+.canvas-courses > div { display: flex; gap: 9px; overflow-x: auto; padding: 5px 0 10px; }
+.canvas-courses > div button { display: grid; text-align: left; gap: 9px; min-width: 128px; max-width: 180px; border: 0; border-top: 1px solid var(--line); border-radius: 0; padding: 16px 12px 12px 0; flex: 0 0 40%; }
+.canvas-courses button small { font: italic 22px Georgia, serif; color: var(--accent); }
+.canvas-courses button strong { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+.canvas-courses button > span { color: var(--muted); font-size: 11px; }
+.canvas-keepsake { border-block: 1px solid var(--line); padding: 25px 0; }
+.canvas-keepsake h2 { font-size: 23px; line-height: 1.7; margin: 26px 0 20px; }
+.canvas-keepsake > p { font-size: 15px; line-height: 2.3; white-space: pre-wrap; max-height: 16em; overflow: auto; }
+.canvas-keepsake > footer { margin-top: 24px; }
+.canvas-keepsake .eyebrow { margin: 0; }
+:root .mobile-app .today-footer { border: 0; margin-top: 30px; }
+:root .mobile-app .mobile-ideas { margin: -16px calc(-1 * var(--folio-gutter)) 0; padding: 24px var(--folio-gutter) 0; min-height: calc(100dvh - 100px); }
+:root .mobile-app .phone-chat { min-height: calc(100dvh - 180px); }
+:root .mobile-app .phone-chat .chat-thread { min-height: 30dvh; }
+@keyframes folio-unfold { from { opacity: .4; transform: translateX(25px); } to { opacity: 1; transform: none; } }
+@keyframes folio-arrive { from { translate: 0 3px; } to { translate: none; } }
+@media (min-width: 720px) {
+  .canvas-flow { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: clamp(34px, 6vw, 90px); }
+  .canvas-keepsake { align-self: stretch; border-top: 0; padding-top: 0; }
+  :root .mobile-app .page-content { padding-top: 25px; }
+}
+@media (max-width: 350px) {
+  :root .mobile-app { --folio-gutter: 16px; }
+  .canvas-opening { gap: 6px; }
+  .canvas-day { font-size: 46px; }
+  :root .mobile-app .canvas-opening h1 { font-size: 23px; }
+}
+@media (prefers-reduced-motion: reduce) { .folio-index, :root .mobile-app .page-content { animation: none; } }

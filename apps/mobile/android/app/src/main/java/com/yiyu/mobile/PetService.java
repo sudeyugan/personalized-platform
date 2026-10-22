@@ -91,9 +91,9 @@ public class PetService extends Service {
         if (docking != null) docking.cancel();
         area = safeArea();
         String mode = preferences.getString("style", "figurine");
-        int base = "mark".equals(mode) ? 44 : "expanded".equals(mode) ? 112 : 56;
+        int base = "mark".equals(mode) ? 44 : "expanded".equals(mode) ? 128 : 72;
         int width = Math.max(1, Math.min(dp(base * preferences.getFloat("scale", 1)), Math.min(area.width(), Math.round(area.height() * .32f * .8f))));
-        position.width = width; position.height = Math.max(1, Math.min(area.height(), Math.round(width * 1.25f)));
+        position.width = width; position.height = Math.max(1, Math.min(area.height(), Math.round(width * 4f / 3f)));
         PetGeometry.Placement restored = PetGeometry.restore(area, position.width, position.height, preferences.getFloat("nx", 1), preferences.getFloat("ny", .4f), pose);
         position.x = restored.x; position.y = restored.y; dragging = false; updateWindow(); render();
     }
@@ -102,9 +102,10 @@ public class PetService extends Service {
     private void persistPosition() { PetPreferences.position(this, area, position.width, position.height, position.x, position.y, pose); }
     private void drag(int dx, int dy, boolean finish) {
         if (!dragging) { if (docking != null) docking.cancel(); dragX = position.x; dragY = position.y; dragging = true; closeChat(); }
-        PetGeometry.Placement next = PetGeometry.place(area, position.width, position.height, dragX + dx, dragY + dy, finish, dp(30));
+        boolean perched = "perch".equals(pose);
+        PetGeometry.Placement next = PetGeometry.place(area, position.width, position.height, dragX + dx, dragY + dy, finish && !perched, dp(30));
         if (!finish) { position.x = next.x; position.y = next.y; updateWindow(); return; }
-        dragging = false; pose = next.pose; render();
+        dragging = false; pose = perched ? "perch" : next.pose; render();
         final int fromX = position.x, fromY = position.y;
         if (!preferences.getBoolean("motion", true)) { position.x = next.x; position.y = next.y; updateWindow(); persistPosition(); return; }
         docking = ValueAnimator.ofFloat(0, 1); docking.setDuration(230); docking.setInterpolator(new android.view.animation.DecelerateInterpolator());
@@ -120,18 +121,19 @@ public class PetService extends Service {
         persistPosition(); updateWindow(); render();
     }
     private void refreshVisibility() {
-        shown = !MainActivity.foreground && getSystemService(PowerManager.class).isInteractive() && !getSystemService(KeyguardManager.class).isKeyguardLocked();
+        shown = getSystemService(PowerManager.class).isInteractive() && !getSystemService(KeyguardManager.class).isKeyguardLocked();
         if (!shown) { closeChat(); if (menu != null) menu.dismiss(); }
         if (pet != null) { pet.setVisibility(shown ? View.VISIBLE : View.GONE); render(); }
     }
     private void openMenu() {
         if (!shown || pet == null) return;
-        String[] actions = { VoiceService.running() ? "结束语音" : "和小鱼说话", "自由放置", "靠左边", "靠右边", "放在底部", resting ? "醒一醒" : "歇一会儿", "打开一隅", "收起小鱼" };
+        String[] actions = { VoiceService.running() ? "结束语音" : "和小鱼说话", "打个招呼", "自由放置", "靠左边", "靠右边", "放在底部", "坐在这里", resting ? "醒一醒" : "歇一会儿", "打开一隅", "收起小鱼" };
         menu = new AlertDialog.Builder(new android.view.ContextThemeWrapper(this, android.R.style.Theme_Material_Light_Dialog_Alert)).setTitle("小鱼 · 留在你喜欢的位置").setItems(actions, (dialog, which) -> {
             if (which == 0) toggleChat();
-            else if (which <= 4) setPose(new String[]{"", "float", "left-edge", "right-edge", "bottom-edge"}[which]);
-            else if (which == 5) { resting = !resting; if (resting) stopService(new Intent(this, VoiceService.class)); preferences.edit().putBoolean("resting", resting).apply(); render(); }
-            else if (which == 6) startActivity(new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            else if (which == 1) { setPose("float"); pet.greet(); }
+            else if (which <= 6) setPose(new String[]{"", "", "float", "left-edge", "right-edge", "bottom-edge", "perch"}[which]);
+            else if (which == 7) { resting = !resting; if (resting) stopService(new Intent(this, VoiceService.class)); preferences.edit().putBoolean("resting", resting).apply(); render(); }
+            else if (which == 8) startActivity(new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             else stopSelf();
         }).create();
         if (menu.getWindow() != null) menu.getWindow().setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY);
