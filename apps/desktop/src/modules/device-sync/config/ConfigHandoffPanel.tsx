@@ -30,8 +30,10 @@ export function ConfigHandoffPanel({ client }: { client?: ConfigHandoff }) {
     let active = true
     const poll = () => {
       if (active && !document.hidden)
-        void refresh().catch(() => {
-          if (active) setMessage('配置交接暂不可用；现有配置保留。请确认中枢也已更新。')
+        void refresh().then(() => {
+          if (active) setMessage('')
+        }).catch((error: unknown) => {
+          if (active) setMessage(error instanceof Error ? error.message : '配置交接暂不可用；现有配置保留。请稍后重试。')
         })
     }
     poll()

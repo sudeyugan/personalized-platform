@@ -1,14 +1,13 @@
-import { invoke } from '@tauri-apps/api/core'
 import { create } from 'zustand'
-import { connect, conflicts, fetchTransport, invite, loadState, readPairing, recover, saveEnrollment, saveState, SyncClient, type SyncState, type Transport } from '@yiyu/sync'
+import { connect, conflicts, invite, loadState, readPairing, recover, saveEnrollment, saveState, SyncClient, type SyncState } from '@yiyu/sync'
 import { libraryRepository } from '../../infrastructure/libraryRepository'
 import { useLibraryStore } from '../../state/useLibraryStore'
 import { mergeLibrary, projectLibrary } from './libraryProjection'
 import { desktopConfigHandoff, stopDesktopConfigHandoff } from './config/nativeAdapter'
 import type { SyncConfig } from '@yiyu/sync'
+import { transport } from './transport'
 
-export const transport: Transport = (url, path, token, body) => '__TAURI_INTERNALS__' in window
-  ? invoke('device_sync_request', { url, path, token, body }) : fetchTransport(url, path, token, body)
+export { transport }
 interface DeviceSyncView { state: SyncState | null; busy: boolean; error: string; configError?: string; lastSync?: string }
 export const useDeviceSync = create<DeviceSyncView>(() => ({ state: null, busy: false, error: '' }))
 let client: SyncClient | null = null
