@@ -14,6 +14,10 @@
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="User-enabled draggable companion overlay with an explicit stop notification; no screen capture or other-app input access" />
         </service>
         <service android:name=".VoiceService" android:exported="false" android:foregroundServiceType="microphone" />
+        <service android:name=".DesktopSenseService" android:exported="true" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" android:label="@string/desktop_sense_name">
+            <intent-filter><action android:name="android.accessibilityservice.AccessibilityService" /></intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/desktop_sense" />
+        </service>
         <receiver android:name=".CompanionWidget" android:exported="false" android:label="@string/widget_companion_name">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/companion_widget" />
@@ -23,4 +27,5 @@
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/companion_desk_widget" />
         </receiver>
     </application>
+    <queries><intent><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.HOME" /></intent></queries>
 </manifest>

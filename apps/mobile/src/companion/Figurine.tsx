@@ -1,31 +1,47 @@
 import { useEffect, useRef, useState } from 'react'
 import { drawFigurine, frameFor, loadFigurine, type VoicePhase } from './figurine'
 import './companion.css'
+import { petTransform, type PetAction } from './figurineMotion'
 export function Figurine({
   phase = 'idle',
   greeting = 0,
   motion = true,
   seated = false,
   resting = false,
+  action = 'idle',
+  actionKey = 0,
+  edge = '',
 }: {
   phase?: VoicePhase
   greeting?: number
   motion?: boolean
   seated?: boolean
   resting?: boolean
+  action?: PetAction
+  actionKey?: number
+  edge?: string
 }) {
   const canvas = useRef<HTMLCanvasElement>(null),
     [error, setError] = useState('')
+  const [reducedMotion, setReducedMotion] = useState(() => matchMedia('(prefers-reduced-motion: reduce)').matches)
+  useEffect(() => {
+    const preference = matchMedia('(prefers-reduced-motion: reduce)')
+    const update = () => setReducedMotion(preference.matches)
+    preference.addEventListener('change', update)
+    return () => preference.removeEventListener('change', update)
+  }, [])
   const greetingClock = useRef({ key: 0, at: 0 })
+  const actionClock = useRef({ key: 0, at: 0 })
   if (greetingClock.current.key !== greeting)
     greetingClock.current = { key: greeting, at: performance.now() }
+  if (actionClock.current.key !== actionKey)
+    actionClock.current = { key: actionKey, at: performance.now() }
   useEffect(() => {
     let disposed = false,
       frame = 0,
       last = -Infinity
     let observer: ResizeObserver | undefined
-    const reduced = matchMedia('(prefers-reduced-motion: reduce)')
-    const active = motion && !reduced.matches
+    const active = motion && !resting && !reducedMotion
     const greetingAt = greetingClock.current.at
     void loadFigurine()
       .then((atlas) => {
@@ -53,6 +69,8 @@ export function Figurine({
               phase,
               time,
               active,
+              petTransform(time, action, actionClock.current.at, active && !resting, seated, edge),
+              seated,
             )
             element.dataset.frame = String(poseFrame)
           }
@@ -71,7 +89,7 @@ export function Figurine({
       cancelAnimationFrame(frame)
       observer?.disconnect()
     }
-  }, [phase, greeting, motion, seated, resting])
+  }, [phase, greeting, motion, seated, resting, action, actionKey, edge, reducedMotion])
   return (
     <div className={'companion-stage phase-' + phase} role="img" aria-label={error || '小鱼'}>
       <div className="companion-halo" aria-hidden="true" />

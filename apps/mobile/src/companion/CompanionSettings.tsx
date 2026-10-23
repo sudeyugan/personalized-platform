@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import './chat.css'
+import { DesktopSenseSettings } from './DesktopSenseSettings'
 export function CompanionSettings() {
   const [mode, setMode] = useState(
     () => localStorage.getItem('yiyu.mobile.pet-mode-v3') ?? 'figurine',
@@ -65,7 +66,7 @@ export function CompanionSettings() {
           checked={motion}
           onChange={(event) => configure(mode, scale, event.target.checked)}
         />
-        轻待机与眨眼
+        动作、轻待机与眨眼
       </label>
       <div className="toolbar">
         <button
@@ -94,8 +95,9 @@ export function CompanionSettings() {
         </p>
       )}
       <p className="footnote">
-        轻点开始/结束语音，拖动放置，长按调整。小鱼独立悬浮，不随软件页面切换；长按可选择坐姿停靠，手动放在桌面组件边缘。锁屏隐藏并停止语音；系统授权与通知保留，不读取其他应用、摄像头或屏幕。桌面长按空白处也可添加一隅的小组件。
+        轻点开始/结束语音，拖动提起、松手落稳，长按调整姿态或打招呼。小鱼独立悬浮，不随软件页面切换；锁屏隐藏并停止语音。桌面长按空白处也可添加一隅的小组件；组件里的图片是静态的，可活动的是独立悬浮小鱼。
       </p>
+      <DesktopSenseSettings />
     </section>
   )
 }

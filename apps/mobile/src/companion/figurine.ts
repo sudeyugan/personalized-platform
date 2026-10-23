@@ -1,5 +1,6 @@
 import sprite from './assets/mobile-companion-v2.png'
 import registrationJson from './assets/mobile-companion-v2.frames.json?raw'
+import type { MotionTransform } from './figurineMotion'
 interface FrameRect { x: number; y: number; width: number; height: number }
 const registration = JSON.parse(registrationJson) as { width: number; height: number; referenceHeight: number; frames: FrameRect[] }
 export type VoicePhase = 'idle' | 'listening' | 'thinking' | 'speaking' | 'error'
@@ -74,16 +75,21 @@ export function drawFigurine(
   phase: VoicePhase,
   time: number,
   motion: boolean,
+  transform?: MotionTransform,
+  seated = false,
 ) {
   const width = 192,
     height = 256,
     anchor = atlas.anchors[frame],
     rect = atlas.frames[frame],
     scale = 238 / atlas.referenceHeight
-  const breathe = motion ? Math.sin(time / 1350) * 0.7 : 0
   context.clearRect(0, 0, width, height)
   context.save()
-  context.translate(width / 2, 249)
+  const pivot = seated ? 165 : 249
+  context.translate(width / 2 + (transform?.x ?? 0), pivot + (transform?.y ?? 0))
+  if (transform) { context.rotate(transform.angle); context.scale(transform.scaleX, transform.scaleY) }
+  // Contact stays fixed while breathing; feet/hips must not drift above their support.
+  if (motion && !transform) context.scale(1, 1 + Math.sin(time / 1350) * .0025)
   if (motion && phase === 'thinking') context.rotate(Math.sin(time / 1700) * 0.012)
   context.drawImage(
     atlas.image,
@@ -92,7 +98,7 @@ export function drawFigurine(
     rect.width,
     rect.height,
     -anchor.x * scale,
-    -anchor.y * scale + breathe,
+    249 - pivot - anchor.y * scale,
     rect.width * scale,
     rect.height * scale,
   )

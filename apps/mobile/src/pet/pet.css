@@ -9,10 +9,22 @@ body,
   --accent: #78958b;
 }
 .mobile-overlay {
+  position: relative;
   width: 100%;
   height: 100%;
   display: grid;
   place-items: center;
+}
+.perch-contact {
+  position: absolute;
+  top: 64.45%;
+  left: 18%;
+  right: 18%;
+  height: 2px;
+  border-radius: 50%;
+  background: #a4d2bd;
+  box-shadow: 0 0 6px 2px #81bba860;
+  pointer-events: none;
 }
 .mobile-overlay .companion-stage {
   width: 100%;
@@ -26,6 +38,7 @@ body,
 }
 .mobile-overlay .companion-halo {
   inset: 20% 0 0;
+  opacity: .2;
 }
 .ink-mark {
   position: relative;

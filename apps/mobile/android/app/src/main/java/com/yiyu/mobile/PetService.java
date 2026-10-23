@@ -31,6 +31,12 @@ public class PetService extends Service {
     private WindowManager windows;
     private PetView pet;
     private static volatile PetService current;
+    static boolean visibleForSensing() { PetService service = current; return service != null && service.shown && service.pet != null && service.pet.isAttachedToWindow(); }
+    static void desktopChanged(boolean home, PetSurfaceGeometry.Surface[] surfaces) {
+        PetService service = current;
+        if (service != null && service.pet != null) service.pet.post(() -> service.updateContacts(home, surfaces));
+    }
+    private final PetContacts contacts = new PetContacts();
     static void visibilityChanged() { PetService service = current; if (service != null && service.pet != null) service.pet.post(service::refreshVisibility); }
     private final VoiceEvents.Listener voice = event -> { if (pet != null) render(); };
     private WindowManager.LayoutParams position;
@@ -39,6 +45,7 @@ public class PetService extends Service {
     private String pose = "right-edge";
     private boolean resting, shown = true, dragging, observing;
     private int dragX, dragY;
+    private String dragPose;
     private ValueAnimator docking;
     private AlertDialog menu;
     private final SharedPreferences.OnSharedPreferenceChangeListener changed = (prefs, key) -> {
@@ -89,48 +96,82 @@ public class PetService extends Service {
     }
     private void layout() {
         if (docking != null) docking.cancel();
+        if (contacts.attached()) pose = "float";
+        contacts.clearAttachment();
         area = safeArea();
         String mode = preferences.getString("style", "figurine");
         int base = "mark".equals(mode) ? 44 : "expanded".equals(mode) ? 128 : 72;
         int width = Math.max(1, Math.min(dp(base * preferences.getFloat("scale", 1)), Math.min(area.width(), Math.round(area.height() * .32f * .8f))));
         position.width = width; position.height = Math.max(1, Math.min(area.height(), Math.round(width * 4f / 3f)));
         PetGeometry.Placement restored = PetGeometry.restore(area, position.width, position.height, preferences.getFloat("nx", 1), preferences.getFloat("ny", .4f), pose);
-        position.x = restored.x; position.y = restored.y; dragging = false; updateWindow(); render();
+        position.x = restored.x; position.y = restored.y; dragging = false; updateWindow(); render(); DesktopSenseService.refresh();
     }
     private void render() { if (pet != null) pet.render(preferences.getString("style", "figurine"), pose, preferences.getBoolean("motion", true), resting, shown); }
     private void updateWindow() { if (pet != null && pet.isAttachedToWindow()) { try { windows.updateViewLayout(pet, position); } catch (IllegalArgumentException ignored) { } } }
-    private void persistPosition() { PetPreferences.position(this, area, position.width, position.height, position.x, position.y, pose); }
-    private void drag(int dx, int dy, boolean finish) {
-        if (!dragging) { if (docking != null) docking.cancel(); dragX = position.x; dragY = position.y; dragging = true; closeChat(); }
+    private void persistPosition() { PetPreferences.position(this, area, position.width, position.height, position.x, position.y, contacts.attached() ? "float" : pose); }
+    private void updateContacts(boolean home, PetSurfaceGeometry.Surface[] surfaces) {
+        if (pet == null || area == null) return;
+        home = home && shown && DesktopSense.active(this);
+        PetGeometry.Placement next = contacts.update(home, surfaces, area, position.width, position.height, position.x, position.y, dp(36));
+        if (!home) pet.contact(false);
+        if (dragging) return;
+        if (next != null) {
+            if (docking != null) docking.cancel();
+            position.x = next.x; position.y = next.y; pose = next.pose;
+            updateWindow(); render(); // No widget bounds or attachment saved to preferences.
+        }
+        pet.contact(false);
+    }
+    private void drag(int dx, int dy, boolean finish, boolean cancelled) {
+        if (!dragging) {
+            if (docking != null) docking.cancel();
+            dragPose = contacts.attached() ? "float" : pose;
+            contacts.clearAttachment(); dragX = position.x; dragY = position.y; dragging = true; closeChat();
+            pet.action("lift"); DesktopSenseService.refresh();
+        }
         boolean perched = "perch".equals(pose);
         PetGeometry.Placement next = PetGeometry.place(area, position.width, position.height, dragX + dx, dragY + dy, finish && !perched, dp(30));
+        boolean sense = DesktopSense.requested(this) && (!finish || DesktopSense.active(this));
+        PetSurfaceGeometry.Surface surface = !cancelled && sense && !"mark".equals(preferences.getString("style", "figurine")) ? contacts.nearby(area, position.width, position.height, next.x, next.y, dp(32)) : null;
+        pet.contact(surface != null);
         if (!finish) { position.x = next.x; position.y = next.y; updateWindow(); return; }
-        dragging = false; pose = perched ? "perch" : next.pose; render();
+        pet.contact(false);
+        if (surface != null) next = new PetGeometry.Placement(next.x, contacts.attach(surface, position.height), "perch");
+        dragging = false; pose = surface != null || perched ? "perch" : next.pose; render();
+        if (cancelled) { next = PetGeometry.place(area, position.width, position.height, dragX, dragY, false, 0); pose = dragPose; render(); }
+        final PetGeometry.Placement target = next;
+        pet.action("perch".equals(pose) ? "sit" : pose.endsWith("edge") ? "edge" : "land");
         final int fromX = position.x, fromY = position.y;
         if (!preferences.getBoolean("motion", true)) { position.x = next.x; position.y = next.y; updateWindow(); persistPosition(); return; }
         docking = ValueAnimator.ofFloat(0, 1); docking.setDuration(230); docking.setInterpolator(new android.view.animation.DecelerateInterpolator());
-        docking.addUpdateListener(animation -> { float progress = (float) animation.getAnimatedValue(); position.x = fromX + Math.round((next.x - fromX) * progress); position.y = fromY + Math.round((next.y - fromY) * progress); updateWindow(); });
+        docking.addUpdateListener(animation -> { float progress = (float) animation.getAnimatedValue(); position.x = fromX + Math.round((target.x - fromX) * progress); position.y = fromY + Math.round((target.y - fromY) * progress); updateWindow(); });
         docking.addListener(new android.animation.AnimatorListenerAdapter() { @Override public void onAnimationEnd(android.animation.Animator animation) { persistPosition(); } }); docking.start();
     }
     private void setPose(String next) {
         if (docking != null) docking.cancel();
+        contacts.clearAttachment();
         pose = next;
         if ("left-edge".equals(next)) position.x = area.left;
         if ("right-edge".equals(next)) position.x = area.right - position.width;
         if ("bottom-edge".equals(next)) position.y = area.bottom - position.height;
-        persistPosition(); updateWindow(); render();
+        persistPosition(); updateWindow(); render(); pet.action("perch".equals(next) ? "sit" : "stand");
     }
     private void refreshVisibility() {
         shown = getSystemService(PowerManager.class).isInteractive() && !getSystemService(KeyguardManager.class).isKeyguardLocked();
-        if (!shown) { closeChat(); if (menu != null) menu.dismiss(); }
+        if (!shown) { closeChat(); if (menu != null) menu.dismiss(); DesktopSense.clear(); }
         if (pet != null) { pet.setVisibility(shown ? View.VISIBLE : View.GONE); render(); }
+        if (shown) DesktopSenseService.refresh();
     }
     private void openMenu() {
         if (!shown || pet == null) return;
         String[] actions = { VoiceService.running() ? "结束语音" : "和小鱼说话", "打个招呼", "自由放置", "靠左边", "靠右边", "放在底部", "坐在这里", resting ? "醒一醒" : "歇一会儿", "打开一隅", "收起小鱼" };
         menu = new AlertDialog.Builder(new android.view.ContextThemeWrapper(this, android.R.style.Theme_Material_Light_Dialog_Alert)).setTitle("小鱼 · 留在你喜欢的位置").setItems(actions, (dialog, which) -> {
             if (which == 0) toggleChat();
-            else if (which == 1) { setPose("float"); pet.greet(); }
+            else if (which == 1) {
+                resting = false; preferences.edit().putBoolean("resting", false).apply();
+                if ("mark".equals(preferences.getString("style", "figurine"))) Toast.makeText(this, "切换到小手办后可以招手", Toast.LENGTH_SHORT).show();
+                else { setPose("float"); pet.greet(); }
+            }
             else if (which <= 6) setPose(new String[]{"", "", "float", "left-edge", "right-edge", "bottom-edge", "perch"}[which]);
             else if (which == 7) { resting = !resting; if (resting) stopService(new Intent(this, VoiceService.class)); preferences.edit().putBoolean("resting", resting).apply(); render(); }
             else if (which == 8) startActivity(new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
@@ -149,6 +190,7 @@ public class PetService extends Service {
     @Override public void onConfigurationChanged(Configuration config) { super.onConfigurationChanged(config); closeChat(); if (menu != null) menu.dismiss(); if (pet != null) layout(); }
     @Override public void onDestroy() {
         if (current == this) current = null;
+        DesktopSense.clear();
         VoiceEvents.remove(voice); stopService(new Intent(this, VoiceService.class));
         if (observing) unregisterReceiver(screen);
         if (preferences != null) preferences.unregisterOnSharedPreferenceChangeListener(changed);

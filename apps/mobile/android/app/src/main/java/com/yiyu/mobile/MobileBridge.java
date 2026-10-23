@@ -33,4 +33,6 @@ public class MobileBridge extends ModelBridge {
     @JavascriptInterface public boolean configurePet(String style, double scale, boolean motion) {
         return PetPreferences.configure(activity, style, scale, motion);
     }
+    @JavascriptInterface public String desktopSenseStatus() { return DesktopSense.status(activity); }
+    @JavascriptInterface public void setDesktopSense(boolean enabled) { activity.runOnUiThread(() -> DesktopSense.request(activity, enabled)); }
 }

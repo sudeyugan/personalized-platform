@@ -1,0 +1,4 @@
+<resources>
+    <string name="desktop_sense_name">一隅 · 桌面停靠</string>
+    <string name="desktop_sense_description">可选功能：仅在独立小鱼显示时处理默认桌面的组件类型与位置，让小鱼坐在组件边缘。不采集文字、输入、通知或截图，不操作其他应用，不保存或上传布局。系统权限本身较强，需本人授权；随时可关闭。不提供边界的桌面仍使用手动停靠。</string>
+</resources>

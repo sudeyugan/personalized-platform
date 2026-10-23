@@ -1,0 +1,20 @@
+import { readFileSync } from 'node:fs'
+import assert from 'node:assert/strict'
+
+const root = new URL('../apps/mobile/android/app/src/main/', import.meta.url)
+const source = name => readFileSync(new URL(`java/com/yiyu/mobile/${name}.java`, root), 'utf8')
+const manifest = readFileSync(new URL('AndroidManifest.xml', root), 'utf8')
+const config = readFileSync(new URL('res/xml/desktop_sense.xml', root), 'utf8')
+const sensing = ['DesktopSense', 'DesktopSenseService', 'DesktopLayout', 'PetContacts', 'PetSurfaceGeometry'].map(source).join('\n')
+assert.match(manifest, /android:name="\.DesktopSenseService"[^>]*android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"/)
+assert.match(config, /android:canRetrieveWindowContent="true"/)
+assert.match(config, /android:canPerformGestures="false"/)
+assert.doesNotMatch(config, /typeAllMask|flagRetrieveInteractiveWindows|flagReportViewIds|flagRequestFilterKeyEvents|typeNotificationStateChanged|typeViewTextChanged/)
+assert.doesNotMatch(sensing, /getText\s*\(|getContentDescription\s*\(|getSource\s*\(|getViewIdResourceName\s*\(|performAction\s*\(|dispatchGesture\s*\(|takeScreenshot\s*\(|findAccessibilityNodeInfos|Socket|HttpClient|URLConnection|SecretStore|ChatBackend|ChatService|ModelBridge/)
+assert.match(source('DesktopSense'), /getBoolean\("desktopSense", false\)/)
+assert.match(source('DesktopSense'), /setNegativeButton\("暂不开启"/)
+assert.match(source('DesktopSenseService'), /!home\.contentEquals\(root\.getPackageName\(\)\)/)
+assert.match(source('DesktopLayout'), /if \(node\.type\(\)\.endsWith\("AppWidgetHostView"\)\)/)
+assert.doesNotMatch(source('DesktopSenseService'), /putString\(|putInt\(|putFloat\(|FileOutputStream|writeFile/)
+assert.doesNotMatch(source('PetView'), /addJavascriptInterface/)
+console.log('YIYU_DESKTOP_SENSE_AUDIT_OK: system protection, explicit opt-in, layout-only APIs and no model/data bridge')

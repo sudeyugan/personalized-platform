@@ -15,7 +15,7 @@ import androidx.webkit.WebViewAssetLoader;
 import org.json.JSONObject;
 
 final class PetView extends FrameLayout {
-    interface Drag { void move(int dx, int dy, boolean finish); }
+    interface Drag { void move(int dx, int dy, boolean finish, boolean cancelled); }
     private final WebView web;
     private final Runnable click, menu;
     private final Drag drag;
@@ -25,6 +25,7 @@ final class PetView extends FrameLayout {
     private boolean dragging, longPressed, loaded, disposed;
     private int readinessAttempts;
     private JSONObject state;
+    private boolean nearContact;
     private final Runnable longPress = () -> { longPressed = true; performLongClick(); };
     PetView(Context context, Runnable click, Runnable menu, Drag drag) {
         super(context); this.click = click; this.menu = menu; this.drag = drag;
@@ -58,6 +59,15 @@ final class PetView extends FrameLayout {
     void greet() {
         if (loaded && !disposed) web.evaluateJavascript("if(typeof window.yiyuPetGreeting==='function')window.yiyuPetGreeting()", null);
     }
+    void action(String action) {
+        if (!("lift".equals(action) || "land".equals(action) || "sit".equals(action) || "stand".equals(action) || "edge".equals(action))) return;
+        if (loaded && !disposed) web.evaluateJavascript("if(typeof window.yiyuPetAction==='function')window.yiyuPetAction(" + JSONObject.quote(action) + ")", null);
+    }
+    void contact(boolean near) {
+        if (nearContact == near) return;
+        nearContact = near;
+        if (loaded && !disposed) web.evaluateJavascript("if(typeof window.yiyuPetContact==='function')window.yiyuPetContact(" + near + ")", null);
+    }
     private void publish() {
         if (!loaded || state == null || disposed) return;
         web.evaluateJavascript("typeof window.yiyuPetState==='function'?(window.yiyuPetState(" + state.toString() + "),true):false", ready -> {
@@ -76,12 +86,12 @@ final class PetView extends FrameLayout {
         int dx = Math.round(event.getRawX() - startX), dy = Math.round(event.getRawY() - startY);
         if (action == MotionEvent.ACTION_MOVE) {
             if (!dragging && Math.hypot(dx, dy) > slop) { dragging = true; handler.removeCallbacks(longPress); }
-            if (dragging && !longPressed) drag.move(dx, dy, false);
+            if (dragging && !longPressed) drag.move(dx, dy, false, false);
             return true;
         }
         if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
             handler.removeCallbacks(longPress);
-            if (dragging && !longPressed) drag.move(dx, dy, true);
+            if (dragging && !longPressed) drag.move(dx, dy, true, action == MotionEvent.ACTION_CANCEL);
             else if (!longPressed && action == MotionEvent.ACTION_UP) performClick();
             return true;
         }
