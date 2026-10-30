@@ -289,7 +289,7 @@ try {
       const body = await page.locator('main.page-content').boundingBox(), foot = await page.locator('.folio-foot').boundingBox()
       assert.ok(foot.y >= body.y + body.height - 1, 'bookmark footer must not obscure page content')
     }
-    await page.getByRole('button', { name: '连接与设置', exact: true }).click()
+    await page.locator('.app-bar').getByRole('button', { name: '连接与设置', exact: true }).click()
     assert.ok(
       (await page.evaluate(
         () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

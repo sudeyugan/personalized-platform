@@ -1,12 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowUpRight, X } from 'lucide-react'
-
-const chapters = [
-  { label: '安顿日常', pages: [['courses', '课表', '把一周摊开'], ['calendar', '日程', '为时间留一个位置'], ['todos', '待办', '一件一件，从容完成'], ['assignments', '作业', '截止之前，心中有数']] },
-  { label: '留下与生长', pages: [['diary', '日记', '翻到某一天'], ['moods', '心情与回望', '让感受有迹可循'], ['ideas', '想法工坊', '从模糊处，慢慢成形']] },
-  { label: '随时相连', pages: [['chat', '和小鱼说话', '语音或文字，由你选择'], ['settings', '连接与设置', '安顿设备与偏好']] },
-]
+import { X } from 'lucide-react'
+import { FolioLinks } from './FolioLinks'
 
 export function PageIndex({ current, go, close }: { current: string; go(page: string): void; close(): void }) {
   const panel = useRef<HTMLElement>(null)
@@ -42,11 +37,7 @@ export function PageIndex({ current, go, close }: { current: string; go(page: st
       <section ref={panel} className="folio-index" role="dialog" aria-modal="true" aria-label="功能索引" id="folio-index">
         <header><div><span className="eyebrow">一隅 · 卷目</span><h2>想翻到哪一页？</h2></div><button className="icon-button" aria-label="收起功能索引" onClick={close}><X size={22}/></button></header>
         <nav aria-label="功能索引目录">
-          <button className="index-home" onClick={() => go('home')}>回到日常画布 <ArrowUpRight size={17}/></button>
-          {chapters.map((chapter, group) => <section key={chapter.label}>
-            <h3><span>0{group + 1}</span>{chapter.label}</h3>
-            {chapter.pages.map(([id, label, hint]) => <button key={id} aria-current={current === id ? 'page' : undefined} onClick={() => go(id)}><span>{label}<small>{hint}</small></span><ArrowUpRight size={17}/></button>)}
-          </section>)}
+          <FolioLinks current={current} go={go}/>
         </nav>
         <footer>各有一页，同在一隅。</footer>
       </section>

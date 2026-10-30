@@ -9,13 +9,13 @@ import {
   assignmentDeadlineLabel,
   assignmentOverview,
 } from '../../../desktop/src/modules/planner/assignments/assignmentPresentation'
-import { calendarDates } from '../../../desktop/src/modules/planner/plannerDates'
 import { rows, today, todoVisible } from '../data'
 import { modify, update } from '../repository'
 import { TodoCheck } from '../TodoCheck'
 import { RecordForm } from '../components/RecordForm'
 import type { Action } from './HomePage'
 import { CourseSchedule } from '../planning/CourseSchedule'
+import { CalendarAgenda } from '../planning/CalendarAgenda'
 import { isTodoCompletedOn } from '../../../desktop/src/modules/planner/plannerDates'
 export function PlannerPage({
   records,
@@ -99,6 +99,7 @@ export function PlannerPage({
         <div className="paper-card">
           <div className="segments" aria-label="待办筛选">{([['pending', '待完成'], ['done', '已完成'], ['all', '全部']] as const).map(([id, label]) => <button key={id} aria-pressed={todoFilter === id} onClick={() => setTodoFilter(id)}>{label}</button>)}</div>
           {!todos.length && <p className="empty">先留下一件想做的小事。</p>}
+          <div className="todo-entries">
           {todos.filter(todo => todoFilter === 'all' || isTodoCompletedOn(todo, today()) === (todoFilter === 'done')).map((todo) => (
             <article className="todo-row" key={todo.id}>
               <TodoCheck
@@ -126,18 +127,25 @@ export function PlannerPage({
               </button>
             </article>
           ))}
+          </div>
         </div>
       )}
       {tab === 'assignments' && (
         <>
+          <div className="assignment-columns">
+          <section aria-label="本周待交作业">
           <h3>这周还没交</h3>
           {overview.weekly.length ? (
             overview.weekly.map(assignmentCard)
           ) : (
             <p className="empty small-empty">本周没有待交的周作业。</p>
           )}
+          </section>
+          <section aria-label="单次截止作业">
           <h3>单次截止</h3>
-          {overview.once.map(assignmentCard)}
+          {overview.once.length ? overview.once.map(assignmentCard) : <p className="empty small-empty">没有待交的单次作业。</p>}
+          </section>
+          </div>
           <details>
             <summary>已交与往期记录</summary>
             {overview.history.map(assignmentCard)}
@@ -166,72 +174,7 @@ export function PlannerPage({
         </>
       )}
       {tab === 'calendar' && (
-        <>
-          <div className="month-heading">
-            <button
-              aria-label="上个月"
-              onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
-            >
-              ←
-            </button>
-            <h3>
-              {month.getFullYear()} 年 {month.getMonth() + 1} 月
-            </h3>
-            <button
-              aria-label="下个月"
-              onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
-            >
-              →
-            </button>
-          </div>
-          <div className="month-grid">
-            {'一二三四五六日'.split('').map((day) => (
-              <small key={day}>{day}</small>
-            ))}
-            {calendarDates(month).map((day) => {
-              const key = day.toLocaleDateString('sv-SE')
-              return (
-                <button
-                  className={day.getMonth() !== month.getMonth() ? 'outside-month' : ''}
-                  aria-pressed={date === key}
-                  aria-label={key}
-                  key={key}
-                  onClick={() => setDate(key)}
-                >
-                  {day.getDate()}
-                  {appointments.some((item) => item.date === key) && <i />}
-                </button>
-              )
-            })}
-          </div>
-          <header className="section-heading"><h3>{date}</h3><button className="text-button" onClick={() => { setDate(today()); setMonth(new Date()) }}>回到今天</button></header>
-          <div className="day-agenda">
-          {appointments
-            .filter((item) => item.date === date)
-            .sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''))
-            .map((item) => (
-              <article className="paper-card" key={item.id}>
-                <small>{item.time || '全天'}</small>
-                <h3>{item.title}</h3>
-                <p>{item.note}</p>
-                <div className="toolbar">
-                  <button
-                    onClick={() =>
-                      setEditing({
-                        collection: 'calendar',
-                        key: `calendar/${item.id}`,
-                      })
-                    }
-                  >
-                    编辑
-                  </button>
-                  <button onClick={() => remove(`calendar/${item.id}`)}>移除</button>
-                </div>
-              </article>
-            ))}
-          {!appointments.some(item => item.date === date) && <p className="empty small-empty">这一天没有日程，留一段自由的时间。</p>}
-          </div>
-        </>
+        <CalendarAgenda appointments={appointments} date={date} month={month} setDate={setDate} setMonth={setMonth} edit={item => setEditing({ collection: 'calendar', key: `calendar/${item.id}` })} remove={remove}/>
       )}
       {tab === 'courses' && (
         <CourseSchedule courses={courses} edit={course => setEditing({ collection: 'courses', key: `courses/${course.id}` })}/>

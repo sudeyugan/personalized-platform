@@ -100,7 +100,8 @@ public class PetService extends Service {
         contacts.clearAttachment();
         area = safeArea();
         String mode = preferences.getString("style", "figurine");
-        int base = "mark".equals(mode) ? 44 : "expanded".equals(mode) ? 128 : 72;
+        float density = getResources().getDisplayMetrics().density;
+        int base = PetGeometry.defaultWidthDp(mode, Math.round(area.width() / density), Math.round(area.height() / density));
         int width = Math.max(1, Math.min(dp(base * preferences.getFloat("scale", 1)), Math.min(area.width(), Math.round(area.height() * .32f * .8f))));
         position.width = width; position.height = Math.max(1, Math.min(area.height(), Math.round(width * 4f / 3f)));
         PetGeometry.Placement restored = PetGeometry.restore(area, position.width, position.height, preferences.getFloat("nx", 1), preferences.getFloat("ny", .4f), pose);

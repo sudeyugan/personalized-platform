@@ -26,6 +26,11 @@ public final class PetGeometryCheck {
         PetGeometry.Area highDensity = new PetGeometry.Area(0, 80, 1200, 2528);
         PetGeometry.Placement phone = PetGeometry.place(highDensity, 216, 288, 9999, 9999, true, 90);
         check(phone.x + 216 <= 1200 && phone.y + 288 <= 2528, "1200 by 2608 phone respects physical safe area");
-        System.out.println("YIYU_PET_GEOMETRY_OK: 10 geometry checks passed");
+        check(PetGeometry.defaultWidthDp("figurine", 390, 844) == 72, "phone figurine stays same size");
+        check(PetGeometry.defaultWidthDp("figurine", 1440, 960) == 88, "tablet figurine modestly larger");
+        check(PetGeometry.defaultWidthDp("expanded", 960, 1440) == 152, "tablet expanded follows available display");
+        check(PetGeometry.defaultWidthDp("mark", 1440, 960) == 44, "light mark never enlarged");
+        check(PetGeometry.defaultWidthDp("figurine", 500, 960) == 72, "narrow available space uses compact size");
+        System.out.println("YIYU_PET_GEOMETRY_OK: 15 geometry and adaptive sizing checks passed");
     }
 }

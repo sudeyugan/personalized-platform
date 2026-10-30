@@ -8,6 +8,7 @@
 @import './styles/folio.css';
 @import './styles/schedule.css';
 @import './styles/diary.css';
+@import './styles/tablet.css';
 :root {
   font-family: 'Noto Serif SC', 'Noto Serif CJK SC', 'Songti SC', serif;
   color: #443f37;

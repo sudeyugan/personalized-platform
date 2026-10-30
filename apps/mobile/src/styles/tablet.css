@@ -1,0 +1,93 @@
+/* Available window space, not device identity or physical pixels, determines the composition. */
+.folio-workspace { flex: 1; min-height: 0; min-width: 0; display: flex; overflow: hidden; }
+:root .mobile-app .folio-workspace > .page-content { min-width: 0; animation: none; }
+.folio-margin, .tablet-margin-toggle, .calendar-day-notes { display: none; }
+.calendar-workspace, .assignment-columns, .mood-workspace { display: grid; min-width: 0; }
+.calendar-workspace > *, .assignment-columns > *, .mood-workspace > * { min-width: 0; }
+
+@media (min-width: 840px) {
+  :root .mobile-app { --folio-gutter: clamp(28px, 4vw, 64px); }
+  :root .mobile-app .page-content > section:not(.mobile-ideas) { max-width: 1440px; margin-inline: auto; }
+  :root .mobile-app h1 { font-size: clamp(30px, 3vw, 42px); }
+  .planner-page-heading { margin-bottom: 28px; }
+  .calendar-workspace { grid-template-columns: minmax(0, 1.7fr) minmax(240px, 1fr); gap: clamp(26px, 4vw, 64px); align-items: start; }
+  .calendar-agenda { border-left: 1px solid var(--line); padding-left: 28px; margin-top: 20px; }
+  .calendar-agenda > .section-heading { align-items: center; }
+  .calendar-month .month-grid { gap: 0; border: 0; }
+  .calendar-month .month-grid > small { padding: 8px 0 16px; font-size: 12px; }
+  .calendar-month .month-grid button { aspect-ratio: auto; min-height: 90px; padding: 12px 7px; border-top: 1px solid var(--line); border-radius: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; overflow: hidden; }
+  .calendar-month .month-grid button[aria-pressed='true'] { background: var(--wash); box-shadow: inset 0 2px var(--accent); color: var(--accent); }
+  .calendar-month .month-grid button i { display: none; }
+  .calendar-day-number { font-variant-numeric: tabular-nums; }
+  .calendar-day-notes { display: grid; gap: 4px; width: 100%; text-align: left; font-size: 10px; color: var(--muted); }
+  .calendar-day-notes > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .calendar-day-notes > small { font-size: 9px; margin: 0; }
+  .assignment-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; }
+  .assignment-columns > section + section { border-left: 1px solid var(--line); padding-left: 32px; }
+  .planner-todos > .paper-card { max-width: 960px; margin-inline: auto; }
+  .planner-todos .todo-row { padding-block: 22px; }
+  .schedule-scroll { max-height: none; }
+  .schedule-table th:first-child { width: 48px; }
+  .schedule-table thead th { height: 60px; font-size: 14px; }
+  .schedule-table td { padding: 6px; height: 132px; }
+  .schedule-course { padding: 14px 10px; min-height: 116px; gap: 12px; }
+  .schedule-course strong { font-size: 14px; -webkit-line-clamp: 3; }
+  .schedule-course > span, .schedule-course > small { font-size: 12px; }
+  .diary-reading-layout { grid-template-columns: 240px minmax(0, 1fr); gap: clamp(36px, 5vw, 84px); align-items: start; }
+  .diary-date-index { grid-column: 1; grid-row: 1; border: 0; border-right: 1px solid var(--line); padding: 0 24px 0 0; }
+  .diary-open-page { grid-column: 2; grid-row: 1; max-width: 760px; width: 100%; margin-inline: auto; }
+  .diary-open-page .diary-body { font-size: 19px; line-height: 2.35; }
+  .diary-date-turner { max-width: 520px; margin: 0 auto 38px; }
+  :root .mobile-app .connection { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+  .connection > .eyebrow, .connection > h1, .connection > .notice, .connection > details { grid-column: 1 / -1; }
+  .connection > .paper-card { margin: 0; min-width: 0; }
+  :root .mobile-app .phone-chat { max-width: 820px !important; min-height: 0; padding-top: 12px; }
+  .phone-chat .chat-message { max-width: 82%; font-size: 16px; line-height: 1.9; }
+  .phone-chat .chat-compose { position: sticky; bottom: 0; background: var(--paper); padding-block: 16px; }
+  .editor-sheet { inset: max(16px, 3dvh) max(20px, calc((100vw - 940px) / 2)); border: 1px solid var(--line); border-radius: 4px 20px 4px 4px; box-shadow: 0 0 0 100vmax #20251e66; }
+  .editor-sheet[role='dialog'] > header { padding: 18px 28px; }
+  .editor-sheet .sheet-body { width: 100%; margin: 0; padding: 28px 48px 44px; }
+  textarea.diary-paper { min-height: 48dvh; }
+  .folio-index { width: min(68%, 650px); padding: 38px 52px; }
+}
+
+@media (min-width: 1100px) {
+  .folio-margin { display: block; flex: 0 0 202px; overflow: auto; padding: 28px 22px 36px 28px; border-right: 1px solid var(--line); background: linear-gradient(95deg, var(--wash), transparent); }
+  .folio-margin > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .folio-margin .eyebrow { font-size: 9px; letter-spacing: .12em; }
+  .folio-margin button { width: 100%; padding: 10px 8px; border: 0; border-radius: 0; text-align: left; display: flex; align-items: center; justify-content: space-between; font-size: 14px; }
+  .folio-margin > header button { width: auto; padding: 4px 0; font-size: 10px; }
+  .folio-margin .index-home { border-bottom: 1px solid var(--line); margin-top: 16px; padding-bottom: 18px; font-size: 12px; }
+  .folio-margin h3 { display: flex; gap: 9px; font-size: 10px; color: var(--muted); font-weight: 400; margin: 26px 0 10px; }
+  .folio-margin h3 span { color: var(--seal); }
+  .folio-margin button small { display: none; }
+  .folio-margin button svg { width: 13px; opacity: .5; }
+  .folio-margin button[aria-current='page'] { color: var(--accent); background: var(--wash); box-shadow: inset 2px 0 var(--accent); }
+  .folio-margin > p { font-size: 9px; color: var(--muted); margin-top: 36px; letter-spacing: .12em; }
+  .tablet-margin-toggle { display: inline-flex; }
+  [data-margin='closed'] .folio-margin, [data-page='ideas'] .folio-margin, [data-page='ideas'] .tablet-margin-toggle { display: none; }
+  .mood-workspace { grid-template-columns: minmax(340px, .9fr) minmax(0, 1.25fr); gap: 44px; align-items: start; }
+  .mood-writing { border-right: 1px solid var(--line); padding-right: 32px; }
+  .mood-reflection > .section-heading { margin-top: 0; }
+  .mood-entry .mood-grid { gap: 12px 6px; }
+  .mood-entry .mood-grid button { min-height: 64px; font-size: 12px; }
+  .mood-entry .mood-grid button i { width: 21px; height: 21px; }
+  :root .mobile-app .mobile-ideas { min-height: 100%; }
+  .mobile-ideas .idea-scroll-stage { max-width: 1000px; margin-inline: auto; }
+}
+@media (min-width: 1300px) {
+  .planner-todos .todo-entries { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 36px; align-items: start; }
+  .planner-todos .todo-entries > .todo-row { min-width: 0; height: 100%; border-bottom: 1px solid var(--line); }
+}
+@media (min-width: 1600px) {
+  .folio-margin { flex-basis: 230px; padding-inline: 32px; }
+  .calendar-month .month-grid button { min-height: 108px; }
+  .calendar-day-notes { font-size: 12px; }
+  .canvas-flow { gap: 90px; }
+}
+@media (min-width: 840px) and (max-height: 600px) {
+  .editor-sheet { inset-block: 8px; }
+  .folio-margin { padding-block: 12px; }
+  .folio-margin h3 { margin-top: 16px; }
+  .calendar-month .month-grid button { min-height: 72px; }
+}

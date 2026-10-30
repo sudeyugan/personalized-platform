@@ -17,6 +17,7 @@ export function Sheet({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('')
   const latest = useRef({ dirty, busy, close })
+  const panel = useRef<HTMLElement>(null)
   latest.current = { dirty, busy, close }
   const leave = () => {
     const current = latest.current
@@ -38,11 +39,18 @@ export function Sheet({
     window.addEventListener('yiyu-back', back)
     const key = (event: KeyboardEvent) => {
       if (event.key === 'Escape') back(event)
+      if (event.key !== 'Tab') return
+      const controls = Array.from(panel.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex="0"]') ?? []).filter(element => element.getClientRects().length > 0 && !element.closest('[inert]'))
+      if (!controls.length) { event.preventDefault(); panel.current?.focus(); return }
+      const first = controls[0], last = controls[controls.length - 1]
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
     }
     window.addEventListener('keydown', key)
     const app = document.querySelector<HTMLElement>('.mobile-app'),
       wasInert = app?.inert ?? false
     const focused = document.activeElement as HTMLElement | null
+    panel.current?.querySelector<HTMLButtonElement>('button')?.focus()
     if (app) app.inert = true
     const original = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -58,7 +66,7 @@ export function Sheet({
     }
   }, [])
   return createPortal(
-    <section className="editor-sheet" role="dialog" aria-modal="true" aria-label={title}>
+    <section ref={panel} tabIndex={-1} className="editor-sheet" role="dialog" aria-modal="true" aria-label={title}>
       <header>
         <button onClick={leave} disabled={busy}>
           返回

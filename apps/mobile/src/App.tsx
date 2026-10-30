@@ -17,6 +17,7 @@ import { SettingsPage } from './pages/SettingsPage'
 import { Chat } from './Chat'
 import { mobilePage, pageLabels, parentPage } from './navigation'
 import { PageIndex } from './components/PageIndex'
+import { FolioLinks } from './components/FolioLinks'
 import './native'
 import { VoiceCoordinator } from './companion/voice'
 const IdeasPage = lazy(() => import('./pages/IdeasPage'))
@@ -29,6 +30,7 @@ export default function App() {
   const [ready, setReady] = useState(false),
     [message, setMessage] = useState('')
   const [indexOpen, setIndexOpen] = useState(false)
+  const [marginOpen, setMarginOpen] = useState(true)
   const closeIndex = useCallback(() => setIndexOpen(false), [])
   const [searching, setSearching] = useState(false),
     [query, setQuery] = useState(''),
@@ -110,7 +112,7 @@ export default function App() {
   const secondary = page !== 'home'
   const matches = searchable(snapshot.records, query)
   return (
-    <div className="mobile-app">
+    <div className="mobile-app" data-page={page} data-margin={marginOpen ? 'open' : 'closed'}>
       <VoiceCoordinator />
       <header className="app-bar">
         <div className="brand">
@@ -158,6 +160,12 @@ export default function App() {
           )}
         </div>
       )}
+      <div className="folio-workspace">
+        <nav className="folio-margin" aria-label="常用卷目">
+          <header><span className="eyebrow">卷目 · 随手翻阅</span><button className="text-button" aria-label="收起大屏卷目" onClick={() => setMarginOpen(false)}>收起</button></header>
+          <FolioLinks current={page} go={go}/>
+          <p>各有一页，同在一隅。</p>
+        </nav>
       <main key={page} ref={content} className="page-content">
         {searching ? (
           <section>
@@ -214,7 +222,8 @@ export default function App() {
           </Suspense>
         )}
       </main>
-      <footer className="folio-foot"><span>各有一页，同在一隅。</span><button className="folio-bookmark" aria-label="展开功能索引" aria-expanded={indexOpen} aria-controls="folio-index" onClick={() => setIndexOpen(true)}><Bookmark size={19} strokeWidth={1.5}/><span>卷目</span></button></footer>
+      </div>
+      <footer className="folio-foot"><span>各有一页，同在一隅。</span><div className="toolbar"><button className="tablet-margin-toggle text-button" aria-label="切换大屏卷目" aria-pressed={marginOpen} onClick={() => setMarginOpen(!marginOpen)}>{marginOpen ? '收起页边卷目' : '展开页边卷目'}</button><button className="folio-bookmark" aria-label="展开功能索引" aria-expanded={indexOpen} aria-controls="folio-index" onClick={() => setIndexOpen(true)}><Bookmark size={19} strokeWidth={1.5}/><span>卷目</span></button></div></footer>
       {indexOpen && <PageIndex current={page} go={go} close={closeIndex}/>}
     </div>
   )

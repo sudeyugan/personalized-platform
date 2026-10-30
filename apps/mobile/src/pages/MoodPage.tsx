@@ -40,6 +40,8 @@ export default function MoodPage({
     <section className="mood-page">
       <p className="eyebrow">不急着解释，只给感受一点位置</p>
       <h1>此刻，是什么颜色？</h1>
+      <div className="mood-workspace">
+      <div className="mood-writing">
       <label>
         记录日期
         <input
@@ -123,6 +125,8 @@ export default function MoodPage({
           </button>
         </div>
       </section>
+      </div>
+      <div className="mood-reflection">
       <header className="section-heading">
         <h2>回望，不下结论</h2>
         <div className="segments">
@@ -190,6 +194,8 @@ export default function MoodPage({
           <p className="muted">这一天还没有记录，不推断未记录的心情。</p>
         )}
       </section>
+      </div>
+      </div>
     </section>
   )
 }

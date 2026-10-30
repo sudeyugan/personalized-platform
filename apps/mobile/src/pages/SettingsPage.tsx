@@ -20,6 +20,7 @@ export function SettingsPage({
     [apiKey, setApiKey] = useState(''),
     [message, setMessage] = useState('')
   const [inherit, setInherit] = useState(true)
+  const [deviceName, setDeviceName] = useState('我的安卓设备')
   return (
     <section className="connection">
       <p className="eyebrow">在这里安顿，也随你同行</p>
@@ -76,6 +77,7 @@ export function SettingsPage({
           </>
         ) : (
           <>
+            <label>这台设备的称呼<input aria-label="设备名称" maxLength={60} value={deviceName} onChange={event => setDeviceName(event.target.value)}/></label>
             <label>
               在电脑「数据管理」生成邀请，粘贴到这里
               <textarea
@@ -88,10 +90,10 @@ export function SettingsPage({
             <label><input type="checkbox" checked={inherit} onChange={event => setInherit(event.target.checked)}/>连接后申请沿用对话模型配置（需已有设备批准）</label>
             <button
               className="primary"
-              disabled={!invitation.trim()}
+              disabled={!invitation.trim() || !deviceName.trim()}
               onClick={() =>
                 void action(async () => {
-                  await join(invitation, '我的手机')
+                  await join(invitation, deviceName.trim())
                   setInvitation('')
                   const connected = getSnapshot().state
                   if (inherit && connected) await mobileConfigHandoff(connected.config)?.request(['model'], true)
@@ -103,14 +105,14 @@ export function SettingsPage({
           </>
         )}
         <p className="footnote">
-          手机有自己的离线资料。邀请含密钥，请勿公开；同步不替代备份。远端使用受信任 HTTPS，无需同一
+          每台设备有自己的离线资料。邀请含密钥，请勿公开；同步不替代备份。远端使用受信任 HTTPS，无需同一
           Wi-Fi 或安装 VPN；服务器仍需单独准备。
         </p>
       </section>
       <CompanionSettings />
       <VoiceSettings />
       <section className="paper-card">
-        <h2>手机的对话模型</h2>
+        <h2>这台设备的对话模型</h2>
         <label>
           DeepSeek API Key
           <input
@@ -125,10 +127,10 @@ export function SettingsPage({
           onClick={() => {
             const ok = window.YiyuMobile?.saveApiKey(apiKey.trim())
             setApiKey('')
-            setMessage(ok ? '手机模型密钥已更新。' : '保存失败，原设置未确认改变。')
+            setMessage(ok ? '本机模型密钥已更新。' : '保存失败，原设置未确认改变。')
           }}
         >
-          保存手机密钥
+          保存本机密钥
         </button>
         <p className="footnote">
           仅存 Android Keystore
@@ -136,9 +138,9 @@ export function SettingsPage({
         </p>
       </section>
       <details className="paper-card">
-        <summary>手机与电脑的能力边界</summary>
+        <summary>安卓设备与电脑的能力边界</summary>
         <p>
-          手机保留：待办、作业、课表/日程、日记、心情记录与回望、想法工坊和小鱼对话。未选模块不在手机提供入口，PC功能与旧资料不删除。
+          手机与平板保留：待办、作业、课表/日程、日记、心情记录与回望、想法工坊和小鱼对话。未选模块不提供入口，PC功能与旧资料不删除。
         </p>
         <p>
           仍未迁移：本地图片／音乐附件与歌词、作品级加密库、版本备份管理、PC专用浏览器与电脑操作、摄像头／永久语音唤醒、心率设备。已有文字和引用保留，不把缺失附件伪装成已同步；跨设备执行将在后续阶段单独授权实现。

@@ -2,6 +2,10 @@ package com.yiyu.mobile;
 
 /** Pure geometry: no display, permissions or user data dependencies. */
 final class PetGeometry {
+    static int defaultWidthDp(String style, int availableWidthDp, int availableHeightDp) {
+        boolean large = Math.min(availableWidthDp, availableHeightDp) >= 600;
+        return "mark".equals(style) ? 44 : "expanded".equals(style) ? (large ? 152 : 128) : (large ? 88 : 72);
+    }
     static final class Area {
         final int left, top, right, bottom;
         Area(int left, int top, int right, int bottom) {
